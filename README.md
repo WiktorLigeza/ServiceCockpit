@@ -4,7 +4,7 @@ An application for viewing and managing services on Linux, providing an intuitiv
 
 ![Main](https://github.com/WiktorLigeza/ServiceCockpit/blob/main/cockpit.png)
 
-
+created on: Python 3.11.2
 
 TODO List:
 - improve the console output formatting
