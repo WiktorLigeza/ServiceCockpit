@@ -156,11 +156,20 @@ const serviceSocket = io({
     timeout: 20000
 });
 
-
 function controlService(service, action) {
     serviceSocket.emit('service_action', {service, action});
     console.log('Control Service:', service, action);
 }
+
+// Add error handling for socket connection
+serviceSocket.on('connect_error', (error) => {
+    console.error('Socket connection error:', error);
+    showLoading('services-container');
+});
+
+serviceSocket.on('error', (error) => {
+    console.error('Socket error:', error);
+});
 
 serviceSocket.on('update_services', data => {
     updateServices(data.services);

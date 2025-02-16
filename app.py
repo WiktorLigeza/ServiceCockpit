@@ -8,7 +8,11 @@ import os
 import psutil
 
 app = Flask(__name__, static_folder='static')
-socketio = SocketIO(app)
+socketio = SocketIO(app, 
+                   cors_allowed_origins="*",
+                   async_mode='threading',
+                   ping_timeout=20,
+                   ping_interval=5)
 
 CONFIG_FILE = 'config.json'
 
@@ -104,12 +108,4 @@ if __name__ == '__main__':
     update_thread.daemon = True
     update_thread.start()
     
-    socketio = SocketIO(app, 
-                       host='0.0.0.0',
-                       port=2137,
-                       debug=True,
-                       cors_allowed_origins="*",
-                       async_mode='threading',
-                       ping_timeout=20,
-                       ping_interval=5)
-    socketio.run(app)
+    socketio.run(app, host='0.0.0.0', port=2137, debug=True)
