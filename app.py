@@ -53,15 +53,25 @@ def system_metrics():
     return jsonify(get_system_metrics())
 
 def background_update():
+    last_services = None
+    last_metrics = None
+    
     while True:
         try:
             current_services = SystemdManager.get_all_services()
             current_metrics = get_system_metrics()
             
-            socketio.emit('update_services', {'services': current_services}, namespace='/')
-            socketio.emit('update_metrics', current_metrics, namespace='/')
+            # Only emit services update if there are changes
+            if last_services != current_services:
+                socketio.emit('update_services', {'services': current_services}, namespace='/')
+                last_services = current_services
+            
+            # Only emit metrics update if there are changes
+            if last_metrics != current_metrics:
+                socketio.emit('update_metrics', current_metrics, namespace='/')
+                last_metrics = current_metrics
                 
-            socketio.sleep(5)  # Use socketio.sleep instead of time.sleep
+            socketio.sleep(2)
             
         except Exception as e:
             print(f"Error in background update: {e}")
@@ -70,7 +80,6 @@ def background_update():
 @app.route('/')
 def index():
     return render_template('services.html')
-
 
 @app.route('/journal/<service>')
 def get_journal(service):
