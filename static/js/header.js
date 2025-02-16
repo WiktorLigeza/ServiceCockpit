@@ -32,13 +32,13 @@ function updateMetrics(data) {
     const cpuTemp = document.querySelector('#cpu-temp');
     cpuTemp.querySelector('.metric-value').textContent = `${data.cpu_temp}°C`;
     cpuTemp.querySelector('i').style.color = getColorForValue(data.cpu_temp, 'cpu');
-    cpuTemp.querySelector('.tooltip').textContent = `CPU Temperature: ${data.cpu_temp}°C`;
+    cpuTemp.querySelector('.tooltip span').textContent = `CPU Temperature: ${data.cpu_temp}°C`;
 
     // Memory Usage
     const memoryUsage = document.querySelector('#memory-usage');
     memoryUsage.querySelector('.metric-value').textContent = `${data.memory_percent}%`;
     memoryUsage.querySelector('i').style.color = getColorForValue(data.memory_percent, 'memory');
-    memoryUsage.querySelector('.tooltip').textContent = 
+    memoryUsage.querySelector('.tooltip span').textContent = 
         `Memory: ${data.memory_used}GB used / ${data.memory_total}GB total\n` +
         `(${data.memory_free}GB free)`;
 
@@ -46,7 +46,7 @@ function updateMetrics(data) {
     const storageUsage = document.querySelector('#storage-usage');
     storageUsage.querySelector('.metric-value').textContent = `${data.storage_percent}%`;
     storageUsage.querySelector('i').style.color = getColorForValue(data.storage_percent, 'storage');
-    storageUsage.querySelector('.tooltip').textContent = 
+    storageUsage.querySelector('.tooltip span').textContent = 
         `Storage: ${data.storage_used}GB used / ${data.storage_total}GB total\n` +
         `(${data.storage_free}GB free)`;
 }

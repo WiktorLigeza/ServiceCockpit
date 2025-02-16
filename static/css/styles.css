@@ -8,6 +8,7 @@ body {
 .service-card {
     margin-bottom: 1rem;
     transition: all 0.3s ease;
+    position: relative;
 }
 
 .service-card:hover {
@@ -31,6 +32,7 @@ body {
     overflow: hidden;      /* Add this to contain the flex items */
     flex: 1;
     min-width: 0;
+    position: relative;
 }
 
 .section-title {
@@ -48,7 +50,6 @@ body {
     position: sticky;
     top: 0;
     padding: 10px;
-    z-index: 100;
 }
 
 .search-container input {
@@ -141,6 +142,7 @@ body {
     width: 100%;      /* Ensure cards take full width */
     min-width: 0;        /* Add this line */
     flex-shrink: 0;
+    position: relative;
 }
 
 .row {
@@ -176,7 +178,6 @@ body {
     font-size: 1.5rem;
     cursor: pointer;
     padding: 5px;
-    z-index: 10;
     transition: transform 0.2s;
 }
 .star-btn:hover {
