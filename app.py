@@ -86,7 +86,7 @@ def background_update():
 
 @app.route('/')
 def index():
-    return render_template('index.html')
+    return render_template('services.html')
 
 @app.route('/journal/<service>')
 def get_journal(service):
