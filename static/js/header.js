@@ -26,6 +26,7 @@ function getColorForValue(value, type) {
 }
 
 function updateMetrics(data) {
+    console.log('Updating metrics:', data);
     // CPU Temperature
     const cpuTemp = document.querySelector('#cpu-temp');
     cpuTemp.querySelector('.metric-value').textContent = `${data.cpu_temp}°C`;
@@ -43,6 +44,14 @@ function updateMetrics(data) {
 }
 
 // Socket.io connection
-const socket = io();
-window.socket = socket;
-socket.on('update_metrics', updateMetrics);
+const headerSocket = io();
+headerSocket.on('update_metrics', updateMetrics);
+
+headerSocket.on('connect', () => {
+    // Show loading state for system stats
+    ['cpu-temp', 'memory-usage', 'storage-usage'].forEach(id => {
+        const element = document.querySelector(`#${id}`);
+        element.querySelector('.metric-value').textContent = 'Loading...';
+        element.querySelector('i').style.color = '#808080'; // Gray color for loading state
+    });
+});

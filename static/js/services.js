@@ -148,11 +148,13 @@ function updateServices(services) {
     }
 }
 
+const serviceSocket = io();
+
 function controlService(service, action) {
-    socket.emit('service_action', {service, action});
+    serviceSocket.emit('service_action', {service, action});
 }
 
-socket.on('update_services', data => {
+serviceSocket.on('update_services', data => {
     updateServices(data.services);
 });
 
@@ -164,7 +166,7 @@ favoritesSearchInput.addEventListener('input', () => {
     if (!isLoading) updateServices(lastServicesData);
 });
 
-socket.on('connect', () => {
+serviceSocket.on('connect', () => {
     showLoading('services-container');
     showLoading('favorites-container');
     loadFavorites();
