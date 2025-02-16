@@ -45,7 +45,13 @@ def get_system_metrics():
     return {
         'cpu_temp': cpu_temp,
         'memory_percent': memory.percent,
-        'storage_percent': disk.percent
+        'memory_used': round(memory.used / (1024 * 1024 * 1024), 2),  # GB
+        'memory_free': round(memory.available / (1024 * 1024 * 1024), 2),  # GB
+        'memory_total': round(memory.total / (1024 * 1024 * 1024), 2),  # GB
+        'storage_percent': disk.percent,
+        'storage_used': round(disk.used / (1024 * 1024 * 1024), 2),  # GB
+        'storage_free': round(disk.free / (1024 * 1024 * 1024), 2),  # GB
+        'storage_total': round(disk.total / (1024 * 1024 * 1024), 2)  # GB
     }
 
 @app.route('/system_metrics')

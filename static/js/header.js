@@ -27,20 +27,28 @@ function getColorForValue(value, type) {
 
 function updateMetrics(data) {
     console.log('Updating metrics:', data);
+    
     // CPU Temperature
     const cpuTemp = document.querySelector('#cpu-temp');
     cpuTemp.querySelector('.metric-value').textContent = `${data.cpu_temp}°C`;
     cpuTemp.querySelector('i').style.color = getColorForValue(data.cpu_temp, 'cpu');
+    cpuTemp.querySelector('.tooltip').textContent = `CPU Temperature: ${data.cpu_temp}°C`;
 
     // Memory Usage
     const memoryUsage = document.querySelector('#memory-usage');
     memoryUsage.querySelector('.metric-value').textContent = `${data.memory_percent}%`;
     memoryUsage.querySelector('i').style.color = getColorForValue(data.memory_percent, 'memory');
+    memoryUsage.querySelector('.tooltip').textContent = 
+        `Memory: ${data.memory_used}GB used / ${data.memory_total}GB total\n` +
+        `(${data.memory_free}GB free)`;
 
     // Storage Usage
     const storageUsage = document.querySelector('#storage-usage');
     storageUsage.querySelector('.metric-value').textContent = `${data.storage_percent}%`;
     storageUsage.querySelector('i').style.color = getColorForValue(data.storage_percent, 'storage');
+    storageUsage.querySelector('.tooltip').textContent = 
+        `Storage: ${data.storage_used}GB used / ${data.storage_total}GB total\n` +
+        `(${data.storage_free}GB free)`;
 }
 
 // Socket.io connection with better error handling
