@@ -76,11 +76,38 @@ function createServiceCard(service, container = 'all') {
                                 onclick="controlService('${service.name}', 'restart')" title="Restart Service">
                             <i class="fas fa-sync-alt"></i>
                         </button>
+                        <button class="btn btn-sm btn-danger"
+                                onclick="deleteService(event, '${service.name}')" title="Delete Service">
+                            <i class="fas fa-trash"></i>
+                        </button>
                     </div>
                 </div>
             </div>
         </div>
     `;
+}
+
+async function deleteService(event, serviceName) {
+    event.stopPropagation();
+    if (confirm(`Are you sure you want to delete ${serviceName}?`)) {
+        try {
+            const response = await fetch(`/service/${serviceName}`, {
+                method: 'DELETE'
+            });
+            if (response.ok) {
+                if (favorites.has(serviceName)) {
+                    favorites.delete(serviceName);
+                    await saveFavorites();
+                }
+                // The service list will be updated automatically through the socket
+            } else {
+                alert('Failed to delete service');
+            }
+        } catch (error) {
+            console.error('Error deleting service:', error);
+            alert('Error deleting service');
+        }
+    }
 }
 
 async function selectService(serviceName) {

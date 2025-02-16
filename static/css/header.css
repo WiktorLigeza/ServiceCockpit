@@ -47,22 +47,21 @@
     height: 100%;
     display: flex;
     justify-content: center;
-    align-items: center;
+    align-items: flex-start;
     gap: 2rem;
 }
 
 .nav-item {
-    background: rgba(255, 255, 255, 0.1);
-    border-radius: 8px;
+    border-radius: 8px 8px 0 0;
     padding: 8px 16px;
-    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    min-width: 100px;
+    margin-bottom: 0;
+    box-shadow: 0 -5px 5px rgba(0, 0, 0, 0.5);
     transition: all 0.3s ease;
 }
 
 .nav-item:hover {
-    background: rgba(255, 255, 255, 0.2);
-    transform: translateY(-2px);
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    box-shadow: 0 -2px 5px rgba(140, 0, 255, 0.8);
 }
 
 .nav-item a {
@@ -75,7 +74,8 @@
 }
 
 .nav-item a:hover {
-    color: #3498db;
+    text-shadow: 0 0 10px rgba(140, 0, 255, 0.8);
+    
 }
 
 .nav-item i {

@@ -52,3 +52,17 @@ class SystemdManager:
             return result.stdout
         except:
             return "Error fetching logs"
+
+    @staticmethod
+    def delete_service(service_name):
+        try:
+            # First stop and disable the service
+            subprocess.run(['sudo', 'systemctl', 'stop', service_name], check=True)
+            subprocess.run(['sudo', 'systemctl', 'disable', service_name], check=True)
+            # Remove the service file
+            subprocess.run(['sudo', 'rm', f'/etc/systemd/system/{service_name}'], check=True)
+            # Reload systemd
+            subprocess.run(['sudo', 'systemctl', 'daemon-reload'], check=True)
+            return True
+        except:
+            return False

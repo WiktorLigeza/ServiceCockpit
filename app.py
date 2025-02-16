@@ -97,6 +97,15 @@ def update_favorites():
     save_favorites(new_favorites)
     return jsonify(success=True)
 
+@app.route('/service/<service>', methods=['DELETE'])
+def delete_service(service):
+    success = SystemdManager.delete_service(service)
+    if success:
+        services = SystemdManager.get_all_services()
+        socketio.emit('update_services', {'services': services})
+        return jsonify(success=True)
+    return jsonify(success=False), 400
+
 @socketio.on('connect')
 def handle_connect():
     services = SystemdManager.get_all_services()
