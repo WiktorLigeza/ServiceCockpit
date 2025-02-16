@@ -1,11 +1,11 @@
-from flask import Flask, render_template
+from flask import Flask, render_template, url_for
 from flask_socketio import SocketIO
 import subprocess
 from datetime import datetime
 import threading
 import time
 
-app = Flask(__name__)
+app = Flask(__name__, static_folder='static')
 socketio = SocketIO(app)
 
 class SystemdManager:

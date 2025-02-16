@@ -1,0 +1,292 @@
+body {
+    background: linear-gradient(135deg, #2a0845 0%, #191970 100%);
+    height: 100vh;
+    margin: 0;
+    overflow: hidden;
+}
+
+.service-card {
+    margin-bottom: 1rem;
+    transition: all 0.3s ease;
+}
+
+.service-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(76, 0, 255, 0.678);
+}
+
+.service-card .card {
+    background: rgba(0, 0, 0, 0.11);
+    color: #fff;
+}
+
+.services-side, .favorites-side, .journal-side {
+    display: flex;
+    flex-direction: column;
+    background: transparent;
+    backdrop-filter: blur(10px);
+    border-radius: 12px;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.5);
+    height: 100%;          /* Changed from max-height to height */
+    overflow: hidden;      /* Add this to contain the flex items */
+}
+
+.section-title {
+    color: #bdbdbd;
+    text-shadow: 0 0 10px rgba(0,255,255,0.3);
+    font-weight: bold;
+    background: transparent;
+    margin: 1rem;
+    flex-shrink: 0;
+}
+
+.search-container {
+    background: transparent;
+    flex-shrink: 0;
+    position: sticky;
+    top: 0;
+    padding: 10px;
+    z-index: 100;
+}
+
+.search-container input {
+    background: rgba(0,0,0,0.2);
+    color: #fff;
+    border: 1px solid rgba(255,255,255,0.1);
+}
+
+.search-container input::placeholder {
+    color: rgba(255,255,255,0.5);
+}
+
+.search-container input:focus {
+    background: rgba(0,0,0,0.5);
+    color: #fff;
+    border-color: #00ffff;
+    box-shadow: 0 0 0 0.2rem rgba(0,255,255,0.25);
+}
+
+.journal-container {
+    color: #dadada;
+    background: rgba(30, 30, 30, 0.1);
+    border-radius: 8px;
+    flex: 1;              /* Take remaining space */
+    overflow-y: auto;     /* Enable vertical scrolling */
+    overflow-x: hidden;   /* Prevent horizontal scrolling */
+    white-space: pre-wrap;/* Preserve log formatting */
+    padding: 1rem;
+}
+
+.loading-spinner {
+    color: #00ffff;
+}
+
+.star-btn i {
+    color: #00ffff;
+    opacity: 0.7;
+}
+
+.star-btn i.fas {
+    color: #00ffff;
+    opacity: 1;
+}
+
+.status-dot {
+    height: 12px;
+    width: 12px;
+    border-radius: 50%;
+    display: inline-block;
+    margin-right: 5px;
+}
+.active { background-color: #28a745; }
+.inactive { background-color: #dc3545; }
+.search-box {
+    margin: 20px 0;
+    padding: 10px;
+    border-radius: 5px;
+}
+.main-container {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    height: 100vh;
+    gap: 1rem;
+    padding: 1rem;
+    box-sizing: border-box;
+}
+
+#services-container, #favorites-container {
+    flex: 1;              /* Take remaining space */
+    overflow-y: auto;     /* Enable vertical scrolling */
+    overflow-x: hidden;   /* Prevent horizontal scrolling */
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    width: 100%;
+}
+
+/* Remove row class styles and add container styles */
+.services-container, .favorites-container {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.service-card {
+    margin-bottom: 0;  /* Remove bottom margin since we're using gap */
+    width: 100%;      /* Ensure cards take full width */
+    min-width: 0;        /* Add this line */
+    flex-shrink: 0;
+}
+
+.row {
+    margin: 0;        /* Remove default row margins */
+    width: 100%;      /* Ensure row takes full width */
+}
+
+#services-container::-webkit-scrollbar,
+#favorites-container::-webkit-scrollbar,
+#journal-container::-webkit-scrollbar {
+    width: 6px;
+}
+
+#services-container::-webkit-scrollbar-track,
+#favorites-container::-webkit-scrollbar-track,
+#journal-container::-webkit-scrollbar-track {
+    background: rgba(0,0,0,0.1);
+}
+
+#services-container::-webkit-scrollbar-thumb,
+#favorites-container::-webkit-scrollbar-thumb,
+#journal-container::-webkit-scrollbar-thumb {
+    background-color: #00ffff;
+    border-radius: 3px;
+}
+
+.star-btn {
+    position: absolute;
+    right: 10px;
+    top: 10px;
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    cursor: pointer;
+    padding: 5px;
+    z-index: 10;
+    transition: transform 0.2s;
+}
+.star-btn:hover {
+    transform: scale(1.2);
+}
+.card {
+    position: relative;
+    width: 100%;         /* Add this line */
+    min-width: 0;        /* Add this line */
+}
+.selected-service {
+    box-shadow: 0 4px 12px rgba(76, 0, 255, 0.678);
+}
+.loading-spinner {
+    text-align: center;
+    padding: 2rem;
+}
+.loading-spinner i {
+    font-size: 2rem;
+    animation: spin 1s linear infinite;
+}
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+.journal-loading {
+    font-style: italic;
+    color: #00ccff;
+}
+
+.card-body {
+    padding: 1rem;
+    width: 100%;         /* Add this line */
+    min-width: 0;        /* Add this line */
+}
+
+/* Ensure buttons don't cause horizontal scroll */
+.btn-group {
+    display: flex;
+    flex-wrap: nowrap;   /* Add this line */
+    width: 100%;
+}
+
+.btn-group .btn {
+    flex: 1;
+    padding: 0.375rem 0.5rem;  /* Slightly reduce padding */
+    font-size: 0.875rem;       /* Slightly reduce font size */
+    white-space: nowrap;
+}
+
+/* Update button group styles */
+.btn-group {
+    display: flex;
+    gap: 0.8rem;        /* Increased gap between buttons */
+    flex-wrap: nowrap;
+    width: 100%;
+    padding: 0.5rem 0;
+}
+
+.btn-group .btn {
+    flex: 0 1 auto;
+    padding: 0.375rem 0.75rem;
+    font-size: 1rem;
+    min-width: 45px;    /* Reduced minimum width */
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+}
+
+/* Power button styles */
+.btn-power i {
+    color: #808080;
+    transition: all 0.3s ease;
+}
+
+.btn-power.active i {
+    color: #00f7ff;
+    filter: drop-shadow(0 0 8px #00ffff);
+}
+
+/* Start/Stop button styles */
+.btn-success i {
+    color: #28a745;
+    filter: drop-shadow(0 0 5px rgba(40, 167, 69, 0.5));
+}
+
+.btn-danger i {
+    color: #dc3545;
+    filter: drop-shadow(0 0 5px rgba(220, 53, 69, 0.5));
+}
+
+/* Restart button styles */
+.btn-warning i {
+    color: #ffc107;
+    filter: drop-shadow(0 0 5px rgba(255, 193, 7, 0.5));
+}
+
+.btn:hover i {
+    transform: scale(1.2);
+    transition: transform 0.2s ease;
+}
+
+/* Power button styles */
+.btn-power {
+    color: #808080 !important;
+}
+
+.btn-power.active {
+    color: #00f7ff !important;
+    filter: drop-shadow(0 0 10px #00ffff);
+}
+
+/* Add space for icons */
+.btn i {
+    margin-right: 4px;
+}
