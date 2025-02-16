@@ -43,8 +43,14 @@ function updateMetrics(data) {
     storageUsage.querySelector('i').style.color = getColorForValue(data.storage_percent, 'storage');
 }
 
-// Socket.io connection
-const headerSocket = io();
+// Socket.io connection with better error handling
+const headerSocket = io({
+    reconnection: true,
+    reconnectionAttempts: 5,
+    reconnectionDelay: 1000,
+    timeout: 20000
+});
+
 headerSocket.on('update_metrics', updateMetrics);
 
 headerSocket.on('connect', () => {
@@ -54,4 +60,17 @@ headerSocket.on('connect', () => {
         element.querySelector('.metric-value').textContent = 'Loading...';
         element.querySelector('i').style.color = '#808080'; // Gray color for loading state
     });
+});
+
+headerSocket.on('connect_error', (error) => {
+    console.error('Connection error:', error);
+    ['cpu-temp', 'memory-usage', 'storage-usage'].forEach(id => {
+        const element = document.querySelector(`#${id}`);
+        element.querySelector('.metric-value').textContent = 'Connection error';
+        element.querySelector('i').style.color = '#ff0000';
+    });
+});
+
+headerSocket.on('reconnect', (attemptNumber) => {
+    console.log('Reconnected after', attemptNumber, 'attempts');
 });

@@ -121,6 +121,7 @@ async function updateJournal(serviceName) {
 let lastServicesData = [];
 
 function updateServices(services) {
+    console.log('Updating Services:', services);
     isLoading = false;
     lastServicesData = services;
     
@@ -148,10 +149,17 @@ function updateServices(services) {
     }
 }
 
-const serviceSocket = io();
+const serviceSocket = io({
+    reconnection: true,
+    reconnectionAttempts: 5,
+    reconnectionDelay: 1000,
+    timeout: 20000
+});
+
 
 function controlService(service, action) {
     serviceSocket.emit('service_action', {service, action});
+    console.log('Control Service:', service, action);
 }
 
 serviceSocket.on('update_services', data => {

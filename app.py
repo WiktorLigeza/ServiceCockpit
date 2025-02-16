@@ -50,16 +50,23 @@ def system_metrics():
 
 def background_update():
     while True:
-        services = SystemdManager.get_all_services()
-        metrics = get_system_metrics()
-        socketio.emit('update_services', {'services': services})
-        socketio.emit('update_metrics', metrics)
-        print('Updating services and metrics')
-        time.sleep(5)
+        try:
+            current_services = SystemdManager.get_all_services()
+            current_metrics = get_system_metrics()
+            
+            socketio.emit('update_services', {'services': current_services}, namespace='/')
+            socketio.emit('update_metrics', current_metrics, namespace='/')
+                
+            socketio.sleep(5)  # Use socketio.sleep instead of time.sleep
+            
+        except Exception as e:
+            print(f"Error in background update: {e}")
+            socketio.sleep(5)
 
 @app.route('/')
 def index():
     return render_template('services.html')
+
 
 @app.route('/journal/<service>')
 def get_journal(service):
@@ -86,6 +93,7 @@ def handle_connect():
 def handle_service_action(data):
     service = data['service']
     action = data['action']
+    print(f"Service action: {service} - {action}")
     success = SystemdManager.control_service(service, action)
     if success:
         services = SystemdManager.get_all_services()
@@ -95,4 +103,13 @@ if __name__ == '__main__':
     update_thread = threading.Thread(target=background_update)
     update_thread.daemon = True
     update_thread.start()
-    socketio.run(app, host='0.0.0.0', port=2137, debug=True)
+    
+    socketio = SocketIO(app, 
+                       host='0.0.0.0',
+                       port=2137,
+                       debug=True,
+                       cors_allowed_origins="*",
+                       async_mode='threading',
+                       ping_timeout=20,
+                       ping_interval=5)
+    socketio.run(app)
