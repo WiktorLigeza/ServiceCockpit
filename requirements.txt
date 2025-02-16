@@ -1,0 +1,5 @@
+Flask
+Flask-SocketIO
+systemd-python
+python-engineio
+eventlet
