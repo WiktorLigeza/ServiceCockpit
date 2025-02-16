@@ -1,4 +1,3 @@
-const socket = io();
 const servicesContainer = document.getElementById('services-container');
 const searchInput = document.getElementById('searchInput');
 let selectedService = null;

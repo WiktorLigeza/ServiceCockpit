@@ -6,6 +6,7 @@ import threading
 import time
 import json
 import os
+import psutil
 
 app = Flask(__name__, static_folder='static')
 socketio = SocketIO(app)
@@ -78,10 +79,35 @@ class SystemdManager:
         except:
             return "Error fetching logs"
 
+def get_cpu_temp():
+    try:
+        with open('/sys/class/thermal/thermal_zone0/temp', 'r') as f:
+            temp = float(f.read()) / 1000.0
+        return round(temp, 1)
+    except:
+        return 0
+
+def get_system_metrics():
+    cpu_temp = get_cpu_temp()
+    memory = psutil.virtual_memory()
+    disk = psutil.disk_usage('/')
+    
+    return {
+        'cpu_temp': cpu_temp,
+        'memory_percent': memory.percent,
+        'storage_percent': disk.percent
+    }
+
+@app.route('/system_metrics')
+def system_metrics():
+    return jsonify(get_system_metrics())
+
 def background_update():
     while True:
         services = SystemdManager.get_all_services()
+        metrics = get_system_metrics()
         socketio.emit('update_services', {'services': services})
+        socketio.emit('update_metrics', metrics)
         time.sleep(5)
 
 @app.route('/')
