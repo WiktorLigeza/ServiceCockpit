@@ -2,9 +2,4 @@ An application for viewing and managing services on Linux, providing an intuitiv
 
 ## Architecture
 
-ServiceCTRL interacts with systemd, which is the system and service manager for Linux. Here's a high-level overview of systemd's architecture:
-
-![Systemd Architecture](https://raw.githubusercontent.com/systemd/systemd/main/docs/architecture.svg)
-
-This diagram shows how systemd manages various system services and how ServiceCTRL interfaces with it through the systemd API.
-
+![Main](https://github.com/WiktorLigeza/ServiceCockpit/blob/main/SYSTEM%20MD.png)
