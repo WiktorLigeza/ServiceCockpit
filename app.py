@@ -6,6 +6,10 @@ import time
 import json
 import os
 import psutil
+import subprocess
+import shlex
+import threading
+from queue import Queue
 
 app = Flask(__name__, static_folder='static')
 socketio = SocketIO(app, 
@@ -15,6 +19,77 @@ socketio = SocketIO(app,
                    ping_interval=5)
 
 CONFIG_FILE = 'config.json'
+
+ALLOWED_COMMANDS = {
+    'ls': '/bin/ls',
+    'ps': '/bin/ps',
+    'df': '/bin/df',
+    'free': '/usr/bin/free',
+    'top': '/usr/bin/top',
+    'systemctl': '/bin/systemctl',
+    'journalctl': '/bin/journalctl',
+    'cat': '/bin/cat',
+    'grep': '/bin/grep',
+    'uptime': '/usr/bin/uptime',
+    'who': '/usr/bin/who',
+    'date': '/bin/date',
+    'pwd': '/bin/pwd',
+}
+
+class CommandExecutor:
+    @staticmethod
+    def execute_command(command, socket_id):
+        try:
+            # Parse the command
+            args = shlex.split(command)
+            if not args:
+                return "Error: Empty command"
+
+            base_command = args[0]
+            if base_command not in ALLOWED_COMMANDS:
+                return f"Error: Command '{base_command}' not allowed"
+
+            # Replace the command with the full path
+            args[0] = ALLOWED_COMMANDS[base_command]
+
+            # Special handling for potentially dangerous commands
+            if base_command in ['systemctl', 'journalctl']:
+                if not all(arg.isalnum() or arg in ['-', '_', '.'] for arg in args[1:]):
+                    return "Error: Invalid characters in arguments"
+
+            # Execute the command
+            process = subprocess.Popen(
+                args,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                bufsize=1,
+                universal_newlines=True
+            )
+
+            # Stream output in real-time
+            while True:
+                output = process.stdout.readline()
+                if output:
+                    socketio.emit('console_output', {'output': output.strip()}, room=socket_id)
+                    socketio.sleep(0)
+                
+                error = process.stderr.readline()
+                if error:
+                    socketio.emit('console_output', {'output': f"Error: {error.strip()}"}, room=socket_id)
+                    socketio.sleep(0)
+                
+                if output == '' and error == '' and process.poll() is not None:
+                    break
+
+            return_code = process.poll()
+            if return_code != 0:
+                socketio.emit('console_output', 
+                            {'output': f"Command exited with status {return_code}"}, 
+                            room=socket_id)
+
+        except Exception as e:
+            return f"Error executing command: {str(e)}"
 
 def load_config():
     if not os.path.exists(CONFIG_FILE):
@@ -126,6 +201,39 @@ def handle_service_action(data):
     if success:
         services = SystemdManager.get_all_services()
         socketio.emit('update_services', {'services': services})
+
+@socketio.on('console_command')
+def handle_console_command(data):
+    try:
+        command = data.get('command', '').strip()
+        if not command:
+            return
+        
+        # Create a thread for command execution
+        thread = threading.Thread(
+            target=CommandExecutor.execute_command,
+            args=(command, request.sid)
+        )
+        thread.daemon = True
+        thread.start()
+
+    except Exception as e:
+        socketio.emit('console_output', 
+                     {'output': f"Error: {str(e)}"}, 
+                     room=request.sid)
+
+@socketio.on('join_console')
+def on_join_console():
+    socketio.emit('console_output', 
+                 {'output': f"Connected to console. Type 'help' for available commands."}, 
+                 room=request.sid)
+
+@socketio.on('console_help')
+def handle_console_help():
+    help_text = "Available commands:\n" + \
+                "\n".join(f"- {cmd}" for cmd in sorted(ALLOWED_COMMANDS.keys())) + \
+                "\n\nNote: All commands are executed with restricted privileges."
+    socketio.emit('console_output', {'output': help_text}, room=request.sid)
 
 if __name__ == '__main__':
     update_thread = threading.Thread(target=background_update)

@@ -25,11 +25,19 @@
             <a href="#">Add Service</a>
         </div>
         <div class="nav-item">
-            <a href="#">Console</a>
+            <a href="#" onclick="toggleConsole(); return false;">Console</a>
         </div>
         <div class="nav-item">
             <a href="#">Settings</a>
         </div>
-
     </nav>
 </header>
+
+<script>
+function toggleConsole() {
+    const console = document.getElementById('consoleWindow');
+    console.style.display = console.style.display === 'none' || console.style.display === '' 
+        ? 'flex' 
+        : 'none';
+}
+</script>

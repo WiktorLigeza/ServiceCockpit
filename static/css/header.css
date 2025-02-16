@@ -117,10 +117,6 @@
     z-index: 9999;
 }
 
-.tooltip span {
-    position: relative;
-    z-index: 9999;
-}
 
 .tooltip::before {
     content: '';
@@ -139,3 +135,5 @@
     visibility: visible;
     opacity: 1;
 }
+
+/* TODO: Fix tooltip */

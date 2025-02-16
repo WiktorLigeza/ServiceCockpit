@@ -1,0 +1,81 @@
+.console-window {
+    position: fixed;
+    width: 600px;
+    height: 400px;
+    background: rgba(0, 0, 0, 0.9);
+    border: 1px solid #444;
+    border-radius: 5px;
+    z-index: 1000;
+    display: none;
+    flex-direction: column;
+    box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+    resize: both;
+    overflow: auto;
+    min-width: 300px;
+    min-height: 200px;
+}
+
+.console-header {
+    background: #333;
+    padding: 8px;
+    cursor: move;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid #444;
+}
+
+.console-title {
+    color: #fff;
+    font-size: 14px;
+    font-weight: bold;
+}
+
+.console-controls {
+    display: flex;
+    gap: 8px;
+}
+
+.console-control-btn {
+    background: none;
+    border: none;
+    color: #fff;
+    cursor: pointer;
+    padding: 2px 6px;
+    font-size: 16px;
+}
+
+.console-control-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 3px;
+}
+
+.console-content {
+    flex: 1;
+    padding: 10px;
+    overflow-y: auto;
+    font-family: 'Courier New', monospace;
+    color: #0f0;
+    font-size: 14px;
+}
+
+.console-input-line {
+    display: flex;
+    padding: 5px;
+    border-top: 1px solid #444;
+}
+
+.console-prompt {
+    color: #0f0;
+    margin-right: 8px;
+}
+
+.console-input {
+    background: transparent;
+    border: none;
+    color: #0f0;
+    flex: 1;
+    font-family: 'Courier New', monospace;
+    font-size: 14px;
+    outline: none;
+}
