@@ -2,8 +2,8 @@
     position: fixed;
     width: 600px;
     height: 400px;
-    background: rgba(0, 0, 0, 0.9);
-    border: 1px solid #444;
+    background:  linear-gradient(135deg, #2a08457c 0%, #19197081 100%);
+    border: 1px solid #5f00db;
     border-radius: 5px;
     z-index: 1000;
     display: none;
@@ -16,13 +16,13 @@
 }
 
 .console-header {
-    background: #333;
+    background:  linear-gradient(135deg, #2a0845 0%, #191970 100%);
     padding: 8px;
     cursor: move;
     display: flex;
     justify-content: space-between;
     align-items: center;
-    border-bottom: 1px solid #444;
+    border-bottom: 1px  solid #5f00db;
 }
 
 .console-title {
@@ -54,26 +54,25 @@
     flex: 1;
     padding: 10px;
     overflow-y: auto;
-    font-family: 'Courier New', monospace;
-    color: #0f0;
+    color: #c98fff;
     font-size: 14px;
 }
 
 .console-input-line {
     display: flex;
     padding: 5px;
-    border-top: 1px solid #444;
+    border-top: 1px solid #00a2ff;
 }
 
 .console-prompt {
-    color: #0f0;
+    color: #c98fff;
     margin-right: 8px;
 }
 
 .console-input {
     background: transparent;
     border: none;
-    color: #0f0;
+    color: #c98fff;
     flex: 1;
     font-family: 'Courier New', monospace;
     font-size: 14px;
