@@ -10,3 +10,4 @@ TODO List:
 - improve the console output formatting
 - multiple console sessions
 - add more status info to the service item e.g(uptime etc...) 
+- fix tooltip backround and z-lvl
