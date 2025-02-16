@@ -2,4 +2,4 @@ An application for viewing and managing services on Linux, providing an intuitiv
 
 ## Cockpit
 
-![Main](https://github.com/WiktorLigeza/ServiceCockpit/blob/main/SYSTEM%20MD.png)
+![Main](https://github.com/WiktorLigeza/ServiceCockpit/blob/main/cockpit.png)
