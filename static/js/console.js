@@ -88,6 +88,43 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function appendToConsole(text) {
         const div = document.createElement('div');
+        
+        // Check for color markers
+        if (text.startsWith('[ERROR]')) {
+            div.classList.add('console-error');
+            text = text.replace('[ERROR]', '');
+        } else if (text.startsWith('[SUCCESS]')) {
+            div.classList.add('console-success');
+            text = text.replace('[SUCCESS]', '');
+        } else if (text.startsWith('[WARNING]')) {
+            div.classList.add('console-warning');
+            text = text.replace('[WARNING]', '');
+        } else if (text.startsWith('[INFO]')) {
+            div.classList.add('console-info');
+            text = text.replace('[INFO]', '');
+        }
+
+        // Handle ANSI color codes
+        const colorMap = {
+            '\x1b[31m': 'console-error',     // Red
+            '\x1b[32m': 'console-success',   // Green
+            '\x1b[33m': 'console-warning',   // Yellow
+            '\x1b[34m': 'console-info',      // Blue
+            '\x1b[0m': ''                    // Reset
+        };
+
+        let colorClass = '';
+        for (const [code, className] of Object.entries(colorMap)) {
+            if (text.includes(code)) {
+                colorClass = className;
+                text = text.replace(code, '');
+            }
+        }
+
+        if (colorClass) {
+            div.classList.add(colorClass);
+        }
+
         div.textContent = text;
         consoleContent.appendChild(div);
         consoleContent.scrollTop = consoleContent.scrollHeight;

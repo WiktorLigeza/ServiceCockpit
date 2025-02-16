@@ -294,3 +294,19 @@ body {
 .btn i {
     margin-right: 4px;
 }
+
+.console-error {
+    color: #ff4444;
+}
+
+.console-success {
+    color: #00C851;
+}
+
+.console-warning {
+    color: #ffbb33;
+}
+
+.console-info {
+    color: #33b5e5;
+}

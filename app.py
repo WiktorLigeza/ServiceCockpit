@@ -43,11 +43,11 @@ class CommandExecutor:
             # Parse the command
             args = shlex.split(command)
             if not args:
-                return "Error: Empty command"
+                return "[ERROR] Empty command"
 
             base_command = args[0]
             if base_command not in ALLOWED_COMMANDS:
-                return f"Error: Command '{base_command}' not allowed"
+                return f"[ERROR] Command '{base_command}' not allowed"
 
             # Replace the command with the full path
             args[0] = ALLOWED_COMMANDS[base_command]
@@ -71,12 +71,17 @@ class CommandExecutor:
             while True:
                 output = process.stdout.readline()
                 if output:
-                    socketio.emit('console_output', {'output': output.strip()}, room=socket_id)
+                    # Preserve ANSI color codes or add INFO prefix
+                    if any(code in output for code in ['\x1b[31m', '\x1b[32m', '\x1b[33m', '\x1b[34m']):
+                        formatted_output = output.strip()
+                    else:
+                        formatted_output = f"[INFO] {output.strip()}"
+                    socketio.emit('console_output', {'output': formatted_output}, room=socket_id)
                     socketio.sleep(0)
                 
                 error = process.stderr.readline()
                 if error:
-                    socketio.emit('console_output', {'output': f"Error: {error.strip()}"}, room=socket_id)
+                    socketio.emit('console_output', {'output': f"[ERROR] {error.strip()}"}, room=socket_id)
                     socketio.sleep(0)
                 
                 if output == '' and error == '' and process.poll() is not None:
@@ -85,11 +90,11 @@ class CommandExecutor:
             return_code = process.poll()
             if return_code != 0:
                 socketio.emit('console_output', 
-                            {'output': f"Command exited with status {return_code}"}, 
+                            {'output': f"[ERROR] Command exited with status {return_code}"}, 
                             room=socket_id)
 
         except Exception as e:
-            return f"Error executing command: {str(e)}"
+            return f"[ERROR] Error executing command: {str(e)}"
 
 def load_config():
     if not os.path.exists(CONFIG_FILE):
@@ -225,14 +230,14 @@ def handle_console_command(data):
 @socketio.on('join_console')
 def on_join_console():
     socketio.emit('console_output', 
-                 {'output': f"Connected to console. Type 'help' for available commands."}, 
+                 {'output': f"[SUCCESS] Connected to console. Type 'help' for available commands."}, 
                  room=request.sid)
 
 @socketio.on('console_help')
 def handle_console_help():
-    help_text = "Available commands:\n" + \
+    help_text = "[INFO] Available commands:\n" + \
                 "\n".join(f"- {cmd}" for cmd in sorted(ALLOWED_COMMANDS.keys())) + \
-                "\n\nNote: All commands are executed with restricted privileges."
+                "\n\n[WARNING] Note: All commands are executed with restricted privileges."
     socketio.emit('console_output', {'output': help_text}, room=request.sid)
 
 if __name__ == '__main__':
