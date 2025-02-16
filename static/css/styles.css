@@ -29,6 +29,8 @@ body {
     box-shadow: 0 4px 6px rgba(0,0,0,0.5);
     height: 100%;          /* Changed from max-height to height */
     overflow: hidden;      /* Add this to contain the flex items */
+    flex: 1;
+    min-width: 0;
 }
 
 .section-title {
@@ -106,9 +108,10 @@ body {
     border-radius: 5px;
 }
 .main-container {
-    display: grid;
-    grid-template-columns: 1fr 1fr 1fr;
-    height: 100vh;
+    display: flex;
+    width: 100%;
+    height: calc(100vh - 60px);  /* subtract header height */
+    overflow: hidden;
     gap: 1rem;
     padding: 1rem;
     box-sizing: border-box;
