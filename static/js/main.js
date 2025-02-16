@@ -2,20 +2,49 @@ const socket = io();
 const servicesContainer = document.getElementById('services-container');
 const searchInput = document.getElementById('searchInput');
 let selectedService = null;
-let favorites = new Set(JSON.parse(localStorage.getItem('favorites') || '[]'));
+let favorites = new Set();
 const servicesSearchInput = document.getElementById('servicesSearchInput');
 const favoritesSearchInput = document.getElementById('favoritesSearchInput');
 let isLoading = true;
 
-function toggleFavorite(event, serviceName) {
+async function loadFavorites() {
+    try {
+        const response = await fetch('/favorites');
+        const data = await response.json();
+        favorites = new Set(data.favorites);
+        if (lastServicesData.length > 0) {
+            updateServices(lastServicesData);
+        }
+    } catch (error) {
+        console.error('Error loading favorites:', error);
+    }
+}
+
+async function saveFavorites() {
+    try {
+        await fetch('/favorites', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                favorites: Array.from(favorites)
+            })
+        });
+    } catch (error) {
+        console.error('Error saving favorites:', error);
+    }
+}
+
+async function toggleFavorite(event, serviceName) {
     event.stopPropagation();
     if (favorites.has(serviceName)) {
         favorites.delete(serviceName);
     } else {
         favorites.add(serviceName);
     }
-    localStorage.setItem('favorites', JSON.stringify([...favorites]));
-    updateServices(lastServicesData);  // We'll store the last data globally
+    await saveFavorites();
+    updateServices(lastServicesData);
 }
 
 function createServiceCard(service, container = 'all') {
@@ -139,6 +168,7 @@ favoritesSearchInput.addEventListener('input', () => {
 socket.on('connect', () => {
     showLoading('services-container');
     showLoading('favorites-container');
+    loadFavorites();
 });
 
 function showLoading(containerId) {

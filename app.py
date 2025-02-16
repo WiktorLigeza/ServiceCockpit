@@ -1,12 +1,29 @@
-from flask import Flask, render_template, url_for
+from flask import Flask, render_template, url_for, jsonify, request
 from flask_socketio import SocketIO
 import subprocess
 from datetime import datetime
 import threading
 import time
+import json
+import os
 
 app = Flask(__name__, static_folder='static')
 socketio = SocketIO(app)
+
+CONFIG_FILE = 'config.json'
+
+def load_config():
+    if not os.path.exists(CONFIG_FILE):
+        with open(CONFIG_FILE, 'w') as f:
+            json.dump({"services": {"favorites": []}}, f)
+    with open(CONFIG_FILE, 'r') as f:
+        return json.load(f)
+
+def save_favorites(favorites):
+    config = load_config()
+    config['services']['favorites'] = favorites
+    with open(CONFIG_FILE, 'w') as f:
+        json.dump(config, f)
 
 class SystemdManager:
     @staticmethod
@@ -75,6 +92,17 @@ def index():
 def get_journal(service):
     logs = SystemdManager.get_journal_logs(service)
     return {'logs': logs}
+
+@app.route('/favorites', methods=['GET'])
+def get_favorites():
+    config = load_config()
+    return jsonify(favorites=config['services']['favorites'])
+
+@app.route('/favorites', methods=['POST'])
+def update_favorites():
+    new_favorites = request.json.get('favorites', [])
+    save_favorites(new_favorites)
+    return jsonify(success=True)
 
 @socketio.on('connect')
 def handle_connect():
