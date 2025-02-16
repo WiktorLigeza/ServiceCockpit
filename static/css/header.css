@@ -26,10 +26,21 @@
 .metric i {
     font-size: 1.2rem;
     transition: color 0.3s ease;
+    transition: text-shadow 0.3s ease-out;
 }
 
 .metric-value {
     font-size: 0.9rem;
+}
+
+@keyframes pulse-update {
+    0% { text-shadow: 0 0 0 rgba(255, 255, 255, 0); }
+    50% { text-shadow: 0 0 15px rgba(255, 255, 255, 0.8); }
+    100% { text-shadow: 0 0 0 rgba(255, 255, 255, 0); }
+}
+
+.metric i.updating {
+    animation: pulse-update 0.8s ease-out;
 }
 
 .header-nav {
