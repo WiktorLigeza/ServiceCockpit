@@ -17,21 +17,10 @@
     gap: 2rem;
 }
 
-.metric {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-}
-
-.metric i {
-    font-size: 1.2rem;
-    transition: color 0.3s ease;
-    transition: text-shadow 0.3s ease-out;
-}
-
-.metric-value {
+/* Remove the old metric-value style */
+/* .metric-value {
     font-size: 0.9rem;
-}
+} */
 
 @keyframes pulse-update {
     0% { text-shadow: 0 0 0 rgba(255, 255, 255, 0); }
@@ -53,31 +42,52 @@
 
 .nav-item {
     border-radius: 8px 8px 0 0;
-    padding: 8px 16px;
-    min-width: 100px;
+    padding: 12px 20px;
+    min-width: 120px;
     margin-bottom: 0;
     box-shadow: 0 -5px 5px rgba(0, 0, 0, 0.5);
     transition: all 0.3s ease;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 12px;  /* Add space between icon and text */
+}
+
+/* Add styles for metric items specifically */
+.nav-item i {
+    font-size: 1.2rem;
+    width: 24px;  /* Fixed width for icons */
+    text-align: center;
+    transition: color 0.3s ease;
+}
+
+.nav-item .metric-value {
+    font-size: 0.95rem;
+    font-weight: 500;
+    min-width: 60px;  /* Ensure consistent width for metric values */
+    text-align: left;
+}
+
+/* Style specifically for navigation links */
+.nav-item a {
+    color: white;
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 1rem;
+    width: 100%;
+    justify-content: center;
 }
 
 .nav-item:hover {
     box-shadow: 0 -2px 5px rgba(140, 0, 255, 0.8);
 }
 
-.nav-item a {
-    color: white;
-    text-decoration: none;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-size: 1rem;
-}
-
 .nav-item a:hover {
     text-shadow: 0 0 10px rgba(140, 0, 255, 0.8);
-    
 }
 
 .nav-item i {
-    font-size: 1.1rem;
+    font-size: 1.2rem;
 }
