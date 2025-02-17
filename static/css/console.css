@@ -2,7 +2,9 @@
     position: fixed;
     width: 600px;
     height: 400px;
-    background:  linear-gradient(135deg, #2a08457c 0%, #19197081 100%);
+    background: linear-gradient(135deg, #2a08457c 0%, #19197081 100%);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
     border: 1px solid #5f00db;
     border-radius: 5px;
     z-index: 1000;
