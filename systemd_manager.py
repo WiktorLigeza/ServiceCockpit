@@ -4,16 +4,20 @@ class SystemdManager:
     @staticmethod
     def get_service_status(service_name):
         try:
-            cmd = f"systemctl show {service_name} --property=ActiveState,UnitFileState"
+            cmd = f"systemctl show {service_name} --property=ActiveState,UnitFileState,ExecMainPID,FragmentPath,TasksCurrent,Restart"
             result = subprocess.run(cmd.split(), capture_output=True, text=True)
             status = {}
             for line in result.stdout.strip().split('\n'):
                 key, value = line.split('=')
                 status[key] = value
+
             return {
                 'name': service_name,
                 'active': status['ActiveState'] == 'active',
-                'enabled': status['UnitFileState'] == 'enabled'
+                'enabled': status['UnitFileState'] == 'enabled',
+                'main_pid': status['ExecMainPID'],
+                'fragment_path': status['FragmentPath'],
+                'tasks': status['TasksCurrent'],
             }
         except:
             return None

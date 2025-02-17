@@ -192,49 +192,6 @@ def delete_service(service):
         return jsonify(success=True)
     return jsonify(success=False), 400
 
-@app.route('/service/<service>/info')
-def get_service_info(service):
-    try:
-        # Get service status using systemctl show
-        status_cmd = f"systemctl show {service} --property=MainPID,Tasks,CPUUsageSec,MemoryCurrent,ActiveState,FragmentPath,ExecStart,CGroup"
-        status = subprocess.check_output(['systemctl', 'show', service], text=True)
-        
-        # Parse the status output
-        info = {}
-        for line in status.split('\n'):
-            if '=' in line:
-                key, value = line.split('=', 1)
-                info[key] = value
-
-        # Get service file content
-        file_path = info.get('FragmentPath', '')
-        file_content = ''
-        if file_path and os.path.exists(file_path):
-            with open(file_path, 'r') as f:
-                file_content = f.read()
-
-        # Get CGroup info
-        cgroup_cmd = f"systemctl status {service}"
-        try:
-            cgroup_output = subprocess.check_output(shlex.split(cgroup_cmd), text=True)
-            cgroup_info = [line for line in cgroup_output.split('\n') if 'CGroup:' in line or '└' in line or '├' in line]
-            cgroup = '\n'.join(cgroup_info)
-        except:
-            cgroup = 'CGroup information not available'
-
-        return jsonify({
-            'mainPid': info.get('MainPID', 'N/A'),
-            'tasks': info.get('Tasks', 'N/A'),
-            'cpuTime': f"{float(info.get('CPUUsageSec', 0)):.2f}s",
-            'memoryUsage': f"{int(info.get('MemoryCurrent', 0)) / (1024*1024):.2f} MB",
-            'status': info.get('ActiveState', 'N/A'),
-            'path': file_path,
-            'fileContent': file_content,
-            'cgroup': cgroup
-        })
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
 @socketio.on('connect')
 def handle_connect():
     services = SystemdManager.get_all_services()
