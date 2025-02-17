@@ -78,7 +78,7 @@ function createServiceCard(service, container = 'all') {
                         </button>
                         <button class="btn btn-sm btn-info"
                                 onclick="showServiceInfo('${service.name}')" title="Service Info">
-                            <i class="fas fa-info-circle"></i>
+                            <i class="fas fa-info"></i>
                         </button>
                         <button class="btn btn-sm btn-danger"
                                 onclick="deleteService(event, '${service.name}')" title="Delete Service">
