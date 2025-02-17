@@ -41,8 +41,11 @@
 }
 
 .infocard-controls button {
-    display: flex;
-    gap: 8px;
+    background: none;
+    border: none;
+    color: #fff;
+    cursor: pointer;
+    padding: 4px 8px;
 }
 
 .infocard-controls button:hover {
@@ -64,7 +67,7 @@
 .info-section {
     flex: 1;
     padding: 15px;
-    border-right: 1px solid var(--border-color);
+    border-right: 1px solid #5f00db;
     overflow-y: auto;
 }
 
