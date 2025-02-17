@@ -76,6 +76,10 @@ function createServiceCard(service, container = 'all') {
                                 onclick="controlService('${service.name}', 'restart')" title="Restart Service">
                             <i class="fas fa-sync-alt"></i>
                         </button>
+                        <button class="btn btn-sm btn-info"
+                                onclick="showServiceInfo('${service.name}')" title="Service Info">
+                            <i class="fas fa-info-circle"></i>
+                        </button>
                         <button class="btn btn-sm btn-danger"
                                 onclick="deleteService(event, '${service.name}')" title="Delete Service">
                             <i class="fas fa-trash"></i>
@@ -223,4 +227,83 @@ function showLoading(containerId) {
             <p>Loading...</p>
         </div>
     `;
+}
+
+// Info card functionality
+const infocard = document.getElementById('infocard');
+const infocardHeader = infocard.querySelector('.infocard-header');
+let isDragging = false;
+let currentX;
+let currentY;
+let initialX;
+let initialY;
+let xOffset = 0;
+let yOffset = 0;
+
+// Make the info card draggable
+infocardHeader.addEventListener('mousedown', dragStart);
+document.addEventListener('mousemove', drag);
+document.addEventListener('mouseup', dragEnd);
+
+function dragStart(e) {
+    initialX = e.clientX - xOffset;
+    initialY = e.clientY - yOffset;
+    if (e.target === infocardHeader || e.target.parentNode === infocardHeader) {
+        isDragging = true;
+    }
+}
+
+function drag(e) {
+    if (isDragging) {
+        e.preventDefault();
+        currentX = e.clientX - initialX;
+        currentY = e.clientY - initialY;
+        xOffset = currentX;
+        yOffset = currentY;
+        setTranslate(currentX, currentY, infocard);
+    }
+}
+
+function dragEnd() {
+    isDragging = false;
+}
+
+function setTranslate(xPos, yPos, el) {
+    el.style.transform = `translate(${xPos}px, ${yPos}px)`;
+}
+
+// Close and minimize buttons
+infocard.querySelector('.btn-close').addEventListener('click', () => {
+    infocard.classList.add('hidden');
+});
+
+infocard.querySelector('.btn-minimize').addEventListener('click', () => {
+    infocard.classList.toggle('minimized');
+});
+
+async function showServiceInfo(service) {
+    // Show the info card
+    infocard.classList.remove('hidden');
+
+    // Update service details
+    document.getElementById('info-name').textContent = service.name;
+    document.getElementById('info-status').textContent = service.status;
+
+    try {
+        // Fetch detailed service info
+        const response = await fetch(`/service/${service.name}/info`);
+        const data = await response.json();
+        
+        // Update the info card with detailed information
+        document.getElementById('info-pid').textContent = data.mainPid || 'N/A';
+        document.getElementById('info-tasks').textContent = data.tasks || 'N/A';
+        document.getElementById('info-cpu').textContent = data.cpuTime || 'N/A';
+        document.getElementById('info-memory').textContent = data.memoryUsage || 'N/A';
+        document.getElementById('info-uptime').textContent = data.uptime || 'N/A';
+        document.getElementById('info-path').textContent = data.path || 'N/A';
+        document.getElementById('info-cgroup').textContent = data.cgroup || 'N/A';
+        document.getElementById('service-file').textContent = data.fileContent || 'No file content available';
+    } catch (error) {
+        console.error('Error fetching service info:', error);
+    }
 }

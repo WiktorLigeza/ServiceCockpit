@@ -10,10 +10,12 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">    
     <script src="https://cdn.socket.io/4.0.1/socket.io.min.js"></script>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/console.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/infocard.css') }}">
 </head>
 <body class="bg-light">
     {% include 'header.html' %}
     {% include 'console.html' %}
+    {% include 'infocard.html' %}
     <div class="main-container">
         <div class="services-side">
             <h2 class="section-title">All Services</h2>
