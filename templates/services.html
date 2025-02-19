@@ -17,6 +17,7 @@
     {% include 'console.html' %}
     {% include 'infocard.html' %}
     {% include 'add_service.html' %}
+    {% include 'devices_manager.html' %}
     <div class="main-container">
         <div class="services-side">
             <h2 class="section-title">All Services</h2>
@@ -53,6 +54,8 @@
     </div>
 
     <script src="{{ url_for('static', filename='js/services.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/add_service.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/devices_manager.js') }}"></script>
 
 </body>
 </html>

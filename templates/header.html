@@ -1,5 +1,4 @@
 <script src="{{ url_for('static', filename='js/header.js') }}"></script>
-<script src="{{ url_for('static', filename='js/add_service.js') }}"></script>
 <link rel="stylesheet" href="{{ url_for('static', filename='css/header.css') }}">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
 
@@ -22,6 +21,9 @@
         </div>
     </div>
     <nav class="header-nav">
+        <div class="nav-item" id="devices-manager-btn">
+            <a href="#" onclick="toggleDevicesManager(); return false;">Devices</a>
+        </div>
         <div class="nav-item" id="add-service-btn">
             <a href="#">Add Service</a>
         </div>
@@ -38,6 +40,13 @@
 function toggleConsole() {
     const console = document.getElementById('consoleWindow');
     console.style.display = console.style.display === 'none' || console.style.display === '' 
+        ? 'flex' 
+        : 'none';
+}
+
+function toggleDevicesManager() {
+    const devicesManager = document.getElementById('devices-manager-card');
+    devicesManager.style.display = devicesManager.style.display === 'none' || devicesManager.style.display === '' 
         ? 'flex' 
         : 'none';
 }

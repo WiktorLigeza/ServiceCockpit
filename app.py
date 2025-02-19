@@ -172,6 +172,64 @@ def get_journal(service):
     logs = SystemdManager.get_journal_logs(service)
     return {'logs': logs}
 
+@app.route('/api/devices')
+def get_devices():
+    try:
+        # Execute the command to get network interfaces
+        result = subprocess.run(['ip', 'link'], capture_output=True, text=True, check=True)
+        output = result.stdout
+
+        devices = []
+        interfaces = output.strip().split('\n')
+        
+        # Iterate through interfaces and extract relevant information
+        i = 0
+        while i < len(interfaces):
+            if interfaces[i].strip().startswith(tuple(str(x) + ':' for x in range(10))):
+                parts = interfaces[i].split(':')
+                if len(parts) > 2:
+                    interface_number = parts[0].strip()
+                    interface_name = parts[1].strip()
+                    
+                    # Get the interface's operational status
+                    operstate_result = subprocess.run(['cat', f'/sys/class/net/{interface_name}/operstate'], capture_output=True, text=True)
+                    operstate = operstate_result.stdout.strip()
+                    
+                    # Get MAC address
+                    mac_result = subprocess.run(['cat', f'/sys/class/net/{interface_name}/address'], capture_output=True, text=True)
+                    mac_address = mac_result.stdout.strip()
+                    
+                    # Determine device type based on interface name
+                    if interface_name.startswith('wlan'):
+                        device_type = 'Wireless'
+                    elif interface_name.startswith('eth'):
+                        device_type = 'Ethernet'
+                    elif interface_name.startswith('enp'):
+                        device_type = 'Ethernet'
+                    elif interface_name.startswith('docker'):
+                        device_type = 'Docker'
+                    elif interface_name == 'lo':
+                        device_type = 'Loopback'
+                    else:
+                        device_type = 'Unknown'
+                    
+                    device = {
+                        'type': device_type,
+                        'name': interface_name,
+                        'mac': mac_address,
+                        'operstate': operstate
+                    }
+                    devices.append(device)
+            i += 1
+        
+        return jsonify(devices)
+    except subprocess.CalledProcessError as e:
+        print(f"Subprocess error: {e}")
+        return jsonify({'error': str(e)}), 500
+    except Exception as e:
+        print(f"Error fetching devices: {e}")
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/favorites', methods=['GET'])
 def get_favorites():
     config = load_config()
