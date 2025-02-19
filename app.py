@@ -10,6 +10,9 @@ import subprocess
 import shlex
 import threading
 from queue import Queue
+import socket
+import fcntl
+import struct
 
 app = Flask(__name__, static_folder='static')
 socketio = SocketIO(app, 
@@ -134,9 +137,41 @@ def get_system_metrics():
         'storage_total': round(disk.total / (1024 * 1024 * 1024), 2)  # GB
     }
 
+def get_network_info():
+    ip_address = 'N/A'
+    mac_address = 'N/A'
+    
+    # Try different interface names
+    for interface in ['wlan0', 'eth0', 'en0', 'enp0s3']:
+        try:
+            s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            ip_address = socket.inet_ntoa(fcntl.ioctl(
+                s.fileno(),
+                0x8915,  # SIOCGIFADDR
+                struct.pack('256s', interface.encode('utf-8')[:15])
+            )[20:24])
+            break  # If successful, break the loop
+        except:
+            pass
+
+    # Get MAC address (try different interfaces as well)
+    for interface in ['wlan0', 'eth0', 'en0', 'enp0s3']:
+        try:
+            with open(f'/sys/class/net/{interface}/address', 'r') as f:
+                mac_address = f.readline().strip()
+            break
+        except:
+            pass
+
+    return {'ip_address': ip_address, 'mac_address': mac_address}
+
 @app.route('/system_metrics')
 def system_metrics():
     return jsonify(get_system_metrics())
+
+@app.route('/api/network_info')
+def network_info():
+    return jsonify(get_network_info())
 
 def background_update():
     last_services = None

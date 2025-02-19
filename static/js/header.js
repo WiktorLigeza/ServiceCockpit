@@ -93,4 +93,20 @@ document.addEventListener('DOMContentLoaded', () => {
             addServiceCard.classList.remove('hidden');
         });
     }
+
+    fetch('/api/network_info')
+        .then(response => response.json())
+        .then(data => {
+            document.querySelector('#my-ip .metric-value').textContent = data.ip_address;
+            document.querySelector('#my-mac .metric-value').textContent = data.mac_address;
+            
+            // Change icon colors
+            document.querySelector('#my-ip i').style.color = 'magenta';
+            document.querySelector('#my-mac i').style.color = 'cyan';
+        })
+        .catch(error => {
+            console.error('Error fetching network info:', error);
+            document.querySelector('#my-ip .metric-value').textContent = 'N/A';
+            document.querySelector('#my-mac .metric-value').textContent = 'N/A';
+        });
 });
