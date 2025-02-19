@@ -1,55 +1,63 @@
-<div class="infocard hidden" id="add-service-card">
+<div class="infocard hidden" id="add-service-card" style="min-height: 750px; min-width: 350px;">
     <div class="infocard-header">
         Add New Service
-        <button type="button" class="btn-close"></button>
+        <div class="infocard-controls">
+            <button class="btn-close"><i class="fas fa-times"></i></button>
+        </div>
     </div>
     <div class="infocard-body">
-        <form id="add-service-form">
-            <div class="mb-3">
-                <label for="serviceName" class="form-label">Service Name</label>
-                <input type="text" class="form-control" id="serviceName" name="serviceName" required>
+        <div class="row">
+            <div class="col-md-4">
+                <form id="add-service-form">
+                    <div class="mb-3">
+                        <label for="serviceName" class="form-label">Service Name</label>
+                        <input type="text" class="form-control" id="serviceName" name="serviceName" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="serviceDescription" class="form-label">Description</label>
+                        <input type="text" class="form-control" id="serviceDescription" name="serviceDescription">
+                    </div>
+                    <div class="mb-3">
+                        <label for="serviceType" class="form-label">Type</label>
+                        <select class="form-select" id="serviceType" name="serviceType">
+                            <option value="simple">Simple</option>
+                            <option value="oneshot">Oneshot</option>
+                            <option value="forking">Forking</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="serviceUser" class="form-label">User</label>
+                        <input type="text" class="form-control" id="serviceUser" name="serviceUser" value="{{ request.user or 'pi' }}">
+                    </div>
+                    <div class="mb-3">
+                        <label for="execPath" class="form-label">Exec Path</label>
+                        <input type="text" class="form-control" id="execPath" name="execPath" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="serviceParams" class="form-label">Parameters</label>
+                        <input type="text" class="form-control" id="serviceParams" name="serviceParams">
+                    </div>
+                    <div class="mb-3">
+                        <label for="restartPolicy" class="form-label">Restart Policy</label>
+                        <select class="form-select" id="restartPolicy" name="restartPolicy">
+                            <option value="always">Always</option>
+                            <option value="on-failure">On Failure</option>
+                            <option value="no">No</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="restartSec" class="form-label">RestartSec (0-100s)</label>
+                        <input type="number" class="form-control" id="restartSec" name="restartSec" min="0" max="100" value="1">
+                    </div>
+                </form>
             </div>
-            <div class="mb-3">
-                <label for="serviceDescription" class="form-label">Description</label>
-                <input type="text" class="form-control" id="serviceDescription" name="serviceDescription">
+            <div class="col-md-8">
+                <div class="mb-3">
+                    <label for="servicePreview" class="form-label">Service File Preview</label>
+                    <textarea class="form-control" id="servicePreview" rows="15" readonly></textarea>
+                </div>
+                <button type="submit" class="btn btn-primary" style="width: 100%;">Apply</button>
             </div>
-            <div class="mb-3">
-                <label for="serviceType" class="form-label">Type</label>
-                <select class="form-select" id="serviceType" name="serviceType">
-                    <option value="simple">Simple</option>
-                    <option value="oneshot">Oneshot</option>
-                    <option value="forking">Forking</option>
-                </select>
-            </div>
-            <div class="mb-3">
-                <label for="serviceUser" class="form-label">User</label>
-                <input type="text" class="form-control" id="serviceUser" name="serviceUser" value="{{ request.user or 'pi' }}">
-            </div>
-            <div class="mb-3">
-                <label for="execPath" class="form-label">Exec Path</label>
-                <input type="text" class="form-control" id="execPath" name="execPath" required>
-            </div>
-            <div class="mb-3">
-                <label for="serviceParams" class="form-label">Parameters</label>
-                <input type="text" class="form-control" id="serviceParams" name="serviceParams">
-            </div>
-            <div class="mb-3">
-                <label for="restartPolicy" class="form-label">Restart Policy</label>
-                <select class="form-select" id="restartPolicy" name="restartPolicy">
-                    <option value="always">Always</option>
-                    <option value="on-failure">On Failure</option>
-                    <option value="no">No</option>
-                </select>
-            </div>
-            <div class="mb-3">
-                <label for="restartSec" class="form-label">RestartSec (0-100s)</label>
-                <input type="number" class="form-control" id="restartSec" name="restartSec" min="0" max="100" value="1">
-            </div>
-            <div class="mb-3">
-                <label for="servicePreview" class="form-label">Service File Preview</label>
-                <textarea class="form-control" id="servicePreview" rows="10" readonly></textarea>
-            </div>
-            <button type="submit" class="btn btn-primary">Generate Service File</button>
-        </form>
+        </div>
     </div>
 </div>

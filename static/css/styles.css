@@ -320,3 +320,11 @@ body {
 .console-info {
     color: #33b5e5;
 }
+
+#add-service-card input,
+#add-service-card select,
+#add-service-card textarea {
+    background-color: rgba(0, 0, 0, 0.3);
+    color: white; /* Ensure text is readable */
+    border: 1px solid rgba(255, 255, 255, 0.1); /* Optional: Add a subtle border */
+}

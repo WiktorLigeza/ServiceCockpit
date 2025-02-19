@@ -2,6 +2,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const addServiceForm = document.getElementById('add-service-form');
     const servicePreview = document.getElementById('servicePreview');
     const addServiceCard = document.getElementById('add-service-card');
+    const infocardHeader = addServiceCard.querySelector('.infocard-header'); // Select the infocard header
 
     function generateServiceConfig(formData) {
         return `[Unit]
@@ -52,5 +53,50 @@ WantedBy=default.target`;
         closeBtn.addEventListener('click', () => {
             addServiceCard.classList.add('hidden');
         });
+    }
+
+    // Dragging functionality for infocard
+    let isDragging = false;
+    let currentX;
+    let currentY;
+    let initialX;
+    let initialY;
+    let xOffset = 100;
+    let yOffset = 100;
+
+    // Set initial position
+    setTranslate(xOffset, yOffset, addServiceCard);
+
+    infocardHeader.addEventListener('mousedown', dragStart);
+    document.addEventListener('mousemove', drag);
+    document.addEventListener('mouseup', dragEnd);
+
+    function dragStart(e) {
+        initialX = e.clientX - xOffset;
+        initialY = e.clientY - yOffset;
+        if (e.target === infocardHeader || e.target.parentNode === infocardHeader) {
+            isDragging = true;
+        }
+    }
+
+    function drag(e) {
+        if (isDragging) {
+            e.preventDefault();
+            currentX = e.clientX - initialX;
+            currentY = e.clientY - initialY;
+            xOffset = currentX;
+            yOffset = currentY;
+            setTranslate(currentX, currentY, addServiceCard);
+        }
+    }
+
+    function dragEnd(e) {
+        initialX = currentX;
+        initialY = currentY;
+        isDragging = false;
+    }
+
+    function setTranslate(xPos, yPos, el) {
+        el.style.transform = `translate(${xPos}px, ${yPos}px)`;
     }
 });
