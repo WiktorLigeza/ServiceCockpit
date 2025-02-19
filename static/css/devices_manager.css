@@ -1,0 +1,55 @@
+.devices-container {
+    display: flex;
+    height: 100%;
+}
+
+.devices-list-container {
+    width: 50%;
+    overflow-y: auto;
+    max-height: 500px;
+    padding: 10px;
+}
+
+.devices-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.devices-list li {
+    padding: 8px 12px;
+    margin-bottom: 5px;
+    color: #dadada;
+    background: rgba(30, 30, 30, 0.5);
+    border-radius: 8px;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.5);
+    cursor: pointer;
+    transition: background-color 0.3s;
+}
+
+.devices-list li:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(76, 0, 255, 0.678);
+}
+
+.device-details-container {
+    width: 50%;
+    padding: 10px;
+}
+
+/* Scrollbar styles */
+.devices-list-container::-webkit-scrollbar {
+    width: 8px;
+}
+
+.devices-list-container::-webkit-scrollbar-track {
+    background: #f1f1f1;
+}
+
+.devices-list-container::-webkit-scrollbar-thumb {
+    background: #888;
+}
+
+.devices-list-container::-webkit-scrollbar-thumb:hover {
+    background: #555;
+}

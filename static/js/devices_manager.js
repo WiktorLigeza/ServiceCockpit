@@ -1,40 +1,38 @@
 document.addEventListener('DOMContentLoaded', function() {
     const devicesManagerBtn = document.getElementById('devices-manager-btn');
     const devicesManagerCard = document.getElementById('devices-manager-card');
-    const devicesTableBody = document.getElementById('devices-table-body');
+    const devicesList = document.getElementById('devices-list');
     const infocardHeader = devicesManagerCard.querySelector('.infocard-header');
-    const closeDevicesWindow = document.getElementById('btn-close-devices');
+    const closeDevicesWindow = devicesManagerCard.querySelector('.btn-close-devices');
 
-    closeDevicesWindow.addEventListener('click', function(event) {
-        event.preventDefault();
-        devicesManagerCard.classList.toggle('hidden');
-    });
+    if (closeDevicesWindow) {
+        closeDevicesWindow.addEventListener('click', function(event) {
+            event.preventDefault();
+            devicesManagerCard.style.display = 'none';
+        });
+    }
 
 
-    devicesManagerBtn.addEventListener('click', function(event) {
-        event.preventDefault();
-        devicesManagerCard.classList.toggle('hidden');
-    });
 
     // Function to fetch devices data from the server
     function fetchDevices() {
         fetch('/api/devices')
             .then(response => response.json())
             .then(devices => {
-                // Populate the table with device data
+                // Populate the list with device data
                 devices.forEach(device => {
-                    const row = document.createElement('tr');
-                    row.innerHTML = `
-                        <td>${device.type}</td>
-                        <td>${device.name}</td>
-                        <td>${device.mac}</td>
+                    const listItem = document.createElement('li');
+                    listItem.innerHTML = `
+                        <strong>${device.name}</strong><br>
+                        Type: ${device.type}<br>
+                        MAC: ${device.mac}
                     `;
-                    devicesTableBody.appendChild(row);
+                    devicesList.appendChild(listItem);
                 });
             })
             .catch(error => {
                 console.error('Error fetching devices:', error);
-                devicesTableBody.innerHTML = '<tr><td colspan="3">Error loading devices.</td></tr>';
+                devicesList.innerHTML = '<li>Error loading devices.</li>';
             });
     }
 

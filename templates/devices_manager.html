@@ -1,22 +1,19 @@
-<div class="infocard hidden" id="devices-manager-card" style="min-height: 750px; min-width: 600px;">
-    <div class="infocard-header">
+<div class="infocard hidden" id="devices-manager-card" style="min-height: 700px; min-width: 600px; width: 700px;">
+    <div class="infocard-header" >
         Devices Manager
         <div class="infocard-controls">
             <button class="btn-close-devices"><i class="fas fa-times"></i></button>
         </div>
     </div>
-    <div class="infocard-body">
-        <table class="table">
-            <thead>
-                <tr>
-                    <th>Type</th>
-                    <th>Name</th>
-                    <th>MAC Address</th>
-                </tr>
-            </thead>
-            <tbody id="devices-table-body">
+    <div class="infocard-body devices-container">
+        <div class="devices-list-container">
+            <ul class="devices-list" id="devices-list">
                 <!-- Devices will be populated here -->
-            </tbody>
-        </table>
+            </ul>
+        </div>
+        <div class="device-details-container">
+            <!-- Details of the selected device will be displayed here -->
+        </div>
     </div>
 </div>
+<script src="{{ url_for('static', filename='js/devices_manager.js') }}"></script>
