@@ -136,8 +136,8 @@ document.addEventListener('DOMContentLoaded', () => {
         fetch('/api/network_info')
             .then(response => response.json())
             .then(data => {
-                document.getElementById('my-ip').querySelector('.metric-value').textContent = `IP: ${data.ip_address}`;
-                document.getElementById('my-mac').querySelector('.metric-value').textContent = `MAC: ${data.mac_address}`;
+                document.getElementById('my-ip').querySelector('.metric-value').textContent = data.ip_address;
+                document.getElementById('my-mac').querySelector('.metric-value').textContent = data.mac_address;
             })
             .catch(error => {
                 console.error('Error fetching network info:', error);

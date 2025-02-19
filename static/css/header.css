@@ -145,3 +145,20 @@
 }
 
 /* TODO: Fix tooltip */
+
+#internet-connection i {
+    color: lightgreen; /* Light green color */
+    animation: pulse-green 2s infinite; /* Pulsing animation */
+}
+
+@keyframes pulse-green {
+    0% {
+        box-shadow: 0 0 0 0 rgba(144, 238, 144, 0.7);
+    }
+    70% {
+        box-shadow: 0 0 0 10px rgba(144, 238, 144, 0);
+    }
+    100% {
+        box-shadow: 0 0 0 0 rgba(144, 238, 144, 0);
+    }
+}

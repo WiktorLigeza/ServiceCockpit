@@ -20,17 +20,17 @@
             <div class="tooltip"><span>Storage: Loading...</span></div>
         </div>
         <div class="nav-item " id="internet-connection" style="width: 50px !important;">
-            <i class='fas fa-globe'></i>
+            <i class='fas fa-globe' style="color: lightgreen; animation: pulse 2s infinite;"></i>
         </div>
         <div class="nav-item " id="my-ip">
             <i class='fas fa-network-wired'></i>
-            <span class="metric-value">Ip: Loading...</span>
-            <div class="tooltip"><span>Ip</span></div>
+            <span class="metric-value">Loading...</span>
+            <div class="tooltip"><span></span></div>
         </div>
         <div class="nav-item " id="my-mac">
             <i class='fas fa-robot'></i>
-            <span class="metric-value">MAC: Loading...</span>
-            <div class="tooltip"><span>MAC</span></div>
+            <span class="metric-value">Loading...</span>
+            <div class="tooltip"><span></span></div>
         </div>
 
     </div>
@@ -65,3 +65,17 @@ function toggleDevicesManager() {
         : 'none';
 }
 </script>
+
+<style>
+@keyframes pulse {
+    0% {
+        transform: scale(1);
+    }
+    50% {
+        transform: scale(1.1);
+    }
+    100% {
+        transform: scale(1);
+    }
+}
+</style>
