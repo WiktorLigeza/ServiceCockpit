@@ -82,3 +82,15 @@ headerSocket.on('connect_error', (error) => {
 headerSocket.on('reconnect', (attemptNumber) => {
     console.log('Reconnected after', attemptNumber, 'attempts');
 });
+
+// Add service functionality
+document.addEventListener('DOMContentLoaded', () => {
+    const addServiceBtn = document.getElementById('add-service-btn');
+    const addServiceCard = document.getElementById('add-service-card');
+
+    if (addServiceBtn && addServiceCard) {
+        addServiceBtn.addEventListener('click', () => {
+            addServiceCard.classList.remove('hidden');
+        });
+    }
+});

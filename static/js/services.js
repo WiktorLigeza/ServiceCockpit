@@ -309,3 +309,4 @@ async function showServiceInfo(serviceName) {
     document.getElementById('info-tasks').textContent = service.tasks || 'N/A';
     document.getElementById('info-path').textContent = service.fragment_path || 'N/A';
 }
+
