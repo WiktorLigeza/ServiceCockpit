@@ -110,3 +110,43 @@ document.addEventListener('DOMContentLoaded', () => {
             document.querySelector('#my-mac .metric-value').textContent = 'N/A';
         });
 });
+
+document.addEventListener('DOMContentLoaded', () => {
+    function updateMetrics() {
+        fetch('/system_metrics')
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('cpu-temp').querySelector('.metric-value').textContent = `${data.cpu_temp}°C`;
+                document.getElementById('memory-usage').querySelector('.metric-value').textContent = `${data.memory_percent}%`;
+                document.getElementById('storage-usage').querySelector('.metric-value').textContent = `${data.storage_percent}%`;
+
+                const internetIcon = document.getElementById('internet-connection').querySelector('i');
+                if (data.has_internet) {
+                    internetIcon.classList.remove('disconnected');
+                    internetIcon.classList.add('connected');
+                } else {
+                    internetIcon.classList.remove('connected');
+                    internetIcon.classList.add('disconnected');
+                }
+            })
+            .catch(error => {
+                console.error('Error fetching system metrics:', error);
+            });
+
+        fetch('/api/network_info')
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('my-ip').querySelector('.metric-value').textContent = `IP: ${data.ip_address}`;
+                document.getElementById('my-mac').querySelector('.metric-value').textContent = `MAC: ${data.mac_address}`;
+            })
+            .catch(error => {
+                console.error('Error fetching network info:', error);
+            });
+    }
+
+    // Initial update
+    updateMetrics();
+
+    // Update every 5 seconds
+    setInterval(updateMetrics, 5000);
+});

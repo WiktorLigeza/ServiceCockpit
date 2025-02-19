@@ -136,4 +136,12 @@
     opacity: 1;
 }
 
+.fa-globe.connected {
+    color: green;
+}
+
+.fa-globe.disconnected {
+    color: red;
+}
+
 /* TODO: Fix tooltip */

@@ -120,10 +120,20 @@ def get_cpu_temp():
     except:
         return 0
 
+def check_internet_connection():
+    try:
+        # Try to create a socket to Google's DNS server (8.8.8.8) at port 53
+        socket.create_connection(("8.8.8.8", 53), timeout=3)
+        return True
+    except OSError:
+        pass
+    return False
+
 def get_system_metrics():
     cpu_temp = get_cpu_temp()
     memory = psutil.virtual_memory()
     disk = psutil.disk_usage('/')
+    has_internet = check_internet_connection()
     
     return {
         'cpu_temp': cpu_temp,
@@ -134,7 +144,8 @@ def get_system_metrics():
         'storage_percent': disk.percent,
         'storage_used': round(disk.used / (1024 * 1024 * 1024), 2),  # GB
         'storage_free': round(disk.free / (1024 * 1024 * 1024), 2),  # GB
-        'storage_total': round(disk.total / (1024 * 1024 * 1024), 2)  # GB
+        'storage_total': round(disk.total / (1024 * 1024 * 1024), 2),  # GB
+        'has_internet': has_internet
     }
 
 def get_network_info():
