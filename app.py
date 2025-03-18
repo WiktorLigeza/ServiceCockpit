@@ -296,6 +296,39 @@ def delete_service(service):
         return jsonify(success=True)
     return jsonify(success=False), 400
 
+@app.route('/api/create_service', methods=['POST'])
+def create_service():
+    service_content = request.json.get('serviceContent')
+    service_name = request.json.get('serviceName')
+
+    if not service_content or not service_name:
+        return jsonify(success=False, message="Service content and name are required"), 400
+
+    service_file_path = f'/etc/systemd/system/{service_name}.service'
+
+    try:
+        # Save the service content to a file
+        # Use subprocess to write the file with sudo privileges
+        subprocess.run(['sudo', 'tee', service_file_path], input=service_content, text=True, check=True)
+
+        # Enable the service
+        subprocess.run(['sudo', 'systemctl', 'enable', service_name], check=True)
+
+        # Start the service
+        subprocess.run(['sudo', 'systemctl', 'start', service_name], check=True)
+
+        services = SystemdManager.get_all_services()
+        socketio.emit('update_services', {'services': services})
+
+        return jsonify(success=True, message=f"Service {service_name} created and started successfully")
+
+    except subprocess.CalledProcessError as e:
+        print(f"Error creating service: {str(e)}")
+        return jsonify(success=False, message=f"Failed to create service: {str(e)}"), 500
+    except Exception as e:
+        print(f"Error creating service: {str(e)}")
+        return jsonify(success=False, message=f"Error creating service: {str(e)}"), 500
+
 @socketio.on('connect')
 def handle_connect():
     services = SystemdManager.get_all_services()

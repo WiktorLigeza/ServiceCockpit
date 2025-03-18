@@ -38,12 +38,40 @@ WantedBy=default.target`;
     // Update preview on input change
     addServiceForm.addEventListener('input', updateServicePreview);
 
+
     // Handle form submission
-    addServiceForm.addEventListener('submit', (event) => {
+    document.getElementById("submit-service").addEventListener('click', (event) => {
         event.preventDefault();
-        updateServicePreview()
-        // Log the service file content to the console (for now)
-        console.log(servicePreview.value);
+        updateServicePreview();
+        console.log("Service preview:", servicePreview.value);
+
+        const formData = {
+            serviceName: document.getElementById('serviceName').value,
+            serviceContent: servicePreview.value
+        };
+
+        fetch('/api/create_service', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(formData)
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                console.log('Service created successfully:', data.message);
+                // Optionally, display a success message to the user
+            } else {
+                console.error('Failed to create service:', data.message);
+                // Optionally, display an error message to the user
+            }
+        })
+        .catch(error => {
+            console.error('Error creating service:', error);
+            // Optionally, display an error message to the user
+        });
+
         addServiceCard.classList.add('hidden');
     });
 
