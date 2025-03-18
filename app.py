@@ -382,5 +382,5 @@ if __name__ == '__main__':
     update_thread.daemon = True
     update_thread.start()
     
-    socketio.run(app, host='0.0.0.0', port=2137, debug=True)
+    socketio.run(app, host='0.0.0.0', port=2137, debug=False, allow_unsafe_werkzeug=True)
 
