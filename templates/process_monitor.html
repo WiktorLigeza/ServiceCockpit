@@ -1,0 +1,23 @@
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<div class="infocard hidden" id="process-monitor-card" style="min-height: 700px; min-width: 600px; width: 700px;">
+    <div class="infocard-header">
+        Process Monitor
+        <div class="infocard-controls">
+            <button class="btn-close-process"><i class="fas fa-times"></i></button>
+        </div>
+    </div>
+    <div class="infocard-body process-container">
+        <div class="process-input-container">
+            <label for="process-pid">Process PID:</label>
+            <input type="number" id="process-pid" name="process-pid" placeholder="Enter PID">
+            <button id="monitor-process-btn">Monitor</button>
+        </div>
+        <div class="process-graphs-container">
+            <canvas id="cpu-usage-chart" width="400" height="100"></canvas>
+            <canvas id="memory-usage-chart" width="400" height="100"></canvas>
+            <canvas id="network-usage-chart" width="400" height="100"></canvas>
+        </div>
+    </div>
+</div>
+<script src="{{ url_for('static', filename='js/process_monitor.js') }}"></script>

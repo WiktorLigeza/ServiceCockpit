@@ -45,7 +45,7 @@
             <a href="#" onclick="toggleConsole(); return false;">Console</a>
         </div>
         <div class="nav-item">
-            <a href="#">Settings</a>
+            <a href="#" onclick="toggleProcessMonitor(); return false;">Process Monitor</a>
         </div>
     </nav>
 </header>
@@ -61,6 +61,13 @@ function toggleConsole() {
 function toggleDevicesManager() {
     const devicesManager = document.getElementById('devices-manager-card');
     devicesManager.style.display = devicesManager.style.display === 'none' || devicesManager.style.display === '' 
+        ? 'flex' 
+        : 'none';
+}
+
+function toggleProcessMonitor() {
+    const processMonitor = document.getElementById('process-monitor-card');
+    processMonitor.style.display = processMonitor.style.display === 'none' || processMonitor.style.display === '' 
         ? 'flex' 
         : 'none';
 }
