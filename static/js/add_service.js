@@ -12,6 +12,7 @@ After=network-online.target
 [Service]
 Type=${formData.serviceType}
 User=${formData.serviceUser}
+WorkingDirectory=${formData.workingDirectory}
 ExecStart=${formData.execPath} ${formData.serviceParams}
 Restart=${formData.restartPolicy}
 RestartSec=${formData.restartSec}s
@@ -30,7 +31,8 @@ WantedBy=default.target`;
             execPath: document.getElementById('execPath').value,
             serviceParams: document.getElementById('serviceParams').value,
             restartPolicy: document.getElementById('restartPolicy').value,
-            restartSec: document.getElementById('restartSec').value
+            restartSec: document.getElementById('restartSec').value,
+            workingDirectory: document.getElementById('workingDirectory').value
         };
         servicePreview.value = generateServiceConfig(formData);
     }
