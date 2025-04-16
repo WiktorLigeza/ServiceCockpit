@@ -3,6 +3,7 @@ An application for viewing and managing services on Linux, providing an intuitiv
 ## Cockpit
 
 ![Main](https://github.com/WiktorLigeza/ServiceCockpit/blob/main/cockpit.png)
+![Main](https://github.com/WiktorLigeza/ServiceCockpit/blob/main/service_monitor.png)
 
 created on: Python 3.11.2
 
