@@ -189,7 +189,7 @@ def get_process_network_traffic(pid):
         current_time = time.time()
         
         # Get connections for this process
-        connections = process.connections()
+        connections = process.net_connections()
         if not connections:
             return 0
             
