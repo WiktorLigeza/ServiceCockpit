@@ -7,19 +7,28 @@ document.addEventListener('DOMContentLoaded', () => {
     // Chart instances
     let cpuChart = null;
     let memoryChart = null;
-    let networkChart = null;
+    let networkConnChart = null;
+    let networkTrafficChart = null;
 
     // Data arrays for charts
     const cpuData = [];
     const memoryData = [];
     const networkConnData = [];
-    const ioReadData = [];
-    const ioWriteData = [];
+    const networkTrafficData = [];
     const timestamps = [];
 
+    // Max/min values
+    let cpuMax = 0;
+    let cpuMin = Number.MAX_VALUE;
+    let memoryMax = 0;
+    let memoryMin = Number.MAX_VALUE;
+    let networkConnMax = 0;
+    let networkConnMin = Number.MAX_VALUE;
+    let networkTrafficMax = 0;
+    let networkTrafficMin = Number.MAX_VALUE;
+
     // Previous values for calculating rates
-    let prevIoRead = 0;
-    let prevIoWrite = 0;
+    let prevNetBytes = 0;
     let prevTimestamp = 0;
 
     // Max data points to show in charts
@@ -46,14 +55,14 @@ document.addEventListener('DOMContentLoaded', () => {
             try {
                 const cpuCtx = document.getElementById('cpu-usage-chart').getContext('2d');
                 const memoryCtx = document.getElementById('memory-usage-chart').getContext('2d');
-                const networkCtx = document.getElementById('network-usage-chart').getContext('2d');
-
-                console.log("Got chart contexts:", cpuCtx, memoryCtx, networkCtx);
+                const networkConnCtx = document.getElementById('network-conn-chart').getContext('2d');
+                const networkTrafficCtx = document.getElementById('network-traffic-chart').getContext('2d');
 
                 // Destroy existing charts if they exist
                 if (cpuChart) cpuChart.destroy();
                 if (memoryChart) memoryChart.destroy();
-                if (networkChart) networkChart.destroy();
+                if (networkConnChart) networkConnChart.destroy();
+                if (networkTrafficChart) networkTrafficChart.destroy();
 
                 // Common chart options for dark theme
                 const darkThemeOptions = {
@@ -92,8 +101,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                 };
 
-                console.log("Creating CPU chart...");
-                // Create new charts
+                // Create CPU chart
                 cpuChart = new Chart(cpuCtx, {
                     type: 'line',
                     data: {
@@ -121,13 +129,13 @@ document.addEventListener('DOMContentLoaded', () => {
                             title: {
                                 ...darkThemeOptions.plugins.title,
                                 display: true,
-                                text: 'CPU Usage'
+                                text: 'CPU Usage (Min: 0%, Max: 0%)'
                             }
                         }
                     }
                 });
                 
-                console.log("Creating memory chart...");
+                // Create memory chart
                 memoryChart = new Chart(memoryCtx, {
                     type: 'line',
                     data: {
@@ -154,14 +162,14 @@ document.addEventListener('DOMContentLoaded', () => {
                             title: {
                                 ...darkThemeOptions.plugins.title,
                                 display: true,
-                                text: 'Memory Usage'
+                                text: 'Memory Usage (Min: 0MB, Max: 0MB)'
                             }
                         }
                     }
                 });
                 
-                console.log("Creating network chart...");
-                networkChart = new Chart(networkCtx, {
+                // Create network connections chart
+                networkConnChart = new Chart(networkConnCtx, {
                     type: 'line',
                     data: {
                         labels: [],
@@ -172,16 +180,37 @@ document.addEventListener('DOMContentLoaded', () => {
                                 borderColor: 'rgb(54, 162, 235)',
                                 tension: 0.1,
                                 fill: false
-                            },
+                            }
+                        ]
+                    },
+                    options: {
+                        ...darkThemeOptions,
+                        scales: {
+                            ...darkThemeOptions.scales,
+                            y: {
+                                ...darkThemeOptions.scales.y,
+                                beginAtZero: true
+                            }
+                        },
+                        plugins: {
+                            ...darkThemeOptions.plugins,
+                            title: {
+                                ...darkThemeOptions.plugins.title,
+                                display: true,
+                                text: 'Network Connections (Min: 0, Max: 0)'
+                            }
+                        }
+                    }
+                });
+                
+                // Create network traffic chart
+                networkTrafficChart = new Chart(networkTrafficCtx, {
+                    type: 'line',
+                    data: {
+                        labels: [],
+                        datasets: [
                             {
-                                label: 'I/O Read Rate (KB/s)',
-                                data: [],
-                                borderColor: 'rgb(75, 192, 192)',
-                                tension: 0.1,
-                                fill: false
-                            },
-                            {
-                                label: 'I/O Write Rate (KB/s)',
+                                label: 'Network Traffic (KB/s)',
                                 data: [],
                                 borderColor: 'rgb(255, 159, 64)',
                                 tension: 0.1,
@@ -203,24 +232,33 @@ document.addEventListener('DOMContentLoaded', () => {
                             title: {
                                 ...darkThemeOptions.plugins.title,
                                 display: true,
-                                text: 'Network & I/O Activity'
+                                text: 'Network Traffic (Min: 0KB/s, Max: 0KB/s)'
                             }
                         }
                     }
                 });
+                
                 console.log("Charts created successfully!");
                 
                 // Clear data arrays
                 cpuData.length = 0;
                 memoryData.length = 0;
                 networkConnData.length = 0;
-                ioReadData.length = 0;
-                ioWriteData.length = 0;
+                networkTrafficData.length = 0;
                 timestamps.length = 0;
                 
+                // Reset max/min values
+                cpuMax = 0;
+                cpuMin = Number.MAX_VALUE;
+                memoryMax = 0;
+                memoryMin = Number.MAX_VALUE;
+                networkConnMax = 0;
+                networkConnMin = Number.MAX_VALUE;
+                networkTrafficMax = 0;
+                networkTrafficMin = Number.MAX_VALUE;
+                
                 // Reset previous values
-                prevIoRead = 0;
-                prevIoWrite = 0;
+                prevNetBytes = 0;
                 prevTimestamp = 0;
             } catch (error) {
                 console.error("Error initializing charts:", error);
@@ -251,57 +289,65 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // Calculate IO rates
-    function calculateIORates(data) {
+    // Calculate network traffic rate in KB/s
+    function calculateNetworkRate(data) {
         const currentTime = data.timestamp;
+        const currentNetBytes = data.io_read_bytes + data.io_write_bytes; // Total network bytes
         
-        // Calculate rates for first-time execution
+        // First-time execution
         if (prevTimestamp === 0) {
             prevTimestamp = currentTime;
-            prevIoRead = data.io_read_bytes;
-            prevIoWrite = data.io_write_bytes;
-            return { readRate: 0, writeRate: 0 };
+            prevNetBytes = currentNetBytes;
+            return 0;
         }
         
         // Calculate time difference in seconds
         const timeDiff = currentTime - prevTimestamp;
-        if (timeDiff <= 0) return { readRate: 0, writeRate: 0 };
+        if (timeDiff <= 0) return 0;
         
-        // Calculate IO rates in KB/s
-        const readRate = (data.io_read_bytes - prevIoRead) / timeDiff / 1024;
-        const writeRate = (data.io_write_bytes - prevIoWrite) / timeDiff / 1024;
+        // Calculate network rate in KB/s
+        const netRate = (currentNetBytes - prevNetBytes) / timeDiff / 1024;
         
         // Update previous values
         prevTimestamp = currentTime;
-        prevIoRead = data.io_read_bytes;
-        prevIoWrite = data.io_write_bytes;
+        prevNetBytes = currentNetBytes;
         
-        return {
-            readRate: readRate > 0 ? readRate : 0,
-            writeRate: writeRate > 0 ? writeRate : 0
-        };
+        return netRate > 0 ? netRate : 0;
     }
 
     // Update charts with new data
     function updateCharts(data) {
         if (!data) return;
         
-        console.log("Updating charts with new data:", data);
-        
         // Format timestamp
         const date = new Date(data.timestamp * 1000);
         const timeString = date.toLocaleTimeString();
         
-        // Calculate IO rates
-        const ioRates = calculateIORates(data);
+        // Calculate network traffic rate
+        const networkRate = calculateNetworkRate(data);
+        
+        // Convert memory to MB
+        const memoryMB = data.memory_rss / (1024 * 1024);
+        
+        // Update max/min values
+        cpuMax = Math.max(cpuMax, data.cpu_percent);
+        cpuMin = data.cpu_percent < cpuMin ? data.cpu_percent : cpuMin;
+        
+        memoryMax = Math.max(memoryMax, memoryMB);
+        memoryMin = memoryMB < memoryMin ? memoryMB : memoryMin;
+        
+        networkConnMax = Math.max(networkConnMax, data.network_connections);
+        networkConnMin = data.network_connections < networkConnMin ? data.network_connections : networkConnMin;
+        
+        networkTrafficMax = Math.max(networkTrafficMax, networkRate);
+        networkTrafficMin = networkRate < networkTrafficMin ? networkRate : networkTrafficMin;
         
         // Add new data
         timestamps.push(timeString);
         cpuData.push(data.cpu_percent);
-        memoryData.push(data.memory_rss / (1024 * 1024)); // Convert to MB
+        memoryData.push(memoryMB);
         networkConnData.push(data.network_connections);
-        ioReadData.push(ioRates.readRate.toFixed(2));
-        ioWriteData.push(ioRates.writeRate.toFixed(2));
+        networkTrafficData.push(networkRate.toFixed(2));
         
         // Limit data points
         if (timestamps.length > MAX_DATA_POINTS) {
@@ -309,12 +355,11 @@ document.addEventListener('DOMContentLoaded', () => {
             cpuData.shift();
             memoryData.shift();
             networkConnData.shift();
-            ioReadData.shift();
-            ioWriteData.shift();
+            networkTrafficData.shift();
         }
         
         // Make sure charts are initialized
-        if (!cpuChart || !memoryChart || !networkChart) {
+        if (!cpuChart || !memoryChart || !networkConnChart || !networkTrafficChart) {
             console.warn("Charts not initialized, attempting to initialize...");
             initCharts();
             return; // Wait for next update cycle
@@ -324,19 +369,26 @@ document.addEventListener('DOMContentLoaded', () => {
             // Update CPU chart
             cpuChart.data.labels = timestamps;
             cpuChart.data.datasets[0].data = cpuData;
-            cpuChart.update('none'); // Use 'none' mode for better performance
+            cpuChart.options.plugins.title.text = `CPU Usage (Min: ${cpuMin.toFixed(1)}%, Max: ${cpuMax.toFixed(1)}%)`;
+            cpuChart.update('none');
             
             // Update memory chart
             memoryChart.data.labels = timestamps;
             memoryChart.data.datasets[0].data = memoryData;
+            memoryChart.options.plugins.title.text = `Memory Usage (Min: ${memoryMin.toFixed(1)}MB, Max: ${memoryMax.toFixed(1)}MB)`;
             memoryChart.update('none');
             
-            // Update network chart - includes connections and IO
-            networkChart.data.labels = timestamps;
-            networkChart.data.datasets[0].data = networkConnData;
-            networkChart.data.datasets[1].data = ioReadData;
-            networkChart.data.datasets[2].data = ioWriteData;
-            networkChart.update('none');
+            // Update network connections chart
+            networkConnChart.data.labels = timestamps;
+            networkConnChart.data.datasets[0].data = networkConnData;
+            networkConnChart.options.plugins.title.text = `Network Connections (Min: ${networkConnMin}, Max: ${networkConnMax})`;
+            networkConnChart.update('none');
+            
+            // Update network traffic chart
+            networkTrafficChart.data.labels = timestamps;
+            networkTrafficChart.data.datasets[0].data = networkTrafficData;
+            networkTrafficChart.options.plugins.title.text = `Network Traffic (Min: ${networkTrafficMin.toFixed(1)}KB/s, Max: ${networkTrafficMax.toFixed(1)}KB/s)`;
+            networkTrafficChart.update('none');
             
             // Update card title with process name and more info
             const cardHeader = processMonitorCard.querySelector('.infocard-header');
@@ -408,9 +460,13 @@ document.addEventListener('DOMContentLoaded', () => {
             memoryChart.destroy();
             memoryChart = null;
         }
-        if (networkChart) {
-            networkChart.destroy();
-            networkChart = null;
+        if (networkConnChart) {
+            networkConnChart.destroy();
+            networkConnChart = null;
+        }
+        if (networkTrafficChart) {
+            networkTrafficChart.destroy();
+            networkTrafficChart = null;
         }
         
         currentPid = null;
