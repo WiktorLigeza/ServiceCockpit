@@ -184,6 +184,68 @@ def system_metrics():
 def network_info():
     return jsonify(get_network_info())
 
+@app.route('/api/process_metrics/<int:pid>')
+def process_metrics(pid):
+    try:
+        # Try to get the process
+        process = psutil.Process(pid)
+        
+        # Get CPU usage (as a percentage)
+        cpu_percent = process.cpu_percent(interval=0.1)
+        
+        # Get memory info
+        memory_info = process.memory_info()
+        memory_percent = process.memory_percent()
+        
+        # Get network connections
+        network_connections = process.connections()
+        num_connections = len(network_connections)
+        
+        # Get IO counters if available
+        try:
+            io_counters = process.io_counters()
+            io_read_bytes = io_counters.read_bytes
+            io_write_bytes = io_counters.write_bytes
+        except (psutil.AccessDenied, AttributeError):
+            io_read_bytes = 0
+            io_write_bytes = 0
+        
+        # Get process name and status
+        process_name = process.name()
+        status = process.status()
+        
+        return jsonify({
+            'success': True,
+            'process_exists': True,
+            'process_name': process_name,
+            'status': status,
+            'cpu_percent': cpu_percent,
+            'memory_rss': memory_info.rss,  # RSS in bytes
+            'memory_vms': memory_info.vms,  # VMS in bytes
+            'memory_percent': memory_percent,
+            'network_connections': num_connections,
+            'io_read_bytes': io_read_bytes,
+            'io_write_bytes': io_write_bytes,
+            'timestamp': time.time()
+        })
+    except psutil.NoSuchProcess:
+        return jsonify({
+            'success': False,
+            'process_exists': False,
+            'error': f'Process with PID {pid} not found'
+        })
+    except (psutil.AccessDenied, psutil.ZombieProcess) as e:
+        return jsonify({
+            'success': False,
+            'process_exists': True,
+            'error': str(e)
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        })
+
 def background_update():
     last_services = None
     last_metrics = None
