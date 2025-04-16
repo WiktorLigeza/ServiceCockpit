@@ -55,6 +55,43 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (memoryChart) memoryChart.destroy();
                 if (networkChart) networkChart.destroy();
 
+                // Common chart options for dark theme
+                const darkThemeOptions = {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    animation: {
+                        duration: 0 // Disable animation for better performance
+                    },
+                    plugins: {
+                        legend: {
+                            labels: {
+                                color: 'white' // White text for legend labels
+                            }
+                        },
+                        title: {
+                            color: 'white' // White text for title
+                        }
+                    },
+                    scales: {
+                        x: {
+                            ticks: {
+                                color: 'white' // White text for x-axis ticks
+                            },
+                            grid: {
+                                color: 'rgba(255, 255, 255, 0.1)' // Lighter grid lines
+                            }
+                        },
+                        y: {
+                            ticks: {
+                                color: 'white' // White text for y-axis ticks
+                            },
+                            grid: {
+                                color: 'rgba(255, 255, 255, 0.1)' // Lighter grid lines
+                            }
+                        }
+                    }
+                };
+
                 console.log("Creating CPU chart...");
                 // Create new charts
                 cpuChart = new Chart(cpuCtx, {
@@ -70,19 +107,19 @@ document.addEventListener('DOMContentLoaded', () => {
                         }]
                     },
                     options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
+                        ...darkThemeOptions,
                         scales: {
+                            ...darkThemeOptions.scales,
                             y: {
+                                ...darkThemeOptions.scales.y,
                                 beginAtZero: true,
                                 max: 100
                             }
                         },
-                        animation: {
-                            duration: 0 // Disable animation for better performance
-                        },
                         plugins: {
+                            ...darkThemeOptions.plugins,
                             title: {
+                                ...darkThemeOptions.plugins.title,
                                 display: true,
                                 text: 'CPU Usage'
                             }
@@ -104,18 +141,18 @@ document.addEventListener('DOMContentLoaded', () => {
                         }]
                     },
                     options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
+                        ...darkThemeOptions,
                         scales: {
+                            ...darkThemeOptions.scales,
                             y: {
+                                ...darkThemeOptions.scales.y,
                                 beginAtZero: true
                             }
                         },
-                        animation: {
-                            duration: 0 // Disable animation for better performance
-                        },
                         plugins: {
+                            ...darkThemeOptions.plugins,
                             title: {
+                                ...darkThemeOptions.plugins.title,
                                 display: true,
                                 text: 'Memory Usage'
                             }
@@ -153,18 +190,18 @@ document.addEventListener('DOMContentLoaded', () => {
                         ]
                     },
                     options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
+                        ...darkThemeOptions,
                         scales: {
+                            ...darkThemeOptions.scales,
                             y: {
+                                ...darkThemeOptions.scales.y,
                                 beginAtZero: true
                             }
                         },
-                        animation: {
-                            duration: 0 // Disable animation for better performance
-                        },
                         plugins: {
+                            ...darkThemeOptions.plugins,
                             title: {
+                                ...darkThemeOptions.plugins.title,
                                 display: true,
                                 text: 'Network & I/O Activity'
                             }
@@ -308,8 +345,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     <button class="btn-close-process"><i class="fas fa-times"></i></button>
                 </div>`;
             
-            // Reattach close button event
-            document.querySelector('.btn-close-process').addEventListener('click', () => {
+            // Re-attach close button event since we replaced the header HTML
+            document.querySelector('#process-monitor-card .btn-close-process').addEventListener('click', () => {
+                console.log("Close button clicked");
                 processMonitorCard.classList.add('hidden');
                 stopMonitoring();
             });
@@ -339,7 +377,13 @@ document.addEventListener('DOMContentLoaded', () => {
                     // Start interval for continuous monitoring
                     monitoringInterval = setInterval(() => {
                         fetchProcessMetrics(pid).then(newData => {
-                            updateCharts(newData);
+                            if (newData) {
+                                updateCharts(newData);
+                            } else {
+                                console.log("Process no longer available");
+                                stopMonitoring();
+                                processMonitorCard.classList.add('hidden');
+                            }
                         });
                     }, MONITOR_INTERVAL);
                 }
@@ -349,11 +393,28 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Stop monitoring
     function stopMonitoring() {
+        console.log("Stopping process monitoring");
         if (monitoringInterval) {
             clearInterval(monitoringInterval);
             monitoringInterval = null;
         }
+        
+        // Clean up charts
+        if (cpuChart) {
+            cpuChart.destroy();
+            cpuChart = null;
+        }
+        if (memoryChart) {
+            memoryChart.destroy();
+            memoryChart = null;
+        }
+        if (networkChart) {
+            networkChart.destroy();
+            networkChart = null;
+        }
+        
         currentPid = null;
+        console.log("Monitoring stopped");
     }
 
     // Monitor button click handler
@@ -367,8 +428,9 @@ document.addEventListener('DOMContentLoaded', () => {
         startMonitoring(pid);
     });
 
-    // Close button handler
+    // Close button handler - attach only once during initialization
     btnCloseProcess.addEventListener('click', () => {
+        console.log("Main close button clicked");
         processMonitorCard.classList.add('hidden');
         stopMonitoring();
     });

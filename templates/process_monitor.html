@@ -1,6 +1,6 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
-<div class="infocard hidden" id="process-monitor-card" style="min-height: 700px; min-width: 600px; width: 700px;">
+<div class="infocard hidden" id="process-monitor-card" style="min-height: 835px; min-width: 600px; width: 1000px;">
     <div class="infocard-header">
         Process Monitor
         <div class="infocard-controls">
@@ -9,8 +9,7 @@
     </div>
     <div class="infocard-body process-container">
         <div class="process-input-container">
-            <label for="process-pid">Process PID:</label>
-            <input type="number" id="process-pid" name="process-pid" placeholder="Enter PID">
+            <input class="form-control" type="number" id="process-pid" placeholder="Enter PID">
             <button id="monitor-process-btn">Monitor</button>
         </div>
         <div class="process-graphs-container">
