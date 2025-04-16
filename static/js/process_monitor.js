@@ -379,7 +379,10 @@ document.addEventListener('DOMContentLoaded', () => {
             // Re-attach close button event since we replaced the header HTML
             document.querySelector('#process-monitor-card .btn-close-process').addEventListener('click', () => {
                 console.log("Close button clicked");
-                processMonitorCard.classList.add('hidden');
+                const processMonitor = document.getElementById('process-monitor-card');
+                processMonitor.style.display = processMonitor.style.display === 'none' || processMonitor.style.display === '' 
+                    ? 'flex' 
+                    : 'none';
                 stopMonitoring();
             });
         } catch (error) {
