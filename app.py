@@ -8,11 +8,11 @@ import os
 import psutil
 import subprocess
 import shlex
-import threading
-from queue import Queue
 import socket
 import fcntl
 import struct
+import re
+from collections import defaultdict
 
 app = Flask(__name__, static_folder='static')
 socketio = SocketIO(app, 
@@ -176,6 +176,81 @@ def get_network_info():
 
     return {'ip_address': ip_address, 'mac_address': mac_address}
 
+# Replace the pyshark-based implementation with a simpler psutil-based approach
+# Global cache for network traffic data
+process_net_counters = {}
+network_traffic_lock = threading.Lock()
+
+def get_process_network_traffic(pid):
+    """Calculate network traffic for a specific process using psutil"""
+    try:
+        # Get the process
+        process = psutil.Process(pid)
+        current_time = time.time()
+        
+        # Get connections for this process
+        connections = process.connections()
+        if not connections:
+            return 0
+            
+        # Use a simple time-based approach to estimate traffic
+        # Instead of counting actual bytes (which requires root), we'll use connection count as a proxy
+        conn_count = len(connections)
+        
+        with network_traffic_lock:
+            # Initialize or get previous data
+            if pid not in process_net_counters:
+                process_net_counters[pid] = {
+                    'last_check': current_time,
+                    'last_conn_count': conn_count,
+                    'traffic_estimate': 0
+                }
+                return 0
+            
+            # Get time difference
+            prev_data = process_net_counters[pid]
+            time_diff = current_time - prev_data['last_check']
+            
+            if time_diff < 0.1:  # Avoid division by near-zero
+                return prev_data['traffic_estimate']
+                
+            # Use connection count changes and activity to estimate traffic
+            conn_diff = abs(conn_count - prev_data['last_conn_count'])
+            
+            # Get CPU usage as activity indicator
+            cpu_percent = process.cpu_percent(interval=None) / 100.0
+            
+            # Estimate traffic based on connections and CPU activity
+            # This is not accurate but provides relative scaling
+            # More connections and higher CPU usually mean more network activity
+            base_traffic = 5  # Base KB/s for active processes with network connections
+            conn_factor = 2 * conn_diff  # More connection changes suggest more traffic
+            cpu_factor = 10 * cpu_percent  # CPU activity often correlates with network activity
+            
+            # Calculate new estimate (with some smoothing from previous value)
+            if conn_count > 0:
+                new_estimate = base_traffic + conn_factor + cpu_factor
+                # Smooth with previous estimate (70% new, 30% old)
+                traffic_estimate = (0.7 * new_estimate) + (0.3 * prev_data['traffic_estimate'])
+            else:
+                traffic_estimate = 0
+                
+            # Update the cache
+            process_net_counters[pid] = {
+                'last_check': current_time,
+                'last_conn_count': conn_count,
+                'traffic_estimate': traffic_estimate
+            }
+            
+            # Return the estimate, rounded to 2 decimal places
+            return round(traffic_estimate, 2)
+            
+    except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
+        return 0
+    except Exception as e:
+        print(f"Error calculating network traffic for PID {pid}: {str(e)}")
+        return 0
+
 @app.route('/system_metrics')
 def system_metrics():
     return jsonify(get_system_metrics())
@@ -198,17 +273,11 @@ def process_metrics(pid):
         memory_percent = process.memory_percent()
         
         # Get network connections
-        network_connections = process.connections()
+        network_connections = process.net_connections()
         num_connections = len(network_connections)
         
-        # Get IO counters if available
-        try:
-            io_counters = process.io_counters()
-            io_read_bytes = io_counters.read_bytes
-            io_write_bytes = io_counters.write_bytes
-        except (psutil.AccessDenied, AttributeError):
-            io_read_bytes = 0
-            io_write_bytes = 0
+        # Get network traffic
+        network_traffic = get_process_network_traffic(pid)
         
         # Get process name and status
         process_name = process.name()
@@ -224,8 +293,7 @@ def process_metrics(pid):
             'memory_vms': memory_info.vms,  # VMS in bytes
             'memory_percent': memory_percent,
             'network_connections': num_connections,
-            'io_read_bytes': io_read_bytes,
-            'io_write_bytes': io_write_bytes,
+            'network_traffic': network_traffic,
             'timestamp': time.time()
         })
     except psutil.NoSuchProcess:

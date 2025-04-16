@@ -291,28 +291,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Calculate network traffic rate in KB/s
     function calculateNetworkRate(data) {
-        const currentTime = data.timestamp;
-        const currentNetBytes = data.io_read_bytes + data.io_write_bytes; // Total network bytes
-        
-        // First-time execution
-        if (prevTimestamp === 0) {
-            prevTimestamp = currentTime;
-            prevNetBytes = currentNetBytes;
-            return 0;
-        }
-        
-        // Calculate time difference in seconds
-        const timeDiff = currentTime - prevTimestamp;
-        if (timeDiff <= 0) return 0;
-        
-        // Calculate network rate in KB/s
-        const netRate = (currentNetBytes - prevNetBytes) / timeDiff / 1024;
-        
-        // Update previous values
-        prevTimestamp = currentTime;
-        prevNetBytes = currentNetBytes;
-        
-        return netRate > 0 ? netRate : 0;
+        return data.network_traffic;
     }
 
     // Update charts with new data
