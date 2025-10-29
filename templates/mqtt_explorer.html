@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MQTT Explorer - Phantom Cockpit</title>
+    <link rel="icon" type="image/webp" href="{{ url_for('static', filename='images/H2A_Render_Phantom.webp') }}">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">    
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/mqtt_explorer.css') }}">
+    <script src="https://cdn.socket.io/4.0.1/socket.io.min.js"></script>
+</head>
+<body class="bg-light">
+    {% include 'header.html' %}
+    
+    <div class="main-container">
+        <!-- Connection Panel -->
+        <div class="connection-panel">
+            <h2 class="section-title">MQTT Connection</h2>
+            <div class="connection-form">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="mqtt-host">Broker Host:</label>
+                        <input type="text" id="mqtt-host" class="form-control" value="localhost" placeholder="localhost">
+                    </div>
+                    <div class="form-group">
+                        <label for="mqtt-port">Port:</label>
+                        <input type="number" id="mqtt-port" class="form-control" value="1883" placeholder="1883">
+                    </div>
+                    <div class="form-group">
+                        <label for="mqtt-username">Username:</label>
+                        <input type="text" id="mqtt-username" class="form-control" placeholder="Optional">
+                    </div>
+                    <div class="form-group">
+                        <label for="mqtt-password">Password:</label>
+                        <input type="password" id="mqtt-password" class="form-control" placeholder="Optional">
+                    </div>
+                </div>
+                <div class="form-actions">
+                    <button id="connect-btn" class="btn btn-primary">
+                        <i class="fas fa-plug"></i> Connect
+                    </button>
+                    <button id="disconnect-btn" class="btn btn-danger" style="display: none;">
+                        <i class="fas fa-times"></i> Disconnect
+                    </button>
+                    <div class="connection-status" id="connection-status">
+                        <i class="fas fa-circle" style="color: red;"></i> Disconnected
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Topics Panel -->
+        <div class="topics-panel">
+            <h2 class="section-title">Topics</h2>
+            <div class="search-container">
+                <input type="text" class="form-control" id="topics-search" placeholder="Search topics...">
+            </div>
+            <div id="topics-container">
+                <div class="no-topics">
+                    Connect to MQTT broker to see topics
+                </div>
+            </div>
+        </div>
+
+        <!-- Messages Panel -->
+        <div class="messages-panel">
+            <h2 class="section-title">
+                Messages
+                <span id="selected-topic-name"></span>
+            </h2>
+            <div class="messages-controls">
+                <div class="form-group">
+                    <label for="subscribe-topic">Subscribe to Topic:</label>
+                    <div class="subscribe-input">
+                        <input type="text" id="subscribe-topic" class="form-control" placeholder="topic/name or +/# wildcards">
+                        <button id="subscribe-btn" class="btn btn-success">
+                            <i class="fas fa-plus"></i> Subscribe
+                        </button>
+                    </div>
+                </div>
+                <div class="message-filters">
+                    <button id="clear-messages-btn" class="btn btn-warning">
+                        <i class="fas fa-trash"></i> Clear Messages
+                    </button>
+                    <button id="pause-messages-btn" class="btn btn-secondary">
+                        <i class="fas fa-pause"></i> Pause
+                    </button>
+                </div>
+            </div>
+            <div id="messages-container">
+                <div class="no-messages">
+                    Subscribe to a topic to see messages
+                </div>
+            </div>
+        </div>
+
+        <!-- Publish Panel -->
+        <div class="publish-panel">
+            <h2 class="section-title">Publish Message</h2>
+            <div class="publish-form">
+                <div class="form-group">
+                    <label for="publish-topic">Topic:</label>
+                    <input type="text" id="publish-topic" class="form-control" placeholder="topic/name">
+                </div>
+                <div class="form-group">
+                    <label for="publish-payload">Payload:</label>
+                    <textarea id="publish-payload" class="form-control" rows="4" placeholder="Message payload (JSON or plain text)"></textarea>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="publish-qos">QoS:</label>
+                        <select id="publish-qos" class="form-control">
+                            <option value="0">0 - At most once</option>
+                            <option value="1">1 - At least once</option>
+                            <option value="2">2 - Exactly once</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>
+                            <input type="checkbox" id="publish-retain"> Retain
+                        </label>
+                    </div>
+                </div>
+                <button id="publish-btn" class="btn btn-primary">
+                    <i class="fas fa-paper-plane"></i> Publish
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/mqtt_explorer.js') }}"></script>
+</body>
+</html>

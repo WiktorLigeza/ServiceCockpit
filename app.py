@@ -1,5 +1,5 @@
 from flask import Flask, render_template, url_for, jsonify, request
-from flask_socketio import SocketIO
+from flask_socketio import SocketIO, emit, join_room, leave_room
 from systemd_manager import SystemdManager
 import threading
 import time
@@ -13,6 +13,7 @@ import fcntl
 import struct
 import re
 from collections import defaultdict
+import paho.mqtt.client as mqtt
 
 app = Flask(__name__, static_folder='static')
 socketio = SocketIO(app, 
@@ -22,6 +23,115 @@ socketio = SocketIO(app,
                    ping_interval=5)
 
 CONFIG_FILE = 'config.json'
+
+# MQTT Manager Class
+class MQTTManager:
+    def __init__(self, socketio_instance):
+        self.client = None
+        self.socketio = socketio_instance
+        self.connected = False
+        self.topics = set()
+        self.subscriptions = set()
+        
+    def connect(self, host='localhost', port=1883, username='', password=''):
+        try:
+            self.client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
+            
+            # Set callbacks
+            self.client.on_connect = self.on_connect
+            self.client.on_disconnect = self.on_disconnect
+            self.client.on_message = self.on_message
+            self.client.on_subscribe = self.on_subscribe
+            self.client.on_publish = self.on_publish
+            
+            # Set authentication if provided
+            if username:
+                self.client.username_pw_set(username, password)
+            
+            # Connect to broker
+            self.client.connect(host, port, 60)
+            self.client.loop_start()
+            
+            return True
+        except Exception as e:
+            self.socketio.emit('mqtt_error', {'error': str(e)}, namespace='/mqtt')
+            return False
+    
+    def disconnect(self):
+        if self.client:
+            self.client.disconnect()
+            self.client.loop_stop()
+            self.client = None
+        self.connected = False
+        self.topics.clear()
+        self.subscriptions.clear()
+        self.socketio.emit('mqtt_status', {'connected': False, 'message': 'Disconnected'}, namespace='/mqtt')
+    
+    def subscribe(self, topic):
+        if self.client and self.connected:
+            try:
+                self.client.subscribe(topic)
+                self.subscriptions.add(topic)
+                return True
+            except Exception as e:
+                self.socketio.emit('mqtt_error', {'error': str(e)}, namespace='/mqtt')
+                return False
+        return False
+    
+    def publish(self, topic, payload, qos=0, retain=False):
+        if self.client and self.connected:
+            try:
+                self.client.publish(topic, payload, qos, retain)
+                return True
+            except Exception as e:
+                self.socketio.emit('mqtt_error', {'error': str(e)}, namespace='/mqtt')
+                return False
+        return False
+    
+    def on_connect(self, client, userdata, flags, reason_code, properties=None):
+        if reason_code == 0:
+            self.connected = True
+            self.socketio.emit('mqtt_status', {'connected': True, 'message': 'Connected'}, namespace='/mqtt')
+            # Subscribe to wildcard to discover topics
+            client.subscribe('#')
+        else:
+            self.connected = False
+            self.socketio.emit('mqtt_status', {'connected': False, 'message': f'Connection failed: {reason_code}'}, namespace='/mqtt')
+    
+    def on_disconnect(self, client, userdata, flags, reason_code, properties=None):
+        self.connected = False
+        self.socketio.emit('mqtt_status', {'connected': False, 'message': 'Disconnected'}, namespace='/mqtt')
+    
+    def on_message(self, client, userdata, msg):
+        try:
+            topic = msg.topic
+            payload = msg.payload.decode('utf-8')
+            
+            # Add topic to discovered topics
+            self.topics.add(topic)
+            
+            # Emit message to frontend
+            self.socketio.emit('mqtt_message', {
+                'topic': topic,
+                'payload': payload,
+                'qos': msg.qos,
+                'retain': msg.retain,
+                'timestamp': time.time() * 1000  # milliseconds
+            }, namespace='/mqtt')
+            
+            # Update topics list
+            self.socketio.emit('mqtt_topics', {'topics': list(self.topics)}, namespace='/mqtt')
+            
+        except Exception as e:
+            self.socketio.emit('mqtt_error', {'error': f'Message handling error: {str(e)}'}, namespace='/mqtt')
+    
+    def on_subscribe(self, client, userdata, mid, reason_code_list, properties=None):
+        pass
+    
+    def on_publish(self, client, userdata, mid, reason_code, properties=None):
+        pass
+
+mqtt_manager = None
 
 ALLOWED_COMMANDS = {
     'ls': '/bin/ls',
@@ -343,6 +453,10 @@ def background_update():
 def index():
     return render_template('services.html')
 
+@app.route('/mqtt_explorer')
+def mqtt_explorer():
+    return render_template('mqtt_explorer.html')
+
 @app.route('/journal/<service>')
 def get_journal(service):
     logs = SystemdManager.get_journal_logs(service)
@@ -507,10 +621,68 @@ def handle_console_help():
                 "\n\n[WARNING] Note: All commands are executed with restricted privileges."
     socketio.emit('console_output', {'output': help_text}, room=request.sid)
 
+# MQTT Socket Handlers
+@socketio.on('connect', namespace='/mqtt')
+def handle_mqtt_connect():
+    print("Client connected to MQTT namespace")
+
+@socketio.on('disconnect', namespace='/mqtt')
+def handle_mqtt_disconnect():
+    print("Client disconnected from MQTT namespace")
+
+@socketio.on('mqtt_connect', namespace='/mqtt')
+def handle_mqtt_broker_connect(data):
+    global mqtt_manager
+    if mqtt_manager:
+        mqtt_manager.disconnect()
+    
+    mqtt_manager = MQTTManager(socketio)
+    
+    host = data.get('host', 'localhost')
+    port = data.get('port', 1883)
+    username = data.get('username', '')
+    password = data.get('password', '')
+    
+    success = mqtt_manager.connect(host, port, username, password)
+    if not success:
+        emit('mqtt_status', {'connected': False, 'message': 'Connection failed'})
+
+@socketio.on('mqtt_disconnect', namespace='/mqtt')
+def handle_mqtt_broker_disconnect():
+    global mqtt_manager
+    if mqtt_manager:
+        mqtt_manager.disconnect()
+        mqtt_manager = None
+
+@socketio.on('mqtt_subscribe', namespace='/mqtt')
+def handle_mqtt_subscribe(data):
+    global mqtt_manager
+    if mqtt_manager:
+        topic = data.get('topic', '')
+        if topic:
+            mqtt_manager.subscribe(topic)
+
+@socketio.on('mqtt_publish', namespace='/mqtt')
+def handle_mqtt_publish(data):
+    global mqtt_manager
+    if mqtt_manager:
+        topic = data.get('topic', '')
+        payload = data.get('payload', '')
+        qos = data.get('qos', 0)
+        retain = data.get('retain', False)
+        
+        if topic:
+            mqtt_manager.publish(topic, payload, qos, retain)
+
 if __name__ == '__main__':
     update_thread = threading.Thread(target=background_update)
     update_thread.daemon = True
     update_thread.start()
     
-    socketio.run(app, host='0.0.0.0', port=2137, debug=False, allow_unsafe_werkzeug=True)
+    try:
+        socketio.run(app, host='0.0.0.0', port=2137, debug=False, allow_unsafe_werkzeug=True)
+    finally:
+        # Cleanup MQTT connection on shutdown
+        if mqtt_manager:
+            mqtt_manager.disconnect()
 
