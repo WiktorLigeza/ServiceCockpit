@@ -517,6 +517,188 @@ body {
     border-radius: 3px;
 }
 
+/* Enhanced Code Editor Styling */
+.editor-textarea {
+    width: 100%;
+    height: 100%;
+    background: #0f0f1e;
+    color: #00ff41;
+    border: none;
+    outline: none;
+    resize: none;
+    padding: 15px 15px 15px 15px;
+    font-family: 'Courier New', 'Consolas', monospace;
+    font-size: 14px;
+    line-height: 1.6;
+    tab-size: 4;
+    -moz-tab-size: 4;
+    white-space: pre;
+    overflow-wrap: normal;
+    overflow-x: auto;
+}
+
+/* Syntax highlighting - Base colors */
+.editor-textarea.syntax-py,
+.editor-textarea.syntax-js,
+.editor-textarea.syntax-cpp,
+.editor-textarea.syntax-c,
+.editor-textarea.syntax-bash,
+.editor-textarea.syntax-sh {
+    color: #f8f8f2;
+}
+
+.editor-textarea.syntax-json {
+    color: #a6e22e;
+}
+
+.editor-textarea.syntax-html,
+.editor-textarea.syntax-xml {
+    color: #f92672;
+}
+
+.editor-textarea.syntax-css {
+    color: #66d9ef;
+}
+
+/* Better scrollbar for editor */
+.editor-textarea::-webkit-scrollbar {
+    width: 12px;
+    height: 12px;
+}
+
+.editor-textarea::-webkit-scrollbar-track {
+    background: #16213e;
+    border-left: 1px solid #00ff41;
+}
+
+.editor-textarea::-webkit-scrollbar-thumb {
+    background: #00ff41;
+    border-radius: 6px;
+    border: 2px solid #16213e;
+}
+
+.editor-textarea::-webkit-scrollbar-thumb:hover {
+    background: #00cc33;
+}
+
+.editor-textarea::-webkit-scrollbar-corner {
+    background: #16213e;
+}
+
+/* Editor window improvements */
+.editor-window {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 85%;
+    max-width: 1200px;
+    height: 85%;
+    max-height: 900px;
+    background: #1a1a2e;
+    border: 2px solid #00ff41;
+    border-radius: 8px;
+    display: none;
+    flex-direction: column;
+    z-index: 1000;
+    box-shadow: 0 10px 40px rgba(0, 255, 65, 0.3);
+    min-width: 600px;
+    min-height: 400px;
+}
+
+.editor-header {
+    background: #16213e;
+    padding: 12px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 2px solid #00ff41;
+    cursor: move;
+    user-select: none;
+    flex-shrink: 0;
+}
+
+.editor-header span {
+    color: #00ff41;
+    font-weight: bold;
+    font-size: 16px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.editor-language-badge {
+    background: rgba(0, 255, 65, 0.2);
+    padding: 3px 10px;
+    border-radius: 4px;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.editor-controls button {
+    background: none;
+    border: none;
+    color: #00ff41;
+    cursor: pointer;
+    padding: 5px 10px;
+    margin-left: 5px;
+    transition: all 0.3s;
+    font-size: 16px;
+}
+
+.editor-controls button:hover {
+    color: #fff;
+    background: rgba(0, 255, 65, 0.2);
+    border-radius: 4px;
+    transform: scale(1.1);
+}
+
+.editor-body {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    background: #0f0f1e;
+    position: relative;
+}
+
+.editor-footer {
+    background: #16213e;
+    padding: 10px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-top: 2px solid #00ff41;
+    flex-shrink: 0;
+}
+
+.editor-info {
+    color: #00ff41;
+    font-size: 13px;
+    font-family: 'Courier New', monospace;
+}
+
+#save-file-btn {
+    background: #00ff41;
+    color: #0f0f1e;
+    border: none;
+    padding: 6px 16px;
+    border-radius: 4px;
+    font-weight: bold;
+    transition: all 0.3s;
+}
+
+#save-file-btn:hover {
+    background: #00cc33;
+    transform: scale(1.05);
+    box-shadow: 0 0 10px rgba(0, 255, 65, 0.5);
+}
+
+#save-file-btn:active {
+    transform: scale(0.98);
+}
+
 /* Image Viewer Window */
 .image-viewer-window {
     position: fixed;
@@ -534,6 +716,8 @@ body {
     flex-direction: column;
     z-index: 1001;
     box-shadow: 0 10px 40px rgba(0, 255, 65, 0.3);
+    min-width: 400px;
+    min-height: 300px;
 }
 
 .image-viewer-header {
@@ -544,6 +728,7 @@ body {
     align-items: center;
     border-bottom: 2px solid #00ff41;
     cursor: move;
+    flex-shrink: 0;
 }
 
 .image-viewer-header span {
@@ -584,6 +769,7 @@ body {
     object-fit: contain;
     border: 1px solid #00ff41;
     border-radius: 4px;
+    transition: transform 0.3s ease;
 }
 
 .image-viewer-footer {
@@ -593,22 +779,25 @@ body {
     justify-content: space-between;
     align-items: center;
     border-top: 2px solid #00ff41;
+    flex-shrink: 0;
 }
 
 .image-info {
     color: #00ff41;
-    font-size: 14px;
+    font-size: 13px;
+    font-family: 'Courier New', monospace;
 }
 
 .zoom-controls button {
     background: #00ff41;
     color: #0f0f1e;
     border: none;
-    padding: 5px 15px;
+    padding: 6px 15px;
     margin-left: 5px;
     border-radius: 4px;
     cursor: pointer;
     transition: all 0.3s;
+    font-weight: bold;
 }
 
 .zoom-controls button:hover {
@@ -616,137 +805,8 @@ body {
     transform: scale(1.05);
 }
 
-/* Enhanced Code Editor */
-.editor-window {
-    position: fixed;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    width: 85%;
-    max-width: 1200px;
-    height: 85%;
-    max-height: 900px;
-    background: #1a1a2e;
-    border: 2px solid #00ff41;
-    border-radius: 8px;
-    display: none;
-    flex-direction: column;
-    z-index: 1000;
-    box-shadow: 0 10px 40px rgba(0, 255, 65, 0.3);
-}
-
-.editor-header {
-    background: #16213e;
-    padding: 12px 20px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    border-bottom: 2px solid #00ff41;
-    cursor: move;
-    user-select: none;
-}
-
-.editor-header span {
-    color: #00ff41;
-    font-weight: bold;
-    font-size: 16px;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-}
-
-.editor-language-badge {
-    background: rgba(0, 255, 65, 0.2);
-    padding: 2px 8px;
-    border-radius: 4px;
-    font-size: 12px;
-}
-
-.editor-controls button {
-    background: none;
-    border: none;
-    color: #00ff41;
-    cursor: pointer;
-    padding: 5px 10px;
-    margin-left: 5px;
-    transition: all 0.3s;
-}
-
-.editor-controls button:hover {
-    color: #fff;
-    background: rgba(0, 255, 65, 0.2);
-    border-radius: 4px;
-}
-
-.editor-body {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-    background: #0f0f1e;
-}
-
-.editor-line-numbers {
-    position: absolute;
-    left: 0;
-    top: 0;
-    width: 50px;
-    background: #16213e;
-    color: #666;
-    padding: 10px 5px;
-    text-align: right;
-    font-family: 'Courier New', monospace;
-    font-size: 14px;
-    line-height: 1.5;
-    user-select: none;
-    border-right: 1px solid #00ff41;
-}
-
-.editor-textarea {
-    width: 100%;
-    height: 100%;
-    background: #0f0f1e;
-    color: #00ff41;
-    border: none;
-    outline: none;
-    resize: none;
-    padding: 10px 10px 10px 60px;
-    font-family: 'Courier New', monospace;
-    font-size: 14px;
-    line-height: 1.5;
-    tab-size: 4;
-}
-
-.editor-textarea::-webkit-scrollbar {
-    width: 10px;
-    height: 10px;
-}
-
-.editor-textarea::-webkit-scrollbar-track {
-    background: #16213e;
-}
-
-.editor-textarea::-webkit-scrollbar-thumb {
-    background: #00ff41;
-    border-radius: 5px;
-}
-
-.editor-textarea::-webkit-scrollbar-thumb:hover {
-    background: #00cc33;
-}
-
-.editor-footer {
-    background: #16213e;
-    padding: 10px 20px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    border-top: 2px solid #00ff41;
-}
-
-.editor-info {
-    color: #00ff41;
-    font-size: 14px;
+.zoom-controls button:active {
+    transform: scale(0.98);
 }
 
 /* Syntax highlighting classes */

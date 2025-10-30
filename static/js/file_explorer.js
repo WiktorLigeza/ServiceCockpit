@@ -561,6 +561,7 @@ function closeEditor() {
 function setupCodeEditor() {
     const editorWindow = document.getElementById('code-editor-window');
     const header = editorWindow.querySelector('.editor-header');
+    const editorContent = document.getElementById('editor-content');
     let isDragging = false;
     let currentX, currentY, initialX, initialY;
     
@@ -595,11 +596,65 @@ function setupCodeEditor() {
     document.querySelector('.editor-close').addEventListener('click', closeEditor);
     document.getElementById('save-file-btn').addEventListener('click', saveFile);
     
-    // Add keyboard shortcut for save (Ctrl+S)
-    document.getElementById('editor-content').addEventListener('keydown', (e) => {
+    // Handle Tab key for indentation
+    editorContent.addEventListener('keydown', (e) => {
+        // Save with Ctrl+S
         if (e.ctrlKey && e.key === 's') {
             e.preventDefault();
             saveFile();
+            return;
+        }
+        
+        // Tab key handling
+        if (e.key === 'Tab') {
+            e.preventDefault();
+            
+            const start = editorContent.selectionStart;
+            const end = editorContent.selectionEnd;
+            const value = editorContent.value;
+            
+            if (e.shiftKey) {
+                // Shift+Tab: Remove indentation
+                const lineStart = value.lastIndexOf('\n', start - 1) + 1;
+                const beforeLine = value.substring(0, lineStart);
+                const line = value.substring(lineStart, value.indexOf('\n', start) === -1 ? value.length : value.indexOf('\n', start));
+                const afterLine = value.substring(lineStart + line.length);
+                
+                if (line.startsWith('    ')) {
+                    editorContent.value = beforeLine + line.substring(4) + afterLine;
+                    editorContent.selectionStart = start - 4;
+                    editorContent.selectionEnd = end - 4;
+                } else if (line.startsWith('\t')) {
+                    editorContent.value = beforeLine + line.substring(1) + afterLine;
+                    editorContent.selectionStart = start - 1;
+                    editorContent.selectionEnd = end - 1;
+                }
+            } else {
+                // Tab: Add indentation
+                if (start === end) {
+                    // No selection: insert tab at cursor
+                    editorContent.value = value.substring(0, start) + '    ' + value.substring(end);
+                    editorContent.selectionStart = editorContent.selectionEnd = start + 4;
+                } else {
+                    // Selection: indent all selected lines
+                    const beforeSelection = value.substring(0, start);
+                    const selectedText = value.substring(start, end);
+                    const afterSelection = value.substring(end);
+                    
+                    const lineStart = beforeSelection.lastIndexOf('\n') + 1;
+                    const lineEnd = end + (afterSelection.indexOf('\n') === -1 ? afterSelection.length : afterSelection.indexOf('\n'));
+                    
+                    const linesToIndent = value.substring(lineStart, lineEnd);
+                    const indentedLines = linesToIndent.split('\n').map(line => '    ' + line).join('\n');
+                    
+                    editorContent.value = value.substring(0, lineStart) + indentedLines + value.substring(lineEnd);
+                    editorContent.selectionStart = start + 4;
+                    editorContent.selectionEnd = end + (indentedLines.length - linesToIndent.length);
+                }
+            }
+            
+            // Trigger input event for line count update
+            editorContent.dispatchEvent(new Event('input'));
         }
     });
 }
