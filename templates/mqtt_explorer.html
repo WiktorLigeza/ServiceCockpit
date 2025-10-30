@@ -15,38 +15,76 @@
     {% include 'header.html' %}
     
     <div class="main-container">
-        <!-- Connection Panel -->
-        <div class="connection-panel">
-            <h2 class="section-title">MQTT Connection</h2>
-            <div class="connection-form">
-                <div class="form-row">
-                    <div class="form-group">
-                        <label for="mqtt-host">Broker Host:</label>
-                        <input type="text" id="mqtt-host" class="form-control" value="localhost" placeholder="localhost">
+        <!-- Connection and Publish Column -->
+        <div class="connection-publish-column">
+            <!-- Connection Panel -->
+            <div class="connection-panel">
+                <h2 class="section-title">MQTT Connection</h2>
+                <div class="connection-form">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="mqtt-host">Broker Host:</label>
+                            <input type="text" id="mqtt-host" class="form-control" value="localhost" placeholder="localhost">
+                        </div>
+                        <div class="form-group">
+                            <label for="mqtt-port">Port:</label>
+                            <input type="number" id="mqtt-port" class="form-control" value="1883" placeholder="1883">
+                        </div>
                     </div>
-                    <div class="form-group">
-                        <label for="mqtt-port">Port:</label>
-                        <input type="number" id="mqtt-port" class="form-control" value="1883" placeholder="1883">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="mqtt-username">Username:</label>
+                            <input type="text" id="mqtt-username" class="form-control" placeholder="Optional">
+                        </div>
+                        <div class="form-group">
+                            <label for="mqtt-password">Password:</label>
+                            <input type="password" id="mqtt-password" class="form-control" placeholder="Optional">
+                        </div>
                     </div>
-                    <div class="form-group">
-                        <label for="mqtt-username">Username:</label>
-                        <input type="text" id="mqtt-username" class="form-control" placeholder="Optional">
-                    </div>
-                    <div class="form-group">
-                        <label for="mqtt-password">Password:</label>
-                        <input type="password" id="mqtt-password" class="form-control" placeholder="Optional">
+                    <div class="form-actions">
+                        <button id="connect-btn" class="btn btn-primary">
+                            <i class="fas fa-plug"></i> Connect
+                        </button>
+                        <button id="disconnect-btn" class="btn btn-danger" style="display: none;">
+                            <i class="fas fa-times"></i> Disconnect
+                        </button>
+                        <div class="connection-status" id="connection-status">
+                            <i class="fas fa-circle" style="color: red;"></i> Disconnected
+                        </div>
                     </div>
                 </div>
-                <div class="form-actions">
-                    <button id="connect-btn" class="btn btn-primary">
-                        <i class="fas fa-plug"></i> Connect
-                    </button>
-                    <button id="disconnect-btn" class="btn btn-danger" style="display: none;">
-                        <i class="fas fa-times"></i> Disconnect
-                    </button>
-                    <div class="connection-status" id="connection-status">
-                        <i class="fas fa-circle" style="color: red;"></i> Disconnected
+            </div>
+
+            <!-- Publish Panel -->
+            <div class="publish-panel">
+                <h2 class="section-title">Publish Message</h2>
+                <div class="publish-form">
+                    <div class="form-group">
+                        <label for="publish-topic">Topic:</label>
+                        <input type="text" id="publish-topic" class="form-control" placeholder="topic/name">
                     </div>
+                    <div class="form-group">
+                        <label for="publish-payload">Payload:</label>
+                        <textarea id="publish-payload" class="form-control" rows="4" placeholder="Message payload (JSON or plain text)"></textarea>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="publish-qos">QoS:</label>
+                            <select id="publish-qos" class="form-control">
+                                <option value="0">0 - At most once</option>
+                                <option value="1">1 - At least once</option>
+                                <option value="2">2 - Exactly once</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>
+                                <input type="checkbox" id="publish-retain"> Retain
+                            </label>
+                        </div>
+                    </div>
+                    <button id="publish-btn" class="btn btn-primary">
+                        <i class="fas fa-paper-plane"></i> Publish
+                    </button>
                 </div>
             </div>
         </div>
@@ -116,39 +154,6 @@
                         </div>
                     </div>
                 </div>
-            </div>
-        </div>
-
-        <!-- Publish Panel -->
-        <div class="publish-panel">
-            <h2 class="section-title">Publish Message</h2>
-            <div class="publish-form">
-                <div class="form-group">
-                    <label for="publish-topic">Topic:</label>
-                    <input type="text" id="publish-topic" class="form-control" placeholder="topic/name">
-                </div>
-                <div class="form-group">
-                    <label for="publish-payload">Payload:</label>
-                    <textarea id="publish-payload" class="form-control" rows="4" placeholder="Message payload (JSON or plain text)"></textarea>
-                </div>
-                <div class="form-row">
-                    <div class="form-group">
-                        <label for="publish-qos">QoS:</label>
-                        <select id="publish-qos" class="form-control">
-                            <option value="0">0 - At most once</option>
-                            <option value="1">1 - At least once</option>
-                            <option value="2">2 - Exactly once</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label>
-                            <input type="checkbox" id="publish-retain"> Retain
-                        </label>
-                    </div>
-                </div>
-                <button id="publish-btn" class="btn btn-primary">
-                    <i class="fas fa-paper-plane"></i> Publish
-                </button>
             </div>
         </div>
     </div>

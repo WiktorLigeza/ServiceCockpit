@@ -1,60 +1,100 @@
 /* MQTT Explorer Styles */
 .main-container {
     display: grid;
-    grid-template-columns: 1fr 1fr;
-    grid-template-rows: auto 1fr auto;
-    gap: 20px;
-    padding: 20px;
-    max-width: 1400px;
-    margin: 0 auto;
-    height: calc(100vh - 120px);
+    grid-template-columns: 1fr 1fr 1fr;
+    width: 100%;
+    height: calc(100vh - 60px);
+    overflow: hidden;
+    gap: 1rem;
+    padding: 1rem;
+    box-sizing: border-box;
+}
+
+.connection-publish-column {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    height: 100%;
 }
 
 .connection-panel {
-    grid-column: 1 / -1;
-    background: white;
-    border-radius: 8px;
-    padding: 20px;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    display: flex;
+    flex-direction: column;
+    background: transparent;
+    backdrop-filter: blur(10px);
+    border-radius: 12px;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.5);
+    height: 50%;
+    overflow: hidden;
+    flex: 1;
+    min-width: 0;
+    position: relative;
+    padding: 1rem;
 }
 
 .topics-panel {
-    background: white;
-    border-radius: 8px;
-    padding: 20px;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
     display: flex;
     flex-direction: column;
+    background: transparent;
+    backdrop-filter: blur(10px);
+    border-radius: 12px;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.5);
+    height: 100%;
+    overflow: hidden;
+    flex: 1;
+    min-width: 0;
+    position: relative;
 }
 
 .messages-panel {
-    background: white;
-    border-radius: 8px;
-    padding: 20px;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
     display: flex;
     flex-direction: column;
+    background: transparent;
+    backdrop-filter: blur(10px);
+    border-radius: 12px;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.5);
+    height: 100%;
+    overflow: hidden;
+    flex: 1;
+    min-width: 0;
+    position: relative;
 }
 
 .publish-panel {
-    grid-column: 1 / -1;
-    background: white;
-    border-radius: 8px;
-    padding: 20px;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    display: flex;
+    flex-direction: column;
+    background: transparent;
+    backdrop-filter: blur(10px);
+    border-radius: 12px;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.5);
+    height: 50%;
+    overflow: hidden;
+    flex: 1;
+    min-width: 0;
+    position: relative;
+    padding: 1rem;
 }
 
 .section-title {
-    color: #333;
+    color: #bdbdbd;
+    text-shadow: 0 0 10px rgba(0,255,255,0.3);
+    font-weight: bold;
     font-size: 1.5rem;
+    margin: 1rem;
     margin-bottom: 20px;
     padding-bottom: 10px;
-    border-bottom: 2px solid #007bff;
+    border-bottom: 2px solid #00ffff;
+    flex-shrink: 0;
+}
+
+.connection-panel .section-title,
+.publish-panel .section-title {
+    margin: 0 0 20px 0;
 }
 
 .connection-form .form-row {
     display: grid;
-    grid-template-columns: 2fr 1fr 1.5fr 1.5fr;
+    grid-template-columns: 2fr 1fr;
     gap: 15px;
     margin-bottom: 15px;
 }
@@ -67,13 +107,31 @@
 .form-group label {
     font-weight: 600;
     margin-bottom: 5px;
-    color: #555;
+    color: #bdbdbd;
+}
+
+.form-control {
+    background: rgba(0,0,0,0.3) !important;
+    color: #fff !important;
+    border: 1px solid rgba(255,255,255,0.1) !important;
+}
+
+.form-control::placeholder {
+    color: rgba(255,255,255,0.5) !important;
+}
+
+.form-control:focus {
+    background: rgba(0,0,0,0.5) !important;
+    color: #fff !important;
+    border-color: #00ffff !important;
+    box-shadow: 0 0 0 0.2rem rgba(0,255,255,0.25) !important;
 }
 
 .form-actions {
     display: flex;
     align-items: center;
     gap: 15px;
+    margin-top: 15px;
 }
 
 .connection-status {
@@ -81,6 +139,7 @@
     align-items: center;
     gap: 8px;
     font-weight: 600;
+    color: #bdbdbd;
 }
 
 .connection-status.connected {
@@ -92,34 +151,44 @@
 }
 
 .search-container {
+    background: transparent;
+    flex-shrink: 0;
+    position: sticky;
+    top: 0;
+    padding: 10px;
+    margin: 1rem;
     margin-bottom: 15px;
 }
 
 #topics-container {
     flex: 1;
     overflow-y: auto;
-    border: 1px solid #ddd;
-    border-radius: 4px;
-    background: #f8f9fa;
+    background: rgba(30, 30, 30, 0.1);
+    border-radius: 8px;
+    margin: 0 1rem 1rem 1rem;
 }
 
 .topic-item {
     padding: 12px 15px;
-    border-bottom: 1px solid #e9ecef;
+    border-bottom: 1px solid rgba(255,255,255,0.1);
     cursor: pointer;
-    transition: background-color 0.2s;
+    transition: all 0.3s ease;
     display: flex;
     justify-content: space-between;
     align-items: center;
+    color: #dadada;
 }
 
 .topic-item:hover {
-    background-color: #e9ecef;
+    background-color: rgba(0,255,255,0.1);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(76, 0, 255, 0.3);
 }
 
 .topic-item.active {
-    background-color: #007bff;
-    color: white;
+    background-color: rgba(0,255,255,0.2);
+    color: #00ffff;
+    box-shadow: 0 4px 12px rgba(0,255,255,0.4);
 }
 
 .topic-name {
@@ -140,10 +209,12 @@
 }
 
 .messages-controls {
+    margin: 1rem;
     margin-bottom: 15px;
     display: flex;
     flex-direction: column;
     gap: 10px;
+    flex-shrink: 0;
 }
 
 .subscribe-input {
@@ -163,17 +234,17 @@
 #messages-container {
     flex: 1;
     overflow-y: auto;
-    border: 1px solid #ddd;
-    border-radius: 4px;
-    background: #f8f9fa;
-    max-height: 400px;
+    background: rgba(30, 30, 30, 0.1);
+    border-radius: 8px;
+    margin: 0 1rem 1rem 1rem;
 }
 
 .message-item {
     padding: 10px 15px;
-    border-bottom: 1px solid #e9ecef;
+    border-bottom: 1px solid rgba(255,255,255,0.1);
     font-family: 'Courier New', monospace;
     font-size: 0.9rem;
+    color: #dadada;
 }
 
 .message-header {
@@ -182,23 +253,25 @@
     align-items: center;
     margin-bottom: 5px;
     font-size: 0.8rem;
-    color: #666;
+    color: #bdbdbd;
 }
 
 .message-topic {
     font-weight: 600;
-    color: #007bff;
+    color: #00ffff;
 }
 
 .message-timestamp {
     font-size: 0.75rem;
+    color: #bdbdbd;
 }
 
 .message-payload {
-    background: #fff;
+    background: rgba(0,0,0,0.3);
+    color: #fff;
     padding: 8px;
     border-radius: 4px;
-    border-left: 3px solid #007bff;
+    border-left: 3px solid #00ffff;
     white-space: pre-wrap;
     word-break: break-all;
 }
@@ -209,7 +282,7 @@
 
 .message-payload.error {
     border-left-color: #dc3545;
-    background: #fff5f5;
+    background: rgba(220, 53, 69, 0.1);
 }
 
 .publish-form .form-row {
@@ -226,44 +299,11 @@
     gap: 8px;
 }
 
-.no-topics, .no-messages {
+.no-topics, .no-messages, .select-topic-message {
     padding: 40px;
     text-align: center;
-    color: #666;
+    color: #bdbdbd;
     font-style: italic;
-}
-
-/* Responsive Design */
-@media (max-width: 768px) {
-    .main-container {
-        grid-template-columns: 1fr;
-        padding: 10px;
-    }
-    
-    .connection-panel {
-        grid-column: 1;
-    }
-    
-    .publish-panel {
-        grid-column: 1;
-    }
-    
-    .connection-form .form-row {
-        grid-template-columns: 1fr;
-    }
-    
-    .form-actions {
-        flex-direction: column;
-        align-items: stretch;
-    }
-    
-    .subscribe-input {
-        flex-direction: column;
-    }
-    
-    .message-filters {
-        flex-direction: column;
-    }
 }
 
 /* Animation for new messages */
@@ -283,9 +323,9 @@
 }
 
 .json-formatted {
-    background: #f8f9fa;
-    border: 1px solid #e9ecef;
-    border-radius: 4px;
+    background: rgba(0,0,0,0.3);
+    border: 1px solid rgba(255,255,255,0.1);
+    color: #fff;
     padding: 12px;
     font-family: 'Courier New', Consolas, monospace;
     font-size: 13px;
@@ -358,9 +398,9 @@
 }
 
 .text-payload {
-    background: #f8f9fa;
-    border: 1px solid #e9ecef;
-    border-radius: 4px;
+    background: rgba(0,0,0,0.3);
+    border: 1px solid rgba(255,255,255,0.1);
+    color: #fff;
     padding: 12px;
     font-family: 'Courier New', Consolas, monospace;
     white-space: pre-wrap;
@@ -369,7 +409,8 @@
 /* Tab styling */
 .message-tabs {
     display: flex;
-    border-bottom: 2px solid #e9ecef;
+    border-bottom: 2px solid rgba(255,255,255,0.1);
+    margin: 1rem;
     margin-bottom: 15px;
 }
 
@@ -380,11 +421,12 @@
     cursor: pointer;
     border-bottom: 3px solid transparent;
     transition: all 0.3s ease;
+    color: #bdbdbd;
 }
 
 .tab-button.active {
-    border-bottom-color: #007bff;
-    color: #007bff;
+    border-bottom-color: #00ffff;
+    color: #00ffff;
     font-weight: 500;
 }
 
@@ -394,18 +436,89 @@
 
 .tab-pane.active {
     display: block;
+    flex: 1;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
 }
 
 .current-message-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 15px;
+    margin: 0 1rem 15px 1rem;
     padding-bottom: 10px;
-    border-bottom: 1px solid #e9ecef;
+    border-bottom: 1px solid rgba(255,255,255,0.1);
 }
 
 .current-timestamp {
-    color: #6c757d;
+    color: #bdbdbd;
     font-size: 14px;
+}
+
+#current-message-container {
+    flex: 1;
+    overflow-y: auto;
+    background: rgba(30, 30, 30, 0.1);
+    border-radius: 8px;
+    margin: 0 1rem 1rem 1rem;
+    color: #dadada;
+    padding: 1rem;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .main-container {
+        grid-template-columns: 1fr;
+        grid-template-rows: auto auto auto;
+        gap: 1rem;
+    }
+    
+    .connection-publish-column {
+        flex-direction: row;
+        height: auto;
+    }
+    
+    .connection-panel,
+    .publish-panel {
+        height: auto;
+        flex: 1;
+    }
+    
+    .connection-form .form-row {
+        grid-template-columns: 1fr;
+    }
+    
+    .form-actions {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .subscribe-input {
+        flex-direction: column;
+    }
+    
+    .message-filters {
+        flex-direction: column;
+    }
+}
+
+/* Scrollbar styling for consistency */
+#topics-container::-webkit-scrollbar,
+#messages-container::-webkit-scrollbar,
+#current-message-container::-webkit-scrollbar {
+    width: 6px;
+}
+
+#topics-container::-webkit-scrollbar-track,
+#messages-container::-webkit-scrollbar-track,
+#current-message-container::-webkit-scrollbar-track {
+    background: rgba(0,0,0,0.1);
+}
+
+#topics-container::-webkit-scrollbar-thumb,
+#messages-container::-webkit-scrollbar-thumb,
+#current-message-container::-webkit-scrollbar-thumb {
+    background-color: #00ffff;
+    border-radius: 3px;
 }
