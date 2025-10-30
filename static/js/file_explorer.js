@@ -83,39 +83,114 @@ function setupEventListeners() {
         });
     });
 
-    document.querySelector('.view-btn[data-view="grid"]').classList.add('active');
-    document.querySelector('.view-btn[data-view="list"]').classList.remove('active');
+    const gridViewBtn = document.querySelector('.view-btn[data-view="grid"]');
+    const listViewBtn = document.querySelector('.view-btn[data-view="list"]');
+    if (gridViewBtn) gridViewBtn.classList.add('active');
+    if (listViewBtn) listViewBtn.classList.remove('active');
 
-    document.getElementById('file-filter').addEventListener('change', function(e) {
-        currentFilter = e.target.value;
-        applyFilters();
-    });
+    // Setup filter toggle buttons
+    setupFilterButtons();
 
-    document.getElementById('file-search').addEventListener('input', function(e) {
-        nameFilter = e.target.value.toLowerCase();
-        applyFilters();
-    });
+    const fileSearch = document.getElementById('file-search');
+    if (fileSearch) {
+        fileSearch.addEventListener('input', function(e) {
+            nameFilter = e.target.value.toLowerCase();
+            applyFilters();
+        });
+    }
 
-    document.getElementById('directory-search').addEventListener('input', function(e) {
-        const searchTerm = e.target.value.toLowerCase();
-        filterDirectoryTree(searchTerm);
-    });
+    const directorySearch = document.getElementById('directory-search');
+    if (directorySearch) {
+        directorySearch.addEventListener('input', function(e) {
+            const searchTerm = e.target.value.toLowerCase();
+            filterDirectoryTree(searchTerm);
+        });
+    }
 
-    document.getElementById('new-folder-btn').addEventListener('click', createNewFolder);
-    document.getElementById('new-file-btn').addEventListener('click', createNewFile);
+    const newFolderBtn = document.getElementById('new-folder-btn');
+    if (newFolderBtn) {
+        newFolderBtn.addEventListener('click', createNewFolder);
+    }
+
+    const newFileBtn = document.getElementById('new-file-btn');
+    if (newFileBtn) {
+        newFileBtn.addEventListener('click', createNewFile);
+    }
     
     // Add context menu to files container
     const filesContainer = document.getElementById('files-container');
-    filesContainer.addEventListener('contextmenu', (e) => {
-        // Only show context menu if clicking on the container itself, not on a file item
-        if (e.target === filesContainer || e.target.classList.contains('no-selection')) {
-            e.preventDefault();
-            showContainerContextMenu(e.clientX, e.clientY);
-        }
-    });
+    if (filesContainer) {
+        filesContainer.addEventListener('contextmenu', (e) => {
+            // Only show context menu if clicking on the container itself, not on a file item
+            if (e.target === filesContainer || e.target.classList.contains('no-selection')) {
+                e.preventDefault();
+                showContainerContextMenu(e.clientX, e.clientY);
+            }
+        });
+    }
     
     // Setup file upload functionality
     setupFileUpload();
+}
+
+function setupFilterButtons() {
+    // Remove old select if exists
+    const oldFilter = document.getElementById('file-filter');
+    if (oldFilter) {
+        oldFilter.remove();
+    }
+
+    // Find the filter container or create one
+    let filterContainer = document.getElementById('filter-buttons');
+    if (!filterContainer) {
+        // Try to find a suitable parent container
+        const fileSearch = document.getElementById('file-search');
+        if (fileSearch && fileSearch.parentElement) {
+            filterContainer = document.createElement('div');
+            filterContainer.id = 'filter-buttons';
+            filterContainer.className = 'filter-buttons';
+            fileSearch.parentElement.insertBefore(filterContainer, fileSearch);
+        } else {
+            return; // Can't setup filters without a container
+        }
+    }
+
+    // Clear existing buttons
+    filterContainer.innerHTML = '';
+
+    // Define filter buttons with icons
+    const filters = [
+        { value: 'all', icon: 'fa-th', title: 'All Files' },
+        { value: 'folders', icon: 'fa-folder', title: 'Folders Only' },
+        { value: 'files', icon: 'fa-file', title: 'Files Only' },
+        { value: 'images', icon: 'fa-image', title: 'Images' },
+        { value: 'code', icon: 'fa-code', title: 'Code Files' },
+        { value: 'documents', icon: 'fa-file-alt', title: 'Documents' }
+    ];
+
+    filters.forEach(filter => {
+        const btn = document.createElement('button');
+        btn.className = 'filter-btn';
+        btn.dataset.filter = filter.value;
+        btn.title = filter.title;
+        btn.innerHTML = `<i class="fas ${filter.icon}"></i>`;
+        
+        if (filter.value === 'all') {
+            btn.classList.add('active');
+        }
+
+        btn.addEventListener('click', function() {
+            // Remove active class from all filter buttons
+            filterContainer.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+            // Add active class to clicked button
+            this.classList.add('active');
+            // Update filter and apply
+            currentFilter = this.dataset.filter;
+            applyFilters();
+        });
+
+        filterContainer.appendChild(btn);
+    });
 }
 
 // Utility Functions
