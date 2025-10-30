@@ -233,6 +233,8 @@
     margin: 0 1rem 1rem 1rem;
     height: auto;
     min-height: 0;
+    max-height: 100%;
+    height: 100%;
 }
 
 .message-item {
@@ -473,6 +475,10 @@
     overflow: hidden;
     display: flex;
     flex-direction: column;
+}
+
+.current-payload{
+    max-height: 90%;
 }
 
 .current-message-header {

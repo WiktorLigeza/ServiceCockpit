@@ -393,10 +393,10 @@ function createCurrentMessageElement(data, previousMessage) {
     }
 
     div.innerHTML = `
-        <div class="current-message-header">
+        <div class="current-payload">${payloadHtml}</div>
+         <div class="current-message-header">
             <span class="current-timestamp">${timestamp}</span>
         </div>
-        <div class="current-payload">${payloadHtml}</div>
     `;
 
     return div;
