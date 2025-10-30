@@ -1,27 +1,27 @@
 let currentPath = '/home';
 let selectedFile = null;
-let viewMode = 'grid'; // Changed from 'list' to 'grid'
+let viewMode = 'grid';
 let allFiles = [];
 let currentFilter = 'all';
 let nameFilter = '';
 let editorFile = null;
+let currentZoom = 1;
 
 document.addEventListener('DOMContentLoaded', function() {
     initializeFileExplorer();
     setupEventListeners();
     setupCodeEditor();
+    setupImageViewer();
 });
 
 function initializeFileExplorer() {
     loadDirectory(currentPath);
     loadDirectoryTree('/');
-    // Set grid view as default
     const filesContainer = document.getElementById('files-container');
     filesContainer.classList.add('grid-view');
 }
 
 function setupEventListeners() {
-    // View mode toggle
     document.querySelectorAll('.view-btn').forEach(btn => {
         btn.addEventListener('click', function() {
             document.querySelectorAll('.view-btn').forEach(b => b.classList.remove('active'));
@@ -36,32 +36,25 @@ function setupEventListeners() {
         });
     });
 
-    // Set grid button as active by default
     document.querySelector('.view-btn[data-view="grid"]').classList.add('active');
     document.querySelector('.view-btn[data-view="list"]').classList.remove('active');
 
-    // Filter change
     document.getElementById('file-filter').addEventListener('change', function(e) {
         currentFilter = e.target.value;
         applyFilters();
     });
 
-    // Name search
     document.getElementById('file-search').addEventListener('input', function(e) {
         nameFilter = e.target.value.toLowerCase();
         applyFilters();
     });
 
-    // Directory search
     document.getElementById('directory-search').addEventListener('input', function(e) {
         const searchTerm = e.target.value.toLowerCase();
         filterDirectoryTree(searchTerm);
     });
 
-    // New folder button
     document.getElementById('new-folder-btn').addEventListener('click', createNewFolder);
-    
-    // New file button
     document.getElementById('new-file-btn').addEventListener('click', createNewFile);
 }
 
@@ -80,7 +73,6 @@ function filterDirectoryTree(searchTerm) {
 function applyFilters() {
     let filteredFiles = allFiles;
     
-    // Apply type filter
     switch(currentFilter) {
         case 'folders':
             filteredFiles = filteredFiles.filter(f => f.is_directory);
@@ -108,7 +100,6 @@ function applyFilters() {
             break;
     }
     
-    // Apply name filter
     if (nameFilter) {
         filteredFiles = filteredFiles.filter(f => 
             f.name.toLowerCase().includes(nameFilter)
@@ -130,7 +121,6 @@ async function loadDirectory(path) {
         if (data.success) {
             allFiles = data.files;
             applyFilters();
-            // Update active directory in tree
             highlightActiveDirectory(path);
         } else {
             console.error('Error loading directory:', data.error);
@@ -160,7 +150,6 @@ function displayFiles(files) {
         return;
     }
     
-    // Sort: folders first, then files
     files.sort((a, b) => {
         if (a.is_directory !== b.is_directory) {
             return b.is_directory - a.is_directory;
@@ -224,7 +213,12 @@ function createFileItem(file) {
     
     item.addEventListener('dblclick', () => {
         if (!file.is_directory) {
-            openFileInEditor(file);
+            const ext = file.name.split('.').pop().toLowerCase();
+            if (isImageFile(ext)) {
+                openImageViewer(file);
+            } else if (isTextFile(ext)) {
+                openFileInEditor(file);
+            }
         }
     });
     
@@ -293,6 +287,42 @@ function selectFile(element, file) {
     displayFileDetails(file);
 }
 
+function isImageFile(ext) {
+    return ['png', 'jpg', 'jpeg', 'gif', 'bmp', 'svg', 'webp', 'ico'].includes(ext);
+}
+
+function isTextFile(ext) {
+    const textExtensions = ['txt', 'md', 'json', 'xml', 'html', 'css', 'js', 'py', 
+                           'cpp', 'c', 'h', 'sh', 'bash', 'java', 'php', 'sql', 
+                           'yml', 'yaml', 'conf', 'cfg', 'ini', 'log'];
+    return textExtensions.includes(ext);
+}
+
+function getLanguageFromExtension(filename) {
+    const ext = filename.split('.').pop().toLowerCase();
+    const languageMap = {
+        'py': 'Python',
+        'js': 'JavaScript',
+        'html': 'HTML',
+        'css': 'CSS',
+        'json': 'JSON',
+        'cpp': 'C++',
+        'c': 'C',
+        'h': 'C/C++ Header',
+        'sh': 'Bash',
+        'bash': 'Bash',
+        'java': 'Java',
+        'php': 'PHP',
+        'sql': 'SQL',
+        'xml': 'XML',
+        'md': 'Markdown',
+        'txt': 'Text',
+        'yml': 'YAML',
+        'yaml': 'YAML'
+    };
+    return languageMap[ext] || 'Text';
+}
+
 async function loadDirectoryTree(path, parentElement = null) {
     try {
         const response = await fetch(`/api/directories?path=${encodeURIComponent(path)}`);
@@ -334,12 +364,10 @@ function createDirectoryTreeItem(dir) {
     item.appendChild(icon);
     item.appendChild(name);
     
-    // Create children container
     const childrenContainer = document.createElement('div');
     childrenContainer.className = 'directory-children';
     childrenContainer.style.display = 'none';
     
-    // Toggle children on chevron click
     chevron.addEventListener('click', async (e) => {
         e.stopPropagation();
         item.classList.toggle('expanded');
@@ -354,7 +382,6 @@ function createDirectoryTreeItem(dir) {
         }
     });
     
-    // Load directory on item click
     item.addEventListener('click', (e) => {
         e.stopPropagation();
         loadDirectory(dir.path);
@@ -364,6 +391,217 @@ function createDirectoryTreeItem(dir) {
     wrapper.appendChild(childrenContainer);
     
     return wrapper;
+}
+
+// Image Viewer Functions
+function openImageViewer(file) {
+    const viewerWindow = document.getElementById('image-viewer-window');
+    const viewerImg = document.getElementById('image-viewer-img');
+    const viewerTitle = document.getElementById('image-viewer-title');
+    const imageInfo = document.getElementById('image-info');
+    
+    currentZoom = 1;
+    viewerImg.style.transform = `scale(${currentZoom})`;
+    viewerImg.src = `/api/download?path=${encodeURIComponent(file.path)}`;
+    viewerTitle.textContent = file.name;
+    imageInfo.textContent = `Size: ${formatFileSize(file.size)}`;
+    
+    viewerWindow.style.display = 'flex';
+    
+    viewerImg.onload = function() {
+        imageInfo.textContent = `Size: ${formatFileSize(file.size)} | Dimensions: ${this.naturalWidth}x${this.naturalHeight}px`;
+    };
+}
+
+function closeImageViewer() {
+    const viewerWindow = document.getElementById('image-viewer-window');
+    viewerWindow.style.display = 'none';
+    currentZoom = 1;
+}
+
+function setupImageViewer() {
+    const viewerWindow = document.getElementById('image-viewer-window');
+    const header = viewerWindow.querySelector('.image-viewer-header');
+    let isDragging = false;
+    let currentX, currentY, initialX, initialY;
+    
+    header.addEventListener('mousedown', dragStart);
+    document.addEventListener('mousemove', drag);
+    document.addEventListener('mouseup', dragEnd);
+    
+    function dragStart(e) {
+        if (e.target.classList.contains('image-viewer-close')) return;
+        initialX = e.clientX - viewerWindow.offsetLeft;
+        initialY = e.clientY - viewerWindow.offsetTop;
+        isDragging = true;
+    }
+    
+    function drag(e) {
+        if (isDragging) {
+            e.preventDefault();
+            currentX = e.clientX - initialX;
+            currentY = e.clientY - initialY;
+            viewerWindow.style.left = currentX + 'px';
+            viewerWindow.style.top = currentY + 'px';
+            viewerWindow.style.transform = 'none';
+        }
+    }
+    
+    function dragEnd() {
+        isDragging = false;
+    }
+    
+    document.querySelector('.image-viewer-close').addEventListener('click', closeImageViewer);
+    
+    document.getElementById('zoom-in').addEventListener('click', () => {
+        currentZoom = Math.min(currentZoom + 0.25, 5);
+        document.getElementById('image-viewer-img').style.transform = `scale(${currentZoom})`;
+    });
+    
+    document.getElementById('zoom-out').addEventListener('click', () => {
+        currentZoom = Math.max(currentZoom - 0.25, 0.25);
+        document.getElementById('image-viewer-img').style.transform = `scale(${currentZoom})`;
+    });
+    
+    document.getElementById('zoom-reset').addEventListener('click', () => {
+        currentZoom = 1;
+        document.getElementById('image-viewer-img').style.transform = `scale(${currentZoom})`;
+    });
+}
+
+// Code Editor Functions
+async function openFileInEditor(file) {
+    if (file.is_directory) return;
+    
+    editorFile = file;
+    const editorWindow = document.getElementById('code-editor-window');
+    const editorContent = document.getElementById('editor-content');
+    const editorTitle = document.getElementById('editor-title');
+    const editorInfo = document.getElementById('editor-info');
+    
+    try {
+        const response = await fetch(`/api/read-file?path=${encodeURIComponent(file.path)}`);
+        const data = await response.json();
+        
+        if (data.success) {
+            editorContent.value = data.content;
+            editorTitle.innerHTML = `<i class="fas fa-code"></i> ${file.name} <span class="editor-language-badge">${getLanguageFromExtension(file.name)}</span>`;
+            editorInfo.textContent = `Lines: ${data.content.split('\n').length} | Size: ${formatFileSize(file.size)}`;
+            editorWindow.style.display = 'flex';
+            
+            applySyntaxHighlighting(file.name);
+            
+            editorContent.addEventListener('input', () => {
+                const lines = editorContent.value.split('\n').length;
+                editorInfo.textContent = `Lines: ${lines} | Modified`;
+            });
+        } else {
+            alert('Failed to open file: ' + data.error);
+        }
+    } catch (error) {
+        alert('Failed to open file: ' + error);
+    }
+}
+
+function applySyntaxHighlighting(filename) {
+    const ext = filename.split('.').pop().toLowerCase();
+    const editorContent = document.getElementById('editor-content');
+    
+    editorContent.className = 'editor-textarea';
+    if (['js', 'py', 'cpp', 'c', 'h', 'sh', 'bash', 'html', 'css', 'json'].includes(ext)) {
+        editorContent.classList.add(`syntax-${ext}`);
+    }
+}
+
+async function saveFile() {
+    if (!editorFile) return;
+    
+    const editorContent = document.getElementById('editor-content');
+    const editorInfo = document.getElementById('editor-info');
+    const content = editorContent.value;
+    
+    editorInfo.textContent = 'Saving...';
+    
+    try {
+        const response = await fetch('/api/write-file', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                path: editorFile.path,
+                content: content
+            })
+        });
+        
+        const data = await response.json();
+        if (data.success) {
+            const lines = content.split('\n').length;
+            editorInfo.textContent = `Saved successfully! | Lines: ${lines}`;
+            setTimeout(() => {
+                editorInfo.textContent = `Lines: ${lines} | Ready`;
+            }, 2000);
+            loadDirectory(currentPath);
+        } else {
+            editorInfo.textContent = 'Save failed!';
+            alert('Failed to save file: ' + data.error);
+        }
+    } catch (error) {
+        editorInfo.textContent = 'Save failed!';
+        alert('Failed to save file: ' + error);
+    }
+}
+
+function closeEditor() {
+    const editorWindow = document.getElementById('code-editor-window');
+    editorWindow.style.display = 'none';
+    editorFile = null;
+}
+
+function setupCodeEditor() {
+    const editorWindow = document.getElementById('code-editor-window');
+    const header = editorWindow.querySelector('.editor-header');
+    let isDragging = false;
+    let currentX, currentY, initialX, initialY;
+    
+    header.addEventListener('mousedown', dragStart);
+    document.addEventListener('mousemove', drag);
+    document.addEventListener('mouseup', dragEnd);
+    
+    function dragStart(e) {
+        if (e.target.classList.contains('editor-close')) return;
+        initialX = e.clientX - editorWindow.offsetLeft;
+        initialY = e.clientY - editorWindow.offsetTop;
+        isDragging = true;
+        editorWindow.style.cursor = 'move';
+    }
+    
+    function drag(e) {
+        if (isDragging) {
+            e.preventDefault();
+            currentX = e.clientX - initialX;
+            currentY = e.clientY - initialY;
+            editorWindow.style.left = currentX + 'px';
+            editorWindow.style.top = currentY + 'px';
+            editorWindow.style.transform = 'none';
+        }
+    }
+    
+    function dragEnd() {
+        isDragging = false;
+        editorWindow.style.cursor = 'default';
+    }
+    
+    document.querySelector('.editor-close').addEventListener('click', closeEditor);
+    document.getElementById('save-file-btn').addEventListener('click', saveFile);
+    
+    // Add keyboard shortcut for save (Ctrl+S)
+    document.getElementById('editor-content').addEventListener('keydown', (e) => {
+        if (e.ctrlKey && e.key === 's') {
+            e.preventDefault();
+            saveFile();
+        }
+    });
 }
 
 async function createNewFolder() {
@@ -384,7 +622,6 @@ async function createNewFolder() {
             const data = await response.json();
             if (data.success) {
                 loadDirectory(currentPath);
-                // Reload parent directory in tree
                 const parentPath = currentPath.substring(0, currentPath.lastIndexOf('/')) || '/';
                 reloadDirectoryInTree(parentPath);
             } else {
@@ -397,7 +634,6 @@ async function createNewFolder() {
 }
 
 function reloadDirectoryInTree(path) {
-    // Find the directory item and reload its children
     const dirItems = document.querySelectorAll('.directory-item');
     dirItems.forEach(item => {
         if (item.dataset.path === path && item.classList.contains('expanded')) {
@@ -435,84 +671,6 @@ async function createNewFile() {
             alert('Failed to create file: ' + error);
         }
     }
-}
-
-function openFile(file) {
-    openFileInEditor(file);
-}
-
-async function openFileInEditor(file) {
-    if (file.is_directory) return;
-    
-    editorFile = file;
-    const editorWindow = document.getElementById('code-editor-window');
-    const editorContent = document.getElementById('editor-content');
-    const editorTitle = document.getElementById('editor-title');
-    
-    try {
-        const response = await fetch(`/api/read-file?path=${encodeURIComponent(file.path)}`);
-        const data = await response.json();
-        
-        if (data.success) {
-            editorContent.value = data.content;
-            editorTitle.textContent = file.name;
-            editorWindow.style.display = 'flex';
-            
-            // Apply syntax highlighting based on file extension
-            applySyntaxHighlighting(file.name);
-        } else {
-            alert('Failed to open file: ' + data.error);
-        }
-    } catch (error) {
-        alert('Failed to open file: ' + error);
-    }
-}
-
-function applySyntaxHighlighting(filename) {
-    const ext = filename.split('.').pop().toLowerCase();
-    const editorContent = document.getElementById('editor-content');
-    
-    // Simple syntax highlighting by adding class
-    editorContent.className = 'editor-textarea';
-    if (['js', 'py', 'cpp', 'c', 'h', 'sh', 'bash', 'html', 'css', 'json'].includes(ext)) {
-        editorContent.classList.add(`syntax-${ext}`);
-    }
-}
-
-async function saveFile() {
-    if (!editorFile) return;
-    
-    const editorContent = document.getElementById('editor-content');
-    const content = editorContent.value;
-    
-    try {
-        const response = await fetch('/api/write-file', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                path: editorFile.path,
-                content: content
-            })
-        });
-        
-        const data = await response.json();
-        if (data.success) {
-            alert('File saved successfully!');
-            loadDirectory(currentPath); // Refresh file list
-        } else {
-            alert('Failed to save file: ' + data.error);
-        }
-    } catch (error) {
-        alert('Failed to save file: ' + error);
-    }
-}
-
-function closeEditor() {
-    const editorWindow = document.getElementById('code-editor-window');
-    editorWindow.style.display = 'none';
-    editorFile = null;
 }
 
 function downloadFile() {
@@ -758,50 +916,4 @@ function updateBreadcrumb(path) {
     });
     
     breadcrumb.innerHTML = html;
-}
-
-// Code Editor Functions
-function setupCodeEditor() {
-    const editorWindow = document.getElementById('code-editor-window');
-    const header = editorWindow.querySelector('.editor-header');
-    let isDragging = false;
-    let currentX;
-    let currentY;
-    let initialX;
-    let initialY;
-    
-    header.addEventListener('mousedown', dragStart);
-    document.addEventListener('mousemove', drag);
-    document.addEventListener('mouseup', dragEnd);
-    
-    function dragStart(e) {
-        if (e.target.classList.contains('editor-close') || e.target.classList.contains('editor-minimize')) return;
-        
-        initialX = e.clientX - editorWindow.offsetLeft;
-        initialY = e.clientY - editorWindow.offsetTop;
-        isDragging = true;
-        editorWindow.style.cursor = 'move';
-    }
-    
-    function drag(e) {
-        if (isDragging) {
-            e.preventDefault();
-            currentX = e.clientX - initialX;
-            currentY = e.clientY - initialY;
-            
-            editorWindow.style.left = currentX + 'px';
-            editorWindow.style.top = currentY + 'px';
-        }
-    }
-    
-    function dragEnd() {
-        isDragging = false;
-        editorWindow.style.cursor = 'default';
-    }
-    
-    // Close button
-    document.querySelector('.editor-close').addEventListener('click', closeEditor);
-    
-    // Save button
-    document.getElementById('save-file-btn').addEventListener('click', saveFile);
 }

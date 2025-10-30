@@ -13,10 +13,35 @@
 <body>
     {% include 'header.html' %}
     
+    <!-- Image Viewer Window -->
+    <div id="image-viewer-window" class="image-viewer-window">
+        <div class="image-viewer-header">
+            <span id="image-viewer-title">Image Viewer</span>
+            <div class="image-viewer-controls">
+                <button class="image-viewer-close"><i class="fas fa-times"></i></button>
+            </div>
+        </div>
+        <div class="image-viewer-body">
+            <img id="image-viewer-img" src="" alt="Image">
+        </div>
+        <div class="image-viewer-footer">
+            <span class="image-info" id="image-info"></span>
+            <div class="zoom-controls">
+                <button id="zoom-out"><i class="fas fa-search-minus"></i> Zoom Out</button>
+                <button id="zoom-reset"><i class="fas fa-expand"></i> Fit</button>
+                <button id="zoom-in"><i class="fas fa-search-plus"></i> Zoom In</button>
+            </div>
+        </div>
+    </div>
+    
     <!-- Code Editor Window -->
     <div id="code-editor-window" class="editor-window">
         <div class="editor-header">
-            <span id="editor-title">Untitled</span>
+            <span id="editor-title">
+                <i class="fas fa-code"></i>
+                Untitled
+                <span class="editor-language-badge" id="editor-language">TEXT</span>
+            </span>
             <div class="editor-controls">
                 <button class="editor-close"><i class="fas fa-times"></i></button>
             </div>
@@ -26,9 +51,9 @@
         </div>
         <div class="editor-footer">
             <button id="save-file-btn" class="btn btn-sm btn-success">
-                <i class="fas fa-save"></i> Save
+                <i class="fas fa-save"></i> Save Changes
             </button>
-            <span class="editor-info" id="editor-info"></span>
+            <span class="editor-info" id="editor-info">Ready</span>
         </div>
     </div>
     
