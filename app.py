@@ -1066,6 +1066,46 @@ def write_file():
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
+@app.route('/api/upload', methods=['POST'])
+def upload_file():
+    try:
+        if 'file' not in request.files:
+            return jsonify({'success': False, 'error': 'No file provided'})
+        
+        file = request.files['file']
+        target_path = request.form.get('path', '/home')
+        
+        if file.filename == '':
+            return jsonify({'success': False, 'error': 'No file selected'})
+        
+        # Secure the filename to prevent path traversal
+        from werkzeug.utils import secure_filename
+        filename = secure_filename(file.filename)
+        
+        target_dir = Path(target_path)
+        if not target_dir.exists() or not target_dir.is_dir():
+            return jsonify({'success': False, 'error': 'Invalid target directory'})
+        
+        file_path = target_dir / filename
+        
+        # Handle name conflicts
+        if file_path.exists():
+            base_name = file_path.stem
+            extension = file_path.suffix
+            counter = 1
+            
+            while file_path.exists():
+                new_name = f"{base_name}_{counter}{extension}"
+                file_path = target_dir / new_name
+                counter += 1
+        
+        # Save the file
+        file.save(str(file_path))
+        
+        return jsonify({'success': True, 'filename': file_path.name})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
 if __name__ == '__main__':
     update_thread = threading.Thread(target=background_update)
     update_thread.daemon = True

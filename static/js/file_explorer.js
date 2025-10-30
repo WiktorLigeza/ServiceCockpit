@@ -63,6 +63,19 @@ function setupEventListeners() {
 
     document.getElementById('new-folder-btn').addEventListener('click', createNewFolder);
     document.getElementById('new-file-btn').addEventListener('click', createNewFile);
+    
+    // Add context menu to files container
+    const filesContainer = document.getElementById('files-container');
+    filesContainer.addEventListener('contextmenu', (e) => {
+        // Only show context menu if clicking on the container itself, not on a file item
+        if (e.target === filesContainer || e.target.classList.contains('no-selection')) {
+            e.preventDefault();
+            showContainerContextMenu(e.clientX, e.clientY);
+        }
+    });
+    
+    // Setup file upload functionality
+    setupFileUpload();
 }
 
 // Utility Functions
@@ -1277,4 +1290,157 @@ async function inspectFolderDetails(path) {
         console.error('Error inspecting folder:', error);
         sizeElement.innerHTML = `<span style="color: #dc3545;">Error calculating size</span>`;
     }
+}
+
+// Container context menu functions
+function showContainerContextMenu(x, y) {
+    // Remove existing context menu if any
+    const existingMenu = document.querySelector('.context-menu');
+    if (existingMenu) {
+        existingMenu.remove();
+    }
+    
+    const menu = document.createElement('div');
+    menu.className = 'context-menu';
+    menu.style.left = x + 'px';
+    menu.style.top = y + 'px';
+    
+    const menuItems = [];
+    
+    // Add paste option if there's something copied
+    if (copiedFile) {
+        menuItems.push({ 
+            icon: 'fa-paste', 
+            text: 'Paste Here', 
+            action: () => pasteFile()
+        });
+        menuItems.push({ type: 'separator' });
+    }
+    
+    menuItems.push({ 
+        icon: 'fa-folder-plus', 
+        text: 'New Folder', 
+        action: createNewFolder 
+    });
+    
+    menuItems.push({ 
+        icon: 'fa-file-plus', 
+        text: 'New File', 
+        action: createNewFile 
+    });
+    
+    menuItems.push({ type: 'separator' });
+    
+    menuItems.push({ 
+        icon: 'fa-upload', 
+        text: 'Upload Files', 
+        action: triggerFileUpload 
+    });
+    
+    menuItems.forEach(item => {
+        if (item.type === 'separator') {
+            const separator = document.createElement('div');
+            separator.className = 'context-menu-separator';
+            menu.appendChild(separator);
+        } else {
+            const menuItem = document.createElement('div');
+            menuItem.className = 'context-menu-item';
+            menuItem.innerHTML = `<i class="fas ${item.icon}"></i> ${item.text}`;
+            menuItem.addEventListener('click', () => {
+                item.action();
+                menu.remove();
+            });
+            menu.appendChild(menuItem);
+        }
+    });
+    
+    document.body.appendChild(menu);
+    
+    // Close menu on click outside
+    setTimeout(() => {
+        document.addEventListener('click', function closeMenu() {
+            menu.remove();
+            document.removeEventListener('click', closeMenu);
+        });
+    }, 10);
+}
+
+function setupFileUpload() {
+    // Create hidden file input
+    const fileInput = document.createElement('input');
+    fileInput.type = 'file';
+    fileInput.id = 'hidden-file-input';
+    fileInput.multiple = true;
+    fileInput.style.display = 'none';
+    document.body.appendChild(fileInput);
+    
+    // Handle file selection
+    fileInput.addEventListener('change', async (e) => {
+        const files = Array.from(e.target.files);
+        if (files.length === 0) return;
+        
+        showNotification(`Uploading ${files.length} file(s)...`, 'info');
+        
+        for (const file of files) {
+            await uploadFile(file);
+        }
+        
+        // Reload directory to show uploaded files
+        loadDirectory(currentPath);
+        
+        // Reset file input
+        fileInput.value = '';
+    });
+}
+
+function triggerFileUpload() {
+    const fileInput = document.getElementById('hidden-file-input');
+    if (fileInput) {
+        fileInput.click();
+    }
+}
+
+async function uploadFile(file) {
+    try {
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('path', currentPath);
+        
+        const response = await fetch('/api/upload', {
+            method: 'POST',
+            body: formData
+        });
+        
+        const data = await response.json();
+        if (data.success) {
+            showNotification(`Uploaded: ${file.name}`, 'success');
+        } else {
+            showNotification(`Failed to upload ${file.name}: ${data.error}`, 'error');
+        }
+    } catch (error) {
+        showNotification(`Failed to upload ${file.name}: ${error}`, 'error');
+    }
+}
+
+// Keyboard Shortcuts
+function setupKeyboardShortcuts() {
+    document.addEventListener('keydown', (e) => {
+        // Copy: Ctrl+C
+        if (e.ctrlKey && e.key === 'c' && selectedFile) {
+            e.preventDefault();
+            copyFile();
+        }
+        
+        // Cut: Ctrl+X
+        if (e.ctrlKey && e.key === 'x' && selectedFile) {
+            e.preventDefault();
+            cutFile();
+        }
+        
+        // Paste: Ctrl+V
+        if (e.ctrlKey && e.key === 'v' && copiedFile) {
+            e.preventDefault();
+            pasteFile();
+        }
+    });
 }

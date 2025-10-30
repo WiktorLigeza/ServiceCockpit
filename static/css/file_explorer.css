@@ -855,7 +855,7 @@ body {
 .context-menu {
     position: fixed;
     background: #1a1a2e;
-    border: 2px solid #00ffcc;
+    border: 2px solid #00ff41;
     border-radius: 8px;
     box-shadow: 0 5px 20px rgba(0, 255, 65, 0.3);
     z-index: 10000;
@@ -877,7 +877,7 @@ body {
 
 .context-menu-item {
     padding: 10px 20px;
-    color: #00ffcc;
+    color: #00ff41;
     cursor: pointer;
     display: flex;
     align-items: center;
@@ -901,6 +901,12 @@ body {
 .context-menu-item i {
     width: 16px;
     text-align: center;
+}
+
+.context-menu-separator {
+    height: 1px;
+    background: rgba(0, 255, 65, 0.3);
+    margin: 5px 10px;
 }
 
 /* Notification Styles */
