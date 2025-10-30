@@ -522,7 +522,7 @@ body {
     width: 100%;
     height: 100%;
     background: #0f0f1e;
-    color: #00ff41;
+    color: #00ffcc;
     border: none;
     outline: none;
     resize: none;
@@ -568,17 +568,17 @@ body {
 
 .editor-textarea::-webkit-scrollbar-track {
     background: #16213e;
-    border-left: 1px solid #00ff41;
+    border-left: 1px solid #00ffcc;
 }
 
 .editor-textarea::-webkit-scrollbar-thumb {
-    background: #00ff41;
+    background: #00ffcc;
     border-radius: 6px;
     border: 2px solid #16213e;
 }
 
 .editor-textarea::-webkit-scrollbar-thumb:hover {
-    background: #00cc33;
+    background: #00e5ff;
 }
 
 .editor-textarea::-webkit-scrollbar-corner {
@@ -596,7 +596,7 @@ body {
     height: 85%;
     max-height: 900px;
     background: #1a1a2e;
-    border: 2px solid #00ff41;
+    border: 2px solid #00ffcc;
     border-radius: 8px;
     display: none;
     flex-direction: column;
@@ -612,14 +612,14 @@ body {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    border-bottom: 2px solid #00ff41;
+    border-bottom: 2px solid #00e5ff;
     cursor: move;
     user-select: none;
     flex-shrink: 0;
 }
 
 .editor-header span {
-    color: #00ff41;
+    color: #00ffcc;
     font-weight: bold;
     font-size: 16px;
     display: flex;
@@ -639,7 +639,7 @@ body {
 .editor-controls button {
     background: none;
     border: none;
-    color: #00ff41;
+    color: #00ffcc;
     cursor: pointer;
     padding: 5px 10px;
     margin-left: 5px;
@@ -669,18 +669,18 @@ body {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    border-top: 2px solid #00ff41;
+    border-top: 2px solid #00ffcc;
     flex-shrink: 0;
 }
 
 .editor-info {
-    color: #00ff41;
+    color: #00ffcc;
     font-size: 13px;
     font-family: 'Courier New', monospace;
 }
 
 #save-file-btn {
-    background: #00ff41;
+    background: #00ffcc;
     color: #0f0f1e;
     border: none;
     padding: 6px 16px;
@@ -690,9 +690,9 @@ body {
 }
 
 #save-file-btn:hover {
-    background: #00cc33;
+    background: #00e5ff;
     transform: scale(1.05);
-    box-shadow: 0 0 10px rgba(0, 255, 65, 0.5);
+    box-shadow: 0 0 10px rgba(149, 0, 255, 0.5);
 }
 
 #save-file-btn:active {
@@ -710,7 +710,7 @@ body {
     height: 80%;
     max-height: 800px;
     background: #1a1a2e;
-    border: 2px solid #00ff41;
+    border: 2px solid #00ffcc;
     border-radius: 8px;
     display: none;
     flex-direction: column;
@@ -726,13 +726,13 @@ body {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    border-bottom: 2px solid #00ff41;
+    border-bottom: 2px solid #00ffcc;
     cursor: move;
     flex-shrink: 0;
 }
 
 .image-viewer-header span {
-    color: #00ff41;
+    color: #00ffcc;
     font-weight: bold;
     font-size: 16px;
 }
@@ -740,7 +740,7 @@ body {
 .image-viewer-controls button {
     background: none;
     border: none;
-    color: #00ff41;
+    color: #00ffcc;
     cursor: pointer;
     padding: 5px 10px;
     margin-left: 5px;
@@ -767,7 +767,7 @@ body {
     max-width: 100%;
     max-height: 100%;
     object-fit: contain;
-    border: 1px solid #00ff41;
+    border: 1px solid #00ffcc;
     border-radius: 4px;
     transition: transform 0.3s ease;
 }
@@ -778,18 +778,18 @@ body {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    border-top: 2px solid #00ff41;
+    border-top: 2px solid #00ffcc;
     flex-shrink: 0;
 }
 
 .image-info {
-    color: #00ff41;
+    color: #00ffcc;
     font-size: 13px;
     font-family: 'Courier New', monospace;
 }
 
 .zoom-controls button {
-    background: #00ff41;
+    background: #00ffcc;
     color: #0f0f1e;
     border: none;
     padding: 6px 15px;
@@ -801,7 +801,7 @@ body {
 }
 
 .zoom-controls button:hover {
-    background: #00cc33;
+    background: #00e5ff;
     transform: scale(1.05);
 }
 
