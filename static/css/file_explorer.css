@@ -355,6 +355,38 @@ body {
     border-radius: 4px;
 }
 
+.btn-inspect {
+    background: rgba(0,123,255,0.2) !important;
+    border: 1px solid rgba(0,123,255,0.3) !important;
+    color: #007bff !important;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.btn-inspect:hover {
+    background: rgba(0,123,255,0.3) !important;
+    border-color: #007bff !important;
+    transform: translateY(-1px);
+}
+
+.btn-inspect:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.btn-inspect i {
+    font-size: 10px;
+    margin-right: 3px;
+}
+
+.folder-size {
+    color: #00ffff;
+    font-family: 'Courier New', monospace;
+}
+
 /* Grid View */
 #files-container.grid-view {
     display: grid;

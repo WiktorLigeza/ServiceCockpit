@@ -597,21 +597,11 @@ def get_files():
             try:
                 stat_info = item.stat()
                 
-                # Calculate folder size if it's a directory
-                size_display = None
-                if item.is_dir():
-                    try:
-                        total_size = sum(f.stat().st_size for f in item.rglob('*') if f.is_file())
-                        size_display = format_size(total_size)
-                    except (PermissionError, OSError):
-                        size_display = 'Unknown'
-                
                 files.append({
                     'name': item.name,
                     'path': str(item),
                     'is_directory': item.is_dir(),
                     'size': stat_info.st_size if item.is_file() else 0,
-                    'size_display': size_display,
                     'permissions': stat.filemode(stat_info.st_mode),
                     'modified': stat_info.st_mtime
                 })
@@ -625,43 +615,35 @@ def get_files():
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)})
 
-def format_size(bytes_size):
-    """Format bytes to human readable size"""
-    for unit in ['B', 'KB', 'MB', 'GB', 'TB']:
-        if bytes_size < 1024.0:
-            return f"{bytes_size:.2f} {unit}"
-        bytes_size /= 1024.0
-    return f"{bytes_size:.2f} PB"
-
-@app.route('/api/directories')
-def get_directories():
+@app.route('/api/folder-size')
+def get_folder_size():
     try:
-        path = request.args.get('path', '/')
+        path = request.args.get('path')
+        if not path:
+            return jsonify({'success': False, 'error': 'Path parameter required'}), 400
+            
         path_obj = Path(path)
         
-        if not path_obj.exists() or not path_obj.is_dir():
-            return jsonify({'success': False, 'error': 'Invalid directory'})
+        if not path_obj.exists():
+            return jsonify({'success': False, 'error': 'Path does not exist'}), 404
         
-        directories = []
-        for item in path_obj.iterdir():
-            try:
-                if item.is_dir():
-                    directories.append({
-                        'name': item.name,
-                        'path': str(item)
-                    })
-            except (PermissionError, OSError):
-                # Skip directories we don't have permission to access
-                continue
+        if not path_obj.is_dir():
+            return jsonify({'success': False, 'error': 'Path is not a directory'}), 400
         
-        # Sort directories alphabetically
-        directories.sort(key=lambda x: x['name'].lower())
-        
-        return jsonify({'success': True, 'directories': directories})
-    except PermissionError as e:
-        return jsonify({'success': False, 'error': f'Permission denied'})
+        try:
+            total_size = sum(f.stat().st_size for f in path_obj.rglob('*') if f.is_file())
+            size_display = format_size(total_size)
+            
+            return jsonify({
+                'success': True,
+                'size': total_size,
+                'size_display': size_display
+            })
+        except (PermissionError, OSError) as e:
+            return jsonify({'success': False, 'error': 'Permission denied or unable to calculate size'}), 403
+            
     except Exception as e:
-        return jsonify({'success': False, 'error': str(e)})
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/api/file-details')
 def get_file_details():
@@ -684,21 +666,11 @@ def get_file_details():
         except:
             owner = str(stat_info.st_uid)
         
-        # Calculate directory size if needed
-        size_display = 'N/A'
-        if path_obj.is_dir():
-            try:
-                total_size = sum(f.stat().st_size for f in path_obj.rglob('*') if f.is_file())
-                size_display = format_size(total_size)
-            except (PermissionError, OSError):
-                size_display = 'Permission Denied'
-        
         details = {
             'owner': owner,
             'modified': stat_info.st_mtime,
             'accessed': stat_info.st_atime,
-            'created': stat_info.st_ctime,
-            'size_display': size_display
+            'created': stat_info.st_ctime
         }
         
         return jsonify({'success': True, 'details': details})
@@ -791,7 +763,52 @@ def rename_item():
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)})
 
-# ...existing code...
+def format_size(bytes_size):
+    """Format bytes to human readable size"""
+    for unit in ['B', 'KB', 'MB', 'GB', 'TB']:
+        if bytes_size < 1024.0:
+            return f"{bytes_size:.2f} {unit}"
+        bytes_size /= 1024.0
+    return f"{bytes_size:.2f} PB"
+
+@app.route('/api/directories')
+def get_directories():
+    try:
+        path = request.args.get('path', '/')
+        path_obj = Path(path)
+        
+        if not path_obj.exists() or not path_obj.is_dir():
+            return jsonify({'success': False, 'error': 'Invalid directory'})
+        
+        directories = []
+        for item in path_obj.iterdir():
+            try:
+                if item.is_dir():
+                    directories.append({
+                        'name': item.name,
+                        'path': str(item)
+                    })
+            except (PermissionError, OSError):
+                # Skip directories we don't have permission to access
+                continue
+        
+        # Sort directories alphabetically
+        directories.sort(key=lambda x: x['name'].lower())
+        
+        return jsonify({'success': True, 'directories': directories})
+    except PermissionError as e:
+        return jsonify({'success': False, 'error': f'Permission denied'})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/api/download')
+def download_file():
+    from flask import send_file
+    try:
+        path = request.args.get('path')
+        return send_file(path, as_attachment=True)
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
 
 @socketio.on('connect')
 def handle_connect():

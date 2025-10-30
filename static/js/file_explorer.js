@@ -188,11 +188,16 @@ function createFileItem(file) {
     chmod.className = 'file-chmod';
     chmod.textContent = file.permissions;
     
-    const size = document.createElement('span');
-    size.textContent = file.is_directory ? (file.size_display || 'Folder') : formatFileSize(file.size);
+    const sizeElement = document.createElement('span');
+    
+    if (file.is_directory) {
+        sizeElement.innerHTML = `<button class="btn-inspect" onclick="event.stopPropagation(); inspectFolder('${file.path}', this)"><i class="fas fa-search"></i> Inspect</button>`;
+    } else {
+        sizeElement.textContent = formatFileSize(file.size);
+    }
     
     meta.appendChild(chmod);
-    meta.appendChild(size);
+    meta.appendChild(sizeElement);
     
     info.appendChild(name);
     info.appendChild(meta);
@@ -277,80 +282,6 @@ function selectFile(element, file) {
     element.classList.add('selected');
     selectedFile = file;
     displayFileDetails(file);
-}
-
-async function displayFileDetails(file) {
-    const container = document.getElementById('file-details-container');
-    
-    try {
-        const response = await fetch(`/api/file-details?path=${encodeURIComponent(file.path)}`);
-        const data = await response.json();
-        
-        if (data.success) {
-            const details = data.details;
-            container.innerHTML = `
-                <div class="detail-section">
-                    <h3><i class="fas ${getFileIcon(file)}"></i> ${file.name}</h3>
-                    <div class="detail-row">
-                        <span class="detail-label">Type:</span>
-                        <span class="detail-value">${file.is_directory ? 'Directory' : 'File'}</span>
-                    </div>
-                    <div class="detail-row">
-                        <span class="detail-label">Size:</span>
-                        <span class="detail-value">${file.is_directory ? details.size_display : formatFileSize(file.size)}</span>
-                    </div>
-                    <div class="detail-row">
-                        <span class="detail-label">Permissions:</span>
-                        <span class="detail-value">${file.permissions}</span>
-                    </div>
-                    <div class="detail-row">
-                        <span class="detail-label">Owner:</span>
-                        <span class="detail-value">${details.owner}</span>
-                    </div>
-                    <div class="detail-row">
-                        <span class="detail-label">Created:</span>
-                        <span class="detail-value">${new Date(details.created * 1000).toLocaleString()}</span>
-                    </div>
-                    <div class="detail-row">
-                        <span class="detail-label">Modified:</span>
-                        <span class="detail-value">${new Date(details.modified * 1000).toLocaleString()}</span>
-                    </div>
-                    <div class="detail-row">
-                        <span class="detail-label">Accessed:</span>
-                        <span class="detail-value">${new Date(details.accessed * 1000).toLocaleString()}</span>
-                    </div>
-                </div>
-                <div class="file-actions">
-                    ${!file.is_directory ? `<button class="btn btn-sm btn-primary" onclick="downloadFile()">
-                        <i class="fas fa-download"></i> Download
-                    </button>` : ''}
-                    <button class="btn btn-sm btn-warning" onclick="renameFile()">
-                        <i class="fas fa-edit"></i> Rename
-                    </button>
-                    <button class="btn btn-sm btn-danger" onclick="deleteFile()">
-                        <i class="fas fa-trash"></i> Delete
-                    </button>
-                </div>
-            `;
-        }
-    } catch (error) {
-        console.error('Error loading file details:', error);
-    }
-}
-
-function updateBreadcrumb(path) {
-    const breadcrumb = document.getElementById('breadcrumb-nav');
-    const parts = path.split('/').filter(p => p);
-    
-    let html = '<span class="breadcrumb-item" onclick="loadDirectory(\'/\')">root</span>';
-    let currentPath = '';
-    
-    parts.forEach(part => {
-        currentPath += '/' + part;
-        html += `<span class="breadcrumb-item" onclick="loadDirectory('${currentPath}')">${part}</span>`;
-    });
-    
-    breadcrumb.innerHTML = html;
 }
 
 async function loadDirectoryTree(path, parentElement = null) {
@@ -599,4 +530,144 @@ function showError(message) {
             <p>${message}</p>
         </div>
     `;
+}
+
+async function inspectFolder(path, buttonElement) {
+    const originalHTML = buttonElement.innerHTML;
+    buttonElement.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Calculating...';
+    buttonElement.disabled = true;
+    
+    try {
+        const response = await fetch(`/api/folder-size?path=${encodeURIComponent(path)}`);
+        const data = await response.json();
+        
+        if (data.success) {
+            buttonElement.parentElement.innerHTML = `<span class="folder-size">${data.size_display}</span>`;
+        } else {
+            buttonElement.innerHTML = `<span style="color: #dc3545;">Error</span>`;
+            setTimeout(() => {
+                buttonElement.innerHTML = originalHTML;
+                buttonElement.disabled = false;
+            }, 2000);
+        }
+    } catch (error) {
+        console.error('Error inspecting folder:', error);
+        buttonElement.innerHTML = `<span style="color: #dc3545;">Error</span>`;
+        setTimeout(() => {
+            buttonElement.innerHTML = originalHTML;
+            buttonElement.disabled = false;
+        }, 2000);
+    }
+}
+
+async function displayFileDetails(file) {
+    const container = document.getElementById('file-details-container');
+    
+    try {
+        const response = await fetch(`/api/file-details?path=${encodeURIComponent(file.path)}`);
+        const data = await response.json();
+        
+        if (data.success) {
+            const details = data.details;
+            
+            let sizeHTML = '';
+            if (file.is_directory) {
+                sizeHTML = `
+                    <div class="detail-row">
+                        <span class="detail-label">Size:</span>
+                        <span class="detail-value" id="detail-size">
+                            <button class="btn btn-sm btn-info" onclick="inspectFolderDetails('${file.path}')">
+                                <i class="fas fa-search"></i> Calculate Size
+                            </button>
+                        </span>
+                    </div>
+                `;
+            } else {
+                sizeHTML = `
+                    <div class="detail-row">
+                        <span class="detail-label">Size:</span>
+                        <span class="detail-value">${formatFileSize(file.size)}</span>
+                    </div>
+                `;
+            }
+            
+            container.innerHTML = `
+                <div class="detail-section">
+                    <h3><i class="fas ${getFileIcon(file)}"></i> ${file.name}</h3>
+                    <div class="detail-row">
+                        <span class="detail-label">Type:</span>
+                        <span class="detail-value">${file.is_directory ? 'Directory' : 'File'}</span>
+                    </div>
+                    ${sizeHTML}
+                    <div class="detail-row">
+                        <span class="detail-label">Permissions:</span>
+                        <span class="detail-value">${file.permissions}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Owner:</span>
+                        <span class="detail-value">${details.owner}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Created:</span>
+                        <span class="detail-value">${new Date(details.created * 1000).toLocaleString()}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Modified:</span>
+                        <span class="detail-value">${new Date(details.modified * 1000).toLocaleString()}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Accessed:</span>
+                        <span class="detail-value">${new Date(details.accessed * 1000).toLocaleString()}</span>
+                    </div>
+                </div>
+                <div class="file-actions">
+                    ${!file.is_directory ? `<button class="btn btn-sm btn-primary" onclick="downloadFile()">
+                        <i class="fas fa-download"></i> Download
+                    </button>` : ''}
+                    <button class="btn btn-sm btn-warning" onclick="renameFile()">
+                        <i class="fas fa-edit"></i> Rename
+                    </button>
+                    <button class="btn btn-sm btn-danger" onclick="deleteFile()">
+                        <i class="fas fa-trash"></i> Delete
+                    </button>
+                </div>
+            `;
+        }
+    } catch (error) {
+        console.error('Error loading file details:', error);
+    }
+}
+
+async function inspectFolderDetails(path) {
+    const sizeElement = document.getElementById('detail-size');
+    sizeElement.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Calculating...';
+    
+    try {
+        const response = await fetch(`/api/folder-size?path=${encodeURIComponent(path)}`);
+        const data = await response.json();
+        
+        if (data.success) {
+            sizeElement.innerHTML = `<span class="folder-size">${data.size_display}</span>`;
+        } else {
+            sizeElement.innerHTML = `<span style="color: #dc3545;">Error: ${data.error}</span>`;
+        }
+    } catch (error) {
+        console.error('Error inspecting folder:', error);
+        sizeElement.innerHTML = `<span style="color: #dc3545;">Error calculating size</span>`;
+    }
+}
+
+function updateBreadcrumb(path) {
+    const breadcrumb = document.getElementById('breadcrumb-nav');
+    const parts = path.split('/').filter(p => p);
+    
+    let html = '<span class="breadcrumb-item" onclick="loadDirectory(\'/\')">root</span>';
+    let currentPath = '';
+    
+    parts.forEach(part => {
+        currentPath += '/' + part;
+        html += `<span class="breadcrumb-item" onclick="loadDirectory('${currentPath}')">${part}</span>`;
+    });
+    
+    breadcrumb.innerHTML = html;
 }
