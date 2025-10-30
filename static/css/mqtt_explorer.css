@@ -236,6 +236,7 @@
     background: rgba(30, 30, 30, 0.1);
     border-radius: 8px;
     margin: 0 1rem 1rem 1rem;
+    height: auto;
 }
 
 .message-item {
@@ -333,30 +334,30 @@
 }
 
 .json-key {
-    color: #0066cc;
+    color: #e9e9e9;
     font-weight: 500;
 }
 
 .json-string {
-    color: #008000;
+    color: #00ff00;
 }
 
 .json-number {
-    color: #ff6600;
+    color: #f6ff00;
 }
 
 .json-boolean {
-    color: #cc0066;
+    color: #ff0080;
     font-weight: 500;
 }
 
 .json-null {
-    color: #999;
+    color: #9a9a9a;
     font-style: italic;
 }
 
 .json-bracket {
-    color: #333;
+    color: #b1b1b1;
     font-weight: bold;
 }
 
@@ -370,15 +371,10 @@
 
 /* Change highlighting */
 .json-changed {
-    background-color: #fff3cd !important;
-    padding: 2px 4px;
-    border-radius: 3px;
-    box-shadow: 0 0 0 1px #ffd60a;
+    text-shadow: #00ffff 0px 0px 5px;
 }
 
 .json-changed-subtle {
-    background-color: #f8f9fa;
-    box-shadow: inset 2px 0 0 #ffd60a;
 }
 
 .json-removed {
@@ -431,6 +427,8 @@
 
 .tab-pane {
     display: none;
+    height: auto;
+    
 }
 
 .tab-pane.active {
@@ -463,6 +461,7 @@
     margin: 0 1rem 1rem 1rem;
     color: #dadada;
     padding: 1rem;
+    height: auto;
 }
 
 /* Responsive Design */
