@@ -89,9 +89,32 @@
                     </button>
                 </div>
             </div>
-            <div id="messages-container">
-                <div class="no-messages">
-                    Subscribe to a topic to see messages
+            
+            <!-- Message Tabs -->
+            <div class="message-tabs">
+                <button class="tab-button active" data-tab="history">
+                    <i class="fas fa-history"></i> History
+                </button>
+                <button class="tab-button" data-tab="current">
+                    <i class="fas fa-eye"></i> Current
+                </button>
+            </div>
+            
+            <!-- Tab Content -->
+            <div class="tab-content">
+                <div id="history-tab" class="tab-pane active">
+                    <div id="messages-container">
+                        <div class="select-topic-message">
+                            Select a topic from the list to view messages
+                        </div>
+                    </div>
+                </div>
+                <div id="current-tab" class="tab-pane">
+                    <div id="current-message-container">
+                        <div class="select-topic-message">
+                            Select a topic from the list to view current message
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>

@@ -5,6 +5,10 @@ let isPaused = false;
 let topicFrequencies = {};
 let selectedTopic = null;
 let messageCount = 0;
+let knownTopics = new Set(); // Track known topics to prevent recreating list
+let currentMessage = null; // Store current message for diff
+let messageHistory = []; // Store message history (max 50)
+let activeTab = 'history'; // Track active tab
 
 // Initialize when page loads
 document.addEventListener('DOMContentLoaded', function() {
@@ -64,6 +68,13 @@ function setupEventListeners() {
 
     // Topics search
     document.getElementById('topics-search').addEventListener('input', filterTopics);
+    
+    // Tab functionality
+    document.querySelectorAll('.tab-button').forEach(button => {
+        button.addEventListener('click', function() {
+            switchTab(this.dataset.tab);
+        });
+    });
 }
 
 function loadConnectionSettings() {
@@ -178,17 +189,27 @@ function publishMessage() {
 
 function updateTopicsList(topics) {
     const container = document.getElementById('topics-container');
-    container.innerHTML = '';
-
-    if (topics.length === 0) {
-        container.innerHTML = '<div class="no-topics">No topics discovered yet</div>';
-        return;
+    
+    // Remove "no topics" message if it exists
+    const noTopics = container.querySelector('.no-topics');
+    if (noTopics && topics.length > 0) {
+        noTopics.remove();
     }
 
+    // Add only new topics to prevent flickering
     topics.forEach(topic => {
-        const topicElement = createTopicElement(topic);
-        container.appendChild(topicElement);
+        if (!knownTopics.has(topic)) {
+            knownTopics.add(topic);
+            const topicElement = createTopicElement(topic);
+            container.appendChild(topicElement);
+        }
     });
+
+    // Show "no topics" message if no topics exist
+    if (topics.length === 0 && !noTopics) {
+        container.innerHTML = '<div class="no-topics">No topics discovered yet</div>';
+        knownTopics.clear();
+    }
 }
 
 function createTopicElement(topic) {
@@ -226,41 +247,82 @@ function selectTopic(topic) {
     
     // Auto-fill publish topic
     document.getElementById('publish-topic').value = topic;
+    
+    // Clear existing messages and reset state
+    clearMessages();
+    currentMessage = null;
+    messageHistory = [];
+    showSelectedTopicInfo();
 }
 
 function handleNewMessage(data) {
-    const container = document.getElementById('messages-container');
+    // Only show messages from selected topic
+    if (selectedTopic && data.topic !== selectedTopic) {
+        return;
+    }
     
-    // Remove "no messages" placeholder
-    const noMessages = container.querySelector('.no-messages');
-    if (noMessages) {
-        noMessages.remove();
+    // If no topic is selected, don't show any messages
+    if (!selectedTopic) {
+        return;
     }
 
-    const messageElement = createMessageElement(data);
-    container.appendChild(messageElement);
-
-    // Auto-scroll to bottom
-    container.scrollTop = container.scrollHeight;
-
-    // Limit number of messages to prevent memory issues
-    messageCount++;
-    if (messageCount > 1000) {
-        const firstMessage = container.querySelector('.message-item');
-        if (firstMessage) {
-            firstMessage.remove();
-            messageCount--;
-        }
+    if (!isPaused) {
+        // Add to history
+        addToHistory(data);
+        
+        // Update current message view
+        updateCurrentMessage(data);
     }
 }
 
-function createMessageElement(data) {
+function addToHistory(data) {
+    const container = document.getElementById('messages-container');
+    
+    // Remove "no messages" placeholder
+    const noMessages = container.querySelector('.no-messages, .select-topic-message');
+    if (noMessages) {
+        noMessages.remove();
+        // Initialize container with pre-allocated space
+        initializeHistoryContainer(container);
+    }
+
+    // Add message to history array
+    messageHistory.push(data);
+    
+    // Limit to 50 messages
+    if (messageHistory.length > 50) {
+        messageHistory.shift();
+        // Remove first message element
+        const firstMessage = container.querySelector('.message-item');
+        if (firstMessage) {
+            firstMessage.remove();
+        }
+    }
+
+    const messageElement = createHistoryMessageElement(data);
+    container.appendChild(messageElement);
+
+    // Auto-scroll to bottom only if user is near bottom
+    const isNearBottom = container.scrollTop >= container.scrollHeight - container.clientHeight - 100;
+    if (isNearBottom) {
+        container.scrollTop = container.scrollHeight;
+    }
+}
+
+function initializeHistoryContainer(container) {
+    // Pre-allocate space for smoother scrolling
+    container.style.minHeight = '400px';
+    container.style.maxHeight = '600px';
+    container.style.overflowY = 'auto';
+}
+
+function createHistoryMessageElement(data) {
     const div = document.createElement('div');
-    div.className = 'message-item new';
+    div.className = 'message-item history-message';
 
     const timestamp = new Date(data.timestamp).toLocaleTimeString();
     
-    // Try to parse as JSON
+    // Try to parse as JSON for better formatting
     let payload = data.payload;
     let payloadClass = '';
     
@@ -269,25 +331,186 @@ function createMessageElement(data) {
         payload = JSON.stringify(parsed, null, 2);
         payloadClass = 'json';
     } catch (e) {
-        // Not JSON, keep as is
         payloadClass = '';
     }
 
     div.innerHTML = `
         <div class="message-header">
-            <span class="message-topic">${data.topic}</span>
             <span class="message-timestamp">${timestamp}</span>
         </div>
         <div class="message-payload ${payloadClass}">${escapeHtml(payload)}</div>
     `;
 
-    // Remove animation class after animation completes
-    setTimeout(() => {
-        div.classList.remove('new');
-    }, 300);
+    return div;
+}
+
+function updateCurrentMessage(data) {
+    const container = document.getElementById('current-message-container');
+    
+    // Remove "no messages" placeholder
+    const noMessages = container.querySelector('.no-messages, .select-topic-message');
+    if (noMessages) {
+        noMessages.remove();
+    }
+
+    const previousMessage = currentMessage;
+    currentMessage = data;
+
+    const messageElement = createCurrentMessageElement(data, previousMessage);
+    container.innerHTML = '';
+    container.appendChild(messageElement);
+}
+
+function createCurrentMessageElement(data, previousMessage) {
+    const div = document.createElement('div');
+    div.className = 'current-message';
+
+    const timestamp = new Date(data.timestamp).toLocaleTimeString();
+    
+    let payload = data.payload;
+    let payloadHtml = '';
+    
+    try {
+        const parsed = JSON.parse(data.payload);
+        
+        if (previousMessage) {
+            try {
+                const previousParsed = JSON.parse(previousMessage.payload);
+                payloadHtml = createJsonDiff(previousParsed, parsed);
+            } catch (e) {
+                payloadHtml = `<pre class="json">${escapeHtml(JSON.stringify(parsed, null, 2))}</pre>`;
+            }
+        } else {
+            payloadHtml = `<pre class="json">${escapeHtml(JSON.stringify(parsed, null, 2))}</pre>`;
+        }
+    } catch (e) {
+        // Not JSON, show as plain text
+        if (previousMessage && previousMessage.payload !== data.payload) {
+            payloadHtml = `<div class="text changed">${escapeHtml(payload)}</div>`;
+        } else {
+            payloadHtml = `<div class="text">${escapeHtml(payload)}</div>`;
+        }
+    }
+
+    div.innerHTML = `
+        <div class="current-message-header">
+            <h4>Latest Message</h4>
+            <span class="current-timestamp">${timestamp}</span>
+        </div>
+        <div class="current-payload">${payloadHtml}</div>
+    `;
 
     return div;
 }
+
+function createJsonDiff(oldObj, newObj) {
+    const diff = compareObjects(oldObj, newObj);
+    return `<pre class="json diff">${diff}</pre>`;
+}
+
+function compareObjects(oldObj, newObj, path = '') {
+    let result = '';
+    const allKeys = new Set([...Object.keys(oldObj || {}), ...Object.keys(newObj || {})]);
+    
+    if (typeof newObj !== 'object' || newObj === null) {
+        const isChanged = oldObj !== newObj;
+        return `<span class="${isChanged ? 'changed' : ''}">${escapeHtml(JSON.stringify(newObj, null, 2))}</span>`;
+    }
+    
+    result += '{\n';
+    
+    for (const key of allKeys) {
+        const oldValue = oldObj?.[key];
+        const newValue = newObj?.[key];
+        const hasChanged = JSON.stringify(oldValue) !== JSON.stringify(newValue);
+        
+        result += `  "${key}": `;
+        
+        if (typeof newValue === 'object' && newValue !== null && !Array.isArray(newValue)) {
+            result += compareObjects(oldValue, newValue, `${path}.${key}`);
+        } else {
+            const valueStr = JSON.stringify(newValue);
+            result += `<span class="${hasChanged ? 'changed' : ''}">${escapeHtml(valueStr)}</span>`;
+        }
+        
+        result += ',\n';
+    }
+    
+    result = result.replace(/,\n$/, '\n');
+    result += '}';
+    
+    return result;
+}
+
+function switchTab(tabName) {
+    activeTab = tabName;
+    
+    // Update tab buttons
+    document.querySelectorAll('.tab-button').forEach(button => {
+        button.classList.remove('active');
+    });
+    document.querySelector(`[data-tab="${tabName}"]`).classList.add('active');
+    
+    // Update tab content
+    document.querySelectorAll('.tab-pane').forEach(pane => {
+        pane.classList.remove('active');
+    });
+    document.getElementById(`${tabName}-tab`).classList.add('active');
+}
+
+function clearMessages() {
+    const historyContainer = document.getElementById('messages-container');
+    const currentContainer = document.getElementById('current-message-container');
+    
+    if (selectedTopic) {
+        historyContainer.innerHTML = `<div class="no-messages">Waiting for messages from: ${selectedTopic}</div>`;
+        currentContainer.innerHTML = `<div class="no-messages">Waiting for messages from: ${selectedTopic}</div>`;
+    } else {
+        historyContainer.innerHTML = '<div class="select-topic-message">Select a topic from the list to view messages</div>';
+        currentContainer.innerHTML = '<div class="select-topic-message">Select a topic from the list to view current message</div>';
+    }
+    
+    messageCount = 0;
+    messageHistory = [];
+    currentMessage = null;
+}
+
+function clearTopics() {
+    const container = document.getElementById('topics-container');
+    container.innerHTML = '<div class="no-topics">Connect to MQTT broker to see topics</div>';
+    topicFrequencies = {};
+    knownTopics.clear();
+    selectedTopic = null;
+    document.getElementById('selected-topic-name').textContent = '';
+    clearMessages();
+}
+
+function showSelectedTopicInfo() {
+    const historyContainer = document.getElementById('messages-container');
+    const currentContainer = document.getElementById('current-message-container');
+    historyContainer.innerHTML = `<div class="no-messages">Waiting for messages from: ${selectedTopic}</div>`;
+    currentContainer.innerHTML = `<div class="no-messages">Waiting for messages from: ${selectedTopic}</div>`;
+    messageCount = 0;
+    messageHistory = [];
+    currentMessage = null;
+}
+
+// Clean up frequency calculations every 30 seconds
+setInterval(() => {
+    const now = Date.now();
+    Object.keys(topicFrequencies).forEach(topic => {
+        const freq = topicFrequencies[topic];
+        // Remove old timestamps
+        freq.timestamps = freq.timestamps.filter(ts => now - ts < 10000);
+        freq.rate = freq.timestamps.length / 10;
+        
+        // Update display
+        const freqElement = document.getElementById(`freq-${topic.replace(/[^a-zA-Z0-9]/g, '_')}`);
+        if (freqElement) {
+            freqElement.textContent = `${freq.rate.toFixed(1)} msg/s`;
+        }
+    });
+}, 5000);
 
 function updateTopicFrequency(topic) {
     const now = Date.now();
@@ -316,18 +539,6 @@ function updateTopicFrequency(topic) {
     if (freqElement) {
         freqElement.textContent = `${freq.rate.toFixed(1)} msg/s`;
     }
-}
-
-function clearMessages() {
-    const container = document.getElementById('messages-container');
-    container.innerHTML = '<div class="no-messages">Subscribe to a topic to see messages</div>';
-    messageCount = 0;
-}
-
-function clearTopics() {
-    const container = document.getElementById('topics-container');
-    container.innerHTML = '<div class="no-topics">Connect to MQTT broker to see topics</div>';
-    topicFrequencies = {};
 }
 
 function togglePauseMessages() {
@@ -389,20 +600,3 @@ function escapeHtml(text) {
     div.textContent = text;
     return div.innerHTML;
 }
-
-// Clean up frequency calculations every 30 seconds
-setInterval(() => {
-    const now = Date.now();
-    Object.keys(topicFrequencies).forEach(topic => {
-        const freq = topicFrequencies[topic];
-        // Remove old timestamps
-        freq.timestamps = freq.timestamps.filter(ts => now - ts < 10000);
-        freq.rate = freq.timestamps.length / 10;
-        
-        // Update display
-        const freqElement = document.getElementById(`freq-${topic.replace(/[^a-zA-Z0-9]/g, '_')}`);
-        if (freqElement) {
-            freqElement.textContent = `${freq.rate.toFixed(1)} msg/s`;
-        }
-    });
-}, 5000);
