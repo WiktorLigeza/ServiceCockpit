@@ -106,7 +106,6 @@ body {
 
 .directory-item:hover {
     background-color: rgba(0,255,255,0.1);
-    transform: translateX(2px);
 }
 
 .directory-item.active {
@@ -114,9 +113,10 @@ body {
     color: #00ffff;
 }
 
-.directory-item i {
-    width: 16px;
-    font-size: 14px;
+.directory-item i.fa-chevron-right {
+    width: 12px;
+    font-size: 12px;
+    transition: transform 0.3s ease;
 }
 
 .directory-item.expanded > i.fa-chevron-right {
@@ -125,6 +125,7 @@ body {
 
 .directory-children {
     padding-left: 20px;
+    display: none;
 }
 
 .breadcrumb-container {
@@ -169,6 +170,31 @@ body {
 .control-group {
     display: flex;
     gap: 10px;
+    align-items: center;
+    flex: 1;
+}
+
+.file-search {
+    max-width: 200px;
+    background: rgba(0,0,0,0.3) !important;
+    color: #fff !important;
+    border: 1px solid rgba(255,255,255,0.1) !important;
+    padding: 0.375rem 0.75rem;
+    font-size: 0.875rem;
+}
+
+.filter-select {
+    max-width: 150px;
+    background: rgba(0,0,0,0.3) !important;
+    color: #fff !important;
+    border: 1px solid rgba(255,255,255,0.1) !important;
+    padding: 0.375rem 0.75rem;
+    font-size: 0.875rem;
+}
+
+.filter-select option {
+    background: #1a1a2e;
+    color: #fff;
 }
 
 .view-controls {

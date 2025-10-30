@@ -1,6 +1,9 @@
 let currentPath = '/home';
 let selectedFile = null;
 let viewMode = 'list';
+let allFiles = [];
+let currentFilter = 'all';
+let nameFilter = '';
 
 document.addEventListener('DOMContentLoaded', function() {
     initializeFileExplorer();
@@ -28,11 +31,82 @@ function setupEventListeners() {
         });
     });
 
+    // Filter change
+    document.getElementById('file-filter').addEventListener('change', function(e) {
+        currentFilter = e.target.value;
+        applyFilters();
+    });
+
+    // Name search
+    document.getElementById('file-search').addEventListener('input', function(e) {
+        nameFilter = e.target.value.toLowerCase();
+        applyFilters();
+    });
+
+    // Directory search
+    document.getElementById('directory-search').addEventListener('input', function(e) {
+        const searchTerm = e.target.value.toLowerCase();
+        filterDirectoryTree(searchTerm);
+    });
+
     // New folder button
     document.getElementById('new-folder-btn').addEventListener('click', createNewFolder);
     
     // New file button
     document.getElementById('new-file-btn').addEventListener('click', createNewFile);
+}
+
+function filterDirectoryTree(searchTerm) {
+    const allDirItems = document.querySelectorAll('.directory-item');
+    allDirItems.forEach(item => {
+        const name = item.querySelector('span').textContent.toLowerCase();
+        if (name.includes(searchTerm)) {
+            item.style.display = 'flex';
+        } else {
+            item.style.display = 'none';
+        }
+    });
+}
+
+function applyFilters() {
+    let filteredFiles = allFiles;
+    
+    // Apply type filter
+    switch(currentFilter) {
+        case 'folders':
+            filteredFiles = filteredFiles.filter(f => f.is_directory);
+            break;
+        case 'files':
+            filteredFiles = filteredFiles.filter(f => !f.is_directory);
+            break;
+        case 'images':
+            filteredFiles = filteredFiles.filter(f => {
+                const ext = f.name.split('.').pop().toLowerCase();
+                return ['png', 'jpg', 'jpeg', 'gif', 'bmp', 'svg', 'webp'].includes(ext);
+            });
+            break;
+        case 'code':
+            filteredFiles = filteredFiles.filter(f => {
+                const ext = f.name.split('.').pop().toLowerCase();
+                return ['js', 'py', 'html', 'css', 'json', 'xml', 'php', 'java', 'cpp', 'c', 'h', 'sh'].includes(ext);
+            });
+            break;
+        case 'documents':
+            filteredFiles = filteredFiles.filter(f => {
+                const ext = f.name.split('.').pop().toLowerCase();
+                return ['txt', 'pdf', 'doc', 'docx', 'md', 'rtf', 'odt'].includes(ext);
+            });
+            break;
+    }
+    
+    // Apply name filter
+    if (nameFilter) {
+        filteredFiles = filteredFiles.filter(f => 
+            f.name.toLowerCase().includes(nameFilter)
+        );
+    }
+    
+    displayFiles(filteredFiles);
 }
 
 async function loadDirectory(path) {
@@ -45,18 +119,37 @@ async function loadDirectory(path) {
         const data = await response.json();
         
         if (data.success) {
-            displayFiles(data.files);
+            allFiles = data.files;
+            applyFilters();
+            // Update active directory in tree
+            highlightActiveDirectory(path);
         } else {
             console.error('Error loading directory:', data.error);
+            showError('Failed to load directory: ' + data.error);
         }
     } catch (error) {
         console.error('Error loading directory:', error);
+        showError('Failed to load directory');
     }
+}
+
+function highlightActiveDirectory(path) {
+    document.querySelectorAll('.directory-item').forEach(item => {
+        item.classList.remove('active');
+        if (item.dataset.path === path) {
+            item.classList.add('active');
+        }
+    });
 }
 
 function displayFiles(files) {
     const container = document.getElementById('files-container');
     container.innerHTML = '';
+    
+    if (files.length === 0) {
+        container.innerHTML = '<div class="no-selection"><i class="fas fa-folder-open"></i><p>No files match the filter</p></div>';
+        return;
+    }
     
     // Sort: folders first, then files
     files.sort((a, b) => {
@@ -96,7 +189,7 @@ function createFileItem(file) {
     chmod.textContent = file.permissions;
     
     const size = document.createElement('span');
-    size.textContent = formatFileSize(file.size);
+    size.textContent = file.is_directory ? (file.size_display || 'Folder') : formatFileSize(file.size);
     
     meta.appendChild(chmod);
     meta.appendChild(size);
@@ -194,6 +287,7 @@ async function displayFileDetails(file) {
         const data = await response.json();
         
         if (data.success) {
+            const details = data.details;
             container.innerHTML = `
                 <div class="detail-section">
                     <h3><i class="fas ${getFileIcon(file)}"></i> ${file.name}</h3>
@@ -203,7 +297,7 @@ async function displayFileDetails(file) {
                     </div>
                     <div class="detail-row">
                         <span class="detail-label">Size:</span>
-                        <span class="detail-value">${formatFileSize(file.size)}</span>
+                        <span class="detail-value">${file.is_directory ? details.size_display : formatFileSize(file.size)}</span>
                     </div>
                     <div class="detail-row">
                         <span class="detail-label">Permissions:</span>
@@ -211,17 +305,25 @@ async function displayFileDetails(file) {
                     </div>
                     <div class="detail-row">
                         <span class="detail-label">Owner:</span>
-                        <span class="detail-value">${data.details.owner}</span>
+                        <span class="detail-value">${details.owner}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Created:</span>
+                        <span class="detail-value">${new Date(details.created * 1000).toLocaleString()}</span>
                     </div>
                     <div class="detail-row">
                         <span class="detail-label">Modified:</span>
-                        <span class="detail-value">${new Date(data.details.modified * 1000).toLocaleString()}</span>
+                        <span class="detail-value">${new Date(details.modified * 1000).toLocaleString()}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Accessed:</span>
+                        <span class="detail-value">${new Date(details.accessed * 1000).toLocaleString()}</span>
                     </div>
                 </div>
                 <div class="file-actions">
-                    <button class="btn btn-sm btn-primary" onclick="downloadFile()">
+                    ${!file.is_directory ? `<button class="btn btn-sm btn-primary" onclick="downloadFile()">
                         <i class="fas fa-download"></i> Download
-                    </button>
+                    </button>` : ''}
                     <button class="btn btn-sm btn-warning" onclick="renameFile()">
                         <i class="fas fa-edit"></i> Rename
                     </button>
@@ -252,26 +354,151 @@ function updateBreadcrumb(path) {
 }
 
 async function loadDirectoryTree(path, parentElement = null) {
-    // Implementation for directory tree navigation
-    // Similar to file list but shows only directories
-}
-
-function createNewFolder() {
-    const folderName = prompt('Enter folder name:');
-    if (folderName) {
-        // Implementation for creating new folder
+    try {
+        const response = await fetch(`/api/directories?path=${encodeURIComponent(path)}`);
+        const data = await response.json();
+        
+        if (data.success) {
+            const container = parentElement || document.getElementById('directory-tree-container');
+            if (!parentElement) {
+                container.innerHTML = '';
+            }
+            
+            data.directories.forEach(dir => {
+                const dirItem = createDirectoryTreeItem(dir);
+                container.appendChild(dirItem);
+            });
+        }
+    } catch (error) {
+        console.error('Error loading directory tree:', error);
     }
 }
 
-function createNewFile() {
+function createDirectoryTreeItem(dir) {
+    const wrapper = document.createElement('div');
+    
+    const item = document.createElement('div');
+    item.className = 'directory-item';
+    item.dataset.path = dir.path;
+    
+    const chevron = document.createElement('i');
+    chevron.className = 'fas fa-chevron-right';
+    
+    const icon = document.createElement('i');
+    icon.className = 'fas fa-folder file-icon folder';
+    
+    const name = document.createElement('span');
+    name.textContent = dir.name;
+    
+    item.appendChild(chevron);
+    item.appendChild(icon);
+    item.appendChild(name);
+    
+    // Create children container
+    const childrenContainer = document.createElement('div');
+    childrenContainer.className = 'directory-children';
+    childrenContainer.style.display = 'none';
+    
+    // Toggle children on chevron click
+    chevron.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        item.classList.toggle('expanded');
+        
+        if (item.classList.contains('expanded')) {
+            if (childrenContainer.children.length === 0) {
+                await loadDirectoryTree(dir.path, childrenContainer);
+            }
+            childrenContainer.style.display = 'block';
+        } else {
+            childrenContainer.style.display = 'none';
+        }
+    });
+    
+    // Load directory on item click
+    item.addEventListener('click', (e) => {
+        e.stopPropagation();
+        loadDirectory(dir.path);
+    });
+    
+    wrapper.appendChild(item);
+    wrapper.appendChild(childrenContainer);
+    
+    return wrapper;
+}
+
+async function createNewFolder() {
+    const folderName = prompt('Enter folder name:');
+    if (folderName) {
+        try {
+            const response = await fetch('/api/create-folder', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    path: currentPath,
+                    name: folderName
+                })
+            });
+            
+            const data = await response.json();
+            if (data.success) {
+                loadDirectory(currentPath);
+                // Reload parent directory in tree
+                const parentPath = currentPath.substring(0, currentPath.lastIndexOf('/')) || '/';
+                reloadDirectoryInTree(parentPath);
+            } else {
+                alert('Failed to create folder: ' + data.error);
+            }
+        } catch (error) {
+            alert('Failed to create folder: ' + error);
+        }
+    }
+}
+
+function reloadDirectoryInTree(path) {
+    // Find the directory item and reload its children
+    const dirItems = document.querySelectorAll('.directory-item');
+    dirItems.forEach(item => {
+        if (item.dataset.path === path && item.classList.contains('expanded')) {
+            const childrenContainer = item.parentElement.querySelector('.directory-children');
+            if (childrenContainer) {
+                childrenContainer.innerHTML = '';
+                loadDirectoryTree(path, childrenContainer);
+            }
+        }
+    });
+}
+
+async function createNewFile() {
     const fileName = prompt('Enter file name:');
     if (fileName) {
-        // Implementation for creating new file
+        try {
+            const response = await fetch('/api/create-file', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    path: currentPath,
+                    name: fileName
+                })
+            });
+            
+            const data = await response.json();
+            if (data.success) {
+                loadDirectory(currentPath);
+            } else {
+                alert('Failed to create file: ' + data.error);
+            }
+        } catch (error) {
+            alert('Failed to create file: ' + error);
+        }
     }
 }
 
 function openFile(file) {
-    // Implementation for opening/editing files
+    window.open(`/api/view-file?path=${encodeURIComponent(file.path)}`, '_blank');
 }
 
 function downloadFile() {
@@ -280,17 +507,96 @@ function downloadFile() {
     }
 }
 
-function renameFile() {
+async function renameFile() {
     if (selectedFile) {
         const newName = prompt('Enter new name:', selectedFile.name);
-        if (newName) {
-            // Implementation for renaming
+        if (newName && newName !== selectedFile.name) {
+            try {
+                const response = await fetch('/api/rename', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        old_path: selectedFile.path,
+                        new_name: newName
+                    })
+                });
+                
+                const data = await response.json();
+                if (data.success) {
+                    loadDirectory(currentPath);
+                    if (selectedFile.is_directory) {
+                        const parentPath = currentPath.substring(0, currentPath.lastIndexOf('/')) || '/';
+                        reloadDirectoryInTree(parentPath);
+                    }
+                    selectedFile = null;
+                    document.getElementById('file-details-container').innerHTML = `
+                        <div class="no-selection">
+                            <i class="fas fa-file-alt"></i>
+                            <p>Select a file or folder to view details</p>
+                        </div>
+                    `;
+                } else {
+                    alert('Failed to rename: ' + data.error);
+                }
+            } catch (error) {
+                alert('Failed to rename: ' + error);
+            }
         }
     }
 }
 
-function deleteFile() {
-    if (selectedFile && confirm(`Delete ${selectedFile.name}?`)) {
-        // Implementation for deleting
+async function deleteFile() {
+    if (selectedFile) {
+        const isDirectory = selectedFile.is_directory;
+        const warningMsg = isDirectory 
+            ? `Are you sure you want to delete the folder "${selectedFile.name}" and all its contents? This action cannot be undone!`
+            : `Are you sure you want to delete "${selectedFile.name}"?`;
+        
+        if (confirm(warningMsg)) {
+            try {
+                const response = await fetch('/api/delete', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        path: selectedFile.path,
+                        is_directory: isDirectory
+                    })
+                });
+                
+                const data = await response.json();
+                if (data.success) {
+                    loadDirectory(currentPath);
+                    if (isDirectory) {
+                        const parentPath = currentPath.substring(0, currentPath.lastIndexOf('/')) || '/';
+                        reloadDirectoryInTree(parentPath);
+                    }
+                    selectedFile = null;
+                    document.getElementById('file-details-container').innerHTML = `
+                        <div class="no-selection">
+                            <i class="fas fa-file-alt"></i>
+                            <p>Select a file or folder to view details</p>
+                        </div>
+                    `;
+                } else {
+                    alert('Failed to delete: ' + data.error);
+                }
+            } catch (error) {
+                alert('Failed to delete: ' + error);
+            }
+        }
     }
+}
+
+function showError(message) {
+    const container = document.getElementById('files-container');
+    container.innerHTML = `
+        <div class="no-selection">
+            <i class="fas fa-exclamation-triangle" style="color: #dc3545;"></i>
+            <p>${message}</p>
+        </div>
+    `;
 }

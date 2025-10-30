@@ -16,6 +16,7 @@ from collections import defaultdict
 import paho.mqtt.client as mqtt
 import stat
 from pathlib import Path
+import shutil
 
 app = Flask(__name__, static_folder='static')
 socketio = SocketIO(app, 
@@ -595,18 +596,70 @@ def get_files():
         for item in path_obj.iterdir():
             try:
                 stat_info = item.stat()
+                
+                # Calculate folder size if it's a directory
+                size_display = None
+                if item.is_dir():
+                    try:
+                        total_size = sum(f.stat().st_size for f in item.rglob('*') if f.is_file())
+                        size_display = format_size(total_size)
+                    except (PermissionError, OSError):
+                        size_display = 'Unknown'
+                
                 files.append({
                     'name': item.name,
                     'path': str(item),
                     'is_directory': item.is_dir(),
                     'size': stat_info.st_size if item.is_file() else 0,
+                    'size_display': size_display,
                     'permissions': stat.filemode(stat_info.st_mode),
                     'modified': stat_info.st_mtime
                 })
-            except (PermissionError, OSError):
+            except (PermissionError, OSError) as e:
+                # Skip files/folders we don't have permission to access
                 continue
         
         return jsonify({'success': True, 'files': files})
+    except PermissionError as e:
+        return jsonify({'success': False, 'error': f'Permission denied: {str(e)}'})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+def format_size(bytes_size):
+    """Format bytes to human readable size"""
+    for unit in ['B', 'KB', 'MB', 'GB', 'TB']:
+        if bytes_size < 1024.0:
+            return f"{bytes_size:.2f} {unit}"
+        bytes_size /= 1024.0
+    return f"{bytes_size:.2f} PB"
+
+@app.route('/api/directories')
+def get_directories():
+    try:
+        path = request.args.get('path', '/')
+        path_obj = Path(path)
+        
+        if not path_obj.exists() or not path_obj.is_dir():
+            return jsonify({'success': False, 'error': 'Invalid directory'})
+        
+        directories = []
+        for item in path_obj.iterdir():
+            try:
+                if item.is_dir():
+                    directories.append({
+                        'name': item.name,
+                        'path': str(item)
+                    })
+            except (PermissionError, OSError):
+                # Skip directories we don't have permission to access
+                continue
+        
+        # Sort directories alphabetically
+        directories.sort(key=lambda x: x['name'].lower())
+        
+        return jsonify({'success': True, 'directories': directories})
+    except PermissionError as e:
+        return jsonify({'success': False, 'error': f'Permission denied'})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)})
 
@@ -614,30 +667,127 @@ def get_files():
 def get_file_details():
     try:
         path = request.args.get('path')
+        if not path:
+            return jsonify({'success': False, 'error': 'Path parameter required'}), 400
+            
         path_obj = Path(path)
         
         if not path_obj.exists():
-            return jsonify({'success': False, 'error': 'File does not exist'})
+            return jsonify({'success': False, 'error': 'File does not exist'}), 404
         
         stat_info = path_obj.stat()
         
+        # Get owner name
+        try:
+            import pwd
+            owner = pwd.getpwuid(stat_info.st_uid).pw_name
+        except:
+            owner = str(stat_info.st_uid)
+        
+        # Calculate directory size if needed
+        size_display = 'N/A'
+        if path_obj.is_dir():
+            try:
+                total_size = sum(f.stat().st_size for f in path_obj.rglob('*') if f.is_file())
+                size_display = format_size(total_size)
+            except (PermissionError, OSError):
+                size_display = 'Permission Denied'
+        
         details = {
-            'owner': path_obj.owner() if hasattr(path_obj, 'owner') else 'N/A',
+            'owner': owner,
             'modified': stat_info.st_mtime,
             'accessed': stat_info.st_atime,
-            'created': stat_info.st_ctime
+            'created': stat_info.st_ctime,
+            'size_display': size_display
         }
         
         return jsonify({'success': True, 'details': details})
+    except PermissionError:
+        return jsonify({'success': False, 'error': 'Permission denied'}), 403
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/create-folder', methods=['POST'])
+def create_folder():
+    try:
+        data = request.json
+        path = data.get('path')
+        name = data.get('name')
+        
+        if not path or not name:
+            return jsonify({'success': False, 'error': 'Path and name required'})
+        
+        new_folder = Path(path) / name
+        new_folder.mkdir(parents=True, exist_ok=False)
+        
+        return jsonify({'success': True})
+    except FileExistsError:
+        return jsonify({'success': False, 'error': 'Folder already exists'})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)})
 
-@app.route('/api/download')
-def download_file():
-    from flask import send_file
+@app.route('/api/create-file', methods=['POST'])
+def create_file():
     try:
-        path = request.args.get('path')
-        return send_file(path, as_attachment=True)
+        data = request.json
+        path = data.get('path')
+        name = data.get('name')
+        
+        if not path or not name:
+            return jsonify({'success': False, 'error': 'Path and name required'})
+        
+        new_file = Path(path) / name
+        new_file.touch(exist_ok=False)
+        
+        return jsonify({'success': True})
+    except FileExistsError:
+        return jsonify({'success': False, 'error': 'File already exists'})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/api/delete', methods=['POST'])
+def delete_item():
+    try:
+        data = request.json
+        path = data.get('path')
+        is_directory = data.get('is_directory', False)
+        
+        if not path:
+            return jsonify({'success': False, 'error': 'Path required'})
+        
+        path_obj = Path(path)
+        
+        if not path_obj.exists():
+            return jsonify({'success': False, 'error': 'Path does not exist'})
+        
+        if is_directory:
+            shutil.rmtree(path_obj)
+        else:
+            path_obj.unlink()
+        
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/api/rename', methods=['POST'])
+def rename_item():
+    try:
+        data = request.json
+        old_path = data.get('old_path')
+        new_name = data.get('new_name')
+        
+        if not old_path or not new_name:
+            return jsonify({'success': False, 'error': 'Old path and new name required'})
+        
+        old_path_obj = Path(old_path)
+        new_path_obj = old_path_obj.parent / new_name
+        
+        if new_path_obj.exists():
+            return jsonify({'success': False, 'error': 'A file or folder with that name already exists'})
+        
+        old_path_obj.rename(new_path_obj)
+        
+        return jsonify({'success': True})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)})
 
