@@ -378,17 +378,17 @@ function createCurrentMessageElement(data, previousMessage) {
                 const previousParsed = JSON.parse(previousMessage.payload);
                 payloadHtml = createJsonDiff(previousParsed, parsed);
             } catch (e) {
-                payloadHtml = `<pre class="json">${escapeHtml(JSON.stringify(parsed, null, 2))}</pre>`;
+                payloadHtml = createFormattedJson(parsed, false);
             }
         } else {
-            payloadHtml = `<pre class="json">${escapeHtml(JSON.stringify(parsed, null, 2))}</pre>`;
+            payloadHtml = createFormattedJson(parsed, false);
         }
     } catch (e) {
         // Not JSON, show as plain text
         if (previousMessage && previousMessage.payload !== data.payload) {
-            payloadHtml = `<div class="text changed">${escapeHtml(payload)}</div>`;
+            payloadHtml = `<div class="text-payload changed-text">${escapeHtml(payload)}</div>`;
         } else {
-            payloadHtml = `<div class="text">${escapeHtml(payload)}</div>`;
+            payloadHtml = `<div class="text-payload">${escapeHtml(payload)}</div>`;
         }
     }
 
@@ -403,42 +403,146 @@ function createCurrentMessageElement(data, previousMessage) {
     return div;
 }
 
-function createJsonDiff(oldObj, newObj) {
-    const diff = compareObjects(oldObj, newObj);
-    return `<pre class="json diff">${diff}</pre>`;
+function createFormattedJson(obj, showChanges = false) {
+    return `<pre class="json-formatted">${formatJsonWithSyntaxHighlighting(obj, 0, showChanges)}</pre>`;
 }
 
-function compareObjects(oldObj, newObj, path = '') {
-    let result = '';
-    const allKeys = new Set([...Object.keys(oldObj || {}), ...Object.keys(newObj || {})]);
+function formatJsonWithSyntaxHighlighting(obj, indent = 0, isChanged = false) {
+    const spaces = '  '.repeat(indent);
+    const changeClass = isChanged ? ' json-changed' : '';
+    
+    if (obj === null) {
+        return `<span class="json-null${changeClass}">null</span>`;
+    }
+    
+    if (typeof obj === 'string') {
+        return `<span class="json-string${changeClass}">"${escapeHtml(obj)}"</span>`;
+    }
+    
+    if (typeof obj === 'number') {
+        return `<span class="json-number${changeClass}">${obj}</span>`;
+    }
+    
+    if (typeof obj === 'boolean') {
+        return `<span class="json-boolean${changeClass}">${obj}</span>`;
+    }
+    
+    if (Array.isArray(obj)) {
+        if (obj.length === 0) {
+            return `<span class="json-bracket${changeClass}">[]</span>`;
+        }
+        
+        let result = `<span class="json-bracket${changeClass}">[</span>\n`;
+        obj.forEach((item, index) => {
+            result += spaces + '  ' + formatJsonWithSyntaxHighlighting(item, indent + 1, isChanged);
+            if (index < obj.length - 1) {
+                result += '<span class="json-comma">,</span>';
+            }
+            result += '\n';
+        });
+        result += spaces + `<span class="json-bracket${changeClass}">]</span>`;
+        return result;
+    }
+    
+    if (typeof obj === 'object') {
+        const keys = Object.keys(obj);
+        if (keys.length === 0) {
+            return `<span class="json-bracket${changeClass}">{}</span>`;
+        }
+        
+        let result = `<span class="json-bracket${changeClass}">{</span>\n`;
+        keys.forEach((key, index) => {
+            result += spaces + '  ';
+            result += `<span class="json-key${changeClass}">"${escapeHtml(key)}"</span>`;
+            result += '<span class="json-colon">: </span>';
+            result += formatJsonWithSyntaxHighlighting(obj[key], indent + 1, isChanged);
+            if (index < keys.length - 1) {
+                result += '<span class="json-comma">,</span>';
+            }
+            result += '\n';
+        });
+        result += spaces + `<span class="json-bracket${changeClass}">}</span>`;
+        return result;
+    }
+    
+    return escapeHtml(String(obj));
+}
+
+function createJsonDiff(oldObj, newObj) {
+    const diff = compareObjectsDetailed(oldObj, newObj);
+    return `<pre class="json-formatted json-diff">${diff}</pre>`;
+}
+
+function compareObjectsDetailed(oldObj, newObj, indent = 0) {
+    const spaces = '  '.repeat(indent);
+    
+    if (oldObj === null && newObj === null) {
+        return '<span class="json-null">null</span>';
+    }
+    
+    if (typeof oldObj !== typeof newObj || Array.isArray(oldObj) !== Array.isArray(newObj)) {
+        return formatJsonWithSyntaxHighlighting(newObj, indent, true);
+    }
     
     if (typeof newObj !== 'object' || newObj === null) {
         const isChanged = oldObj !== newObj;
-        return `<span class="${isChanged ? 'changed' : ''}">${escapeHtml(JSON.stringify(newObj, null, 2))}</span>`;
+        return formatJsonWithSyntaxHighlighting(newObj, indent, isChanged);
     }
     
-    result += '{\n';
-    
-    for (const key of allKeys) {
-        const oldValue = oldObj?.[key];
-        const newValue = newObj?.[key];
-        const hasChanged = JSON.stringify(oldValue) !== JSON.stringify(newValue);
-        
-        result += `  "${key}": `;
-        
-        if (typeof newValue === 'object' && newValue !== null && !Array.isArray(newValue)) {
-            result += compareObjects(oldValue, newValue, `${path}.${key}`);
-        } else {
-            const valueStr = JSON.stringify(newValue);
-            result += `<span class="${hasChanged ? 'changed' : ''}">${escapeHtml(valueStr)}</span>`;
+    if (Array.isArray(newObj)) {
+        if (newObj.length === 0 && (!oldObj || oldObj.length === 0)) {
+            return '<span class="json-bracket">[]</span>';
         }
         
-        result += ',\n';
+        const hasChanges = !oldObj || oldObj.length !== newObj.length || 
+            newObj.some((item, index) => JSON.stringify(item) !== JSON.stringify(oldObj[index]));
+        
+        let result = `<span class="json-bracket${hasChanges ? ' json-changed' : ''}">[</span>\n`;
+        newObj.forEach((item, index) => {
+            const oldItem = oldObj && oldObj[index];
+            result += spaces + '  ' + compareObjectsDetailed(oldItem, item, indent + 1);
+            if (index < newObj.length - 1) {
+                result += '<span class="json-comma">,</span>';
+            }
+            result += '\n';
+        });
+        result += spaces + `<span class="json-bracket${hasChanges ? ' json-changed' : ''}">]</span>`;
+        return result;
     }
     
-    result = result.replace(/,\n$/, '\n');
-    result += '}';
+    // Handle objects
+    const allKeys = new Set([...Object.keys(oldObj || {}), ...Object.keys(newObj || {})]);
+    const hasChanges = !oldObj || JSON.stringify(oldObj) !== JSON.stringify(newObj);
     
+    if (allKeys.size === 0) {
+        return '<span class="json-bracket">{}</span>';
+    }
+    
+    let result = `<span class="json-bracket${hasChanges ? ' json-changed-subtle' : ''}">{</span>\n`;
+    
+    Array.from(allKeys).forEach((key, index) => {
+        const oldValue = oldObj?.[key];
+        const newValue = newObj?.[key];
+        const keyChanged = JSON.stringify(oldValue) !== JSON.stringify(newValue);
+        
+        result += spaces + '  ';
+        result += `<span class="json-key${keyChanged ? ' json-changed' : ''}">"${escapeHtml(key)}"</span>`;
+        result += '<span class="json-colon">: </span>';
+        
+        if (newValue === undefined) {
+            // Key was removed
+            result += '<span class="json-removed">[REMOVED]</span>';
+        } else {
+            result += compareObjectsDetailed(oldValue, newValue, indent + 1);
+        }
+        
+        if (index < allKeys.size - 1) {
+            result += '<span class="json-comma">,</span>';
+        }
+        result += '\n';
+    });
+    
+    result += spaces + `<span class="json-bracket${hasChanges ? ' json-changed-subtle' : ''}">}</span>`;
     return result;
 }
 

@@ -281,3 +281,131 @@
 .message-item.new {
     animation: fadeIn 0.3s ease-out;
 }
+
+.json-formatted {
+    background: #f8f9fa;
+    border: 1px solid #e9ecef;
+    border-radius: 4px;
+    padding: 12px;
+    font-family: 'Courier New', Consolas, monospace;
+    font-size: 13px;
+    line-height: 1.4;
+    overflow-x: auto;
+}
+
+.json-key {
+    color: #0066cc;
+    font-weight: 500;
+}
+
+.json-string {
+    color: #008000;
+}
+
+.json-number {
+    color: #ff6600;
+}
+
+.json-boolean {
+    color: #cc0066;
+    font-weight: 500;
+}
+
+.json-null {
+    color: #999;
+    font-style: italic;
+}
+
+.json-bracket {
+    color: #333;
+    font-weight: bold;
+}
+
+.json-colon {
+    color: #333;
+}
+
+.json-comma {
+    color: #333;
+}
+
+/* Change highlighting */
+.json-changed {
+    background-color: #fff3cd !important;
+    padding: 2px 4px;
+    border-radius: 3px;
+    box-shadow: 0 0 0 1px #ffd60a;
+}
+
+.json-changed-subtle {
+    background-color: #f8f9fa;
+    box-shadow: inset 2px 0 0 #ffd60a;
+}
+
+.json-removed {
+    color: #dc3545;
+    background-color: #f8d7da;
+    padding: 2px 4px;
+    border-radius: 3px;
+    font-style: italic;
+}
+
+.changed-text {
+    background-color: #fff3cd;
+    padding: 8px;
+    border-radius: 4px;
+    border-left: 4px solid #ffd60a;
+}
+
+.text-payload {
+    background: #f8f9fa;
+    border: 1px solid #e9ecef;
+    border-radius: 4px;
+    padding: 12px;
+    font-family: 'Courier New', Consolas, monospace;
+    white-space: pre-wrap;
+}
+
+/* Tab styling */
+.message-tabs {
+    display: flex;
+    border-bottom: 2px solid #e9ecef;
+    margin-bottom: 15px;
+}
+
+.tab-button {
+    background: none;
+    border: none;
+    padding: 10px 20px;
+    cursor: pointer;
+    border-bottom: 3px solid transparent;
+    transition: all 0.3s ease;
+}
+
+.tab-button.active {
+    border-bottom-color: #007bff;
+    color: #007bff;
+    font-weight: 500;
+}
+
+.tab-pane {
+    display: none;
+}
+
+.tab-pane.active {
+    display: block;
+}
+
+.current-message-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #e9ecef;
+}
+
+.current-timestamp {
+    color: #6c757d;
+    font-size: 14px;
+}
