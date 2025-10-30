@@ -215,15 +215,31 @@ class CommandExecutor:
 def load_config():
     if not os.path.exists(CONFIG_FILE):
         with open(CONFIG_FILE, 'w') as f:
-            json.dump({"services": {"favorites": []}}, f)
+            json.dump({"services": {"favorites": []}, "folders": {"preferences": {}}}, f)
     with open(CONFIG_FILE, 'r') as f:
         return json.load(f)
 
+def save_config(config):
+    with open(CONFIG_FILE, 'w') as f:
+        json.dump(config, f, indent=2)
+
 def save_favorites(favorites):
     config = load_config()
+    if 'services' not in config:
+        config['services'] = {}
     config['services']['favorites'] = favorites
-    with open(CONFIG_FILE, 'w') as f:
-        json.dump(config, f)
+    save_config(config)
+
+def save_folder_preferences(preferences):
+    config = load_config()
+    if 'folders' not in config:
+        config['folders'] = {}
+    config['folders']['preferences'] = preferences
+    save_config(config)
+
+def get_folder_preferences():
+    config = load_config()
+    return config.get('folders', {}).get('preferences', {})
 
 def get_cpu_temp():
     try:
@@ -1105,6 +1121,24 @@ def upload_file():
         return jsonify({'success': True, 'filename': file_path.name})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/api/folder-preferences', methods=['GET'])
+def get_folder_preferences_route():
+    try:
+        preferences = get_folder_preferences()
+        return jsonify({'success': True, 'preferences': preferences})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/folder-preferences', methods=['POST'])
+def save_folder_preferences_route():
+    try:
+        data = request.json
+        preferences = data.get('preferences', {})
+        save_folder_preferences(preferences)
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 if __name__ == '__main__':
     update_thread = threading.Thread(target=background_update)

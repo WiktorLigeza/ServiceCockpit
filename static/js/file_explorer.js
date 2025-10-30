@@ -23,11 +23,8 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 function initializeFileExplorer() {
-    // Load folder preferences from localStorage
-    const savedPreferences = localStorage.getItem('folderPreferences');
-    if (savedPreferences) {
-        folderPreferences = JSON.parse(savedPreferences);
-    }
+    // Load folder preferences from server
+    loadFolderPreferences();
     
     // Load the last visited path from localStorage
     const savedPath = localStorage.getItem('fileExplorerLastPath');
@@ -39,6 +36,36 @@ function initializeFileExplorer() {
     loadDirectoryTree('/');
     const filesContainer = document.getElementById('files-container');
     filesContainer.classList.add('grid-view');
+}
+
+async function loadFolderPreferences() {
+    try {
+        const response = await fetch('/api/folder-preferences');
+        const data = await response.json();
+        if (data.success) {
+            folderPreferences = data.preferences || {};
+        }
+    } catch (error) {
+        console.error('Error loading folder preferences:', error);
+        folderPreferences = {};
+    }
+}
+
+async function saveFolderPreferences() {
+    try {
+        const response = await fetch('/api/folder-preferences', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ preferences: folderPreferences })
+        });
+        const data = await response.json();
+        return data.success;
+    } catch (error) {
+        console.error('Error saving folder preferences:', error);
+        return false;
+    }
 }
 
 function setupEventListeners() {
@@ -363,10 +390,6 @@ function createDirectoryTreeItem(dir) {
     // Apply folder color and favorite styling
     const prefs = folderPreferences[dir.path];
     if (prefs) {
-        if (prefs.color) {
-            item.style.setProperty('--folder-color', prefs.color);
-            item.classList.add('colored-folder');
-        }
         if (prefs.favorite) {
             item.classList.add('favorite-folder');
         }
@@ -383,6 +406,11 @@ function createDirectoryTreeItem(dir) {
     const icon = document.createElement('i');
     icon.className = 'fas fa-folder file-icon folder';
     
+    // Apply folder color to icon only
+    if (prefs?.color) {
+        icon.style.color = prefs.color;
+    }
+    
     const name = document.createElement('span');
     name.textContent = dir.name;
     
@@ -391,7 +419,7 @@ function createDirectoryTreeItem(dir) {
         const star = document.createElement('i');
         star.className = 'fas fa-star favorite-star';
         star.style.marginLeft = '5px';
-        star.style.color = '#ffc107';
+        star.style.color = '#00ffcc';
         star.style.fontSize = '10px';
         name.appendChild(star);
     }
@@ -616,8 +644,8 @@ function toggleFolderFavorite(path) {
     
     folderPreferences[path].favorite = !folderPreferences[path].favorite;
     
-    // Save to localStorage
-    localStorage.setItem('folderPreferences', JSON.stringify(folderPreferences));
+    // Save to server
+    saveFolderPreferences();
     
     // Refresh displays
     loadDirectory(currentPath);
@@ -640,8 +668,8 @@ function setFolderColor(path, color) {
         delete folderPreferences[path].color;
     }
     
-    // Save to localStorage
-    localStorage.setItem('folderPreferences', JSON.stringify(folderPreferences));
+    // Save to server
+    saveFolderPreferences();
     
     // Refresh displays
     loadDirectory(currentPath);
@@ -653,41 +681,292 @@ function setFolderColor(path, color) {
     );
 }
 
-function reloadDirectoryInTree(path) {
-    // Find and reload the directory tree for the given path
-    const parentPath = path === '/' ? '/' : path.substring(0, path.lastIndexOf('/')) || '/';
-    loadDirectoryTree(parentPath);
-}
-
-// File Copy/Cut/Paste Functions
-function copyFile() {
-    if (!selectedFile) return;
+function createFileItem(file) {
+    const fileItem = document.createElement('div');
+    fileItem.className = 'file-item';
+    fileItem.dataset.path = file.path;
     
-    copiedFile = selectedFile;
-    copiedFilePath = selectedFile.path;
-    isCutOperation = false;
+    // Apply folder preferences if it's a directory
+    const prefs = folderPreferences[file.path];
+    if (file.is_directory && prefs) {
+        if (prefs.favorite) {
+            fileItem.classList.add('favorite-folder');
+        }
+        if (prefs.color) {
+            fileItem.classList.add('colored-folder');
+        }
+    }
     
-    showNotification('Copied: ' + selectedFile.name, 'success');
-}
-
-function cutFile() {
-    if (!selectedFile) return;
+    // Make items draggable
+    fileItem.draggable = true;
+    fileItem.addEventListener('dragstart', (e) => {
+        draggedItem = file;
+        e.dataTransfer.effectAllowed = 'move';
+        fileItem.style.opacity = '0.5';
+    });
     
-    copiedFile = selectedFile;
-    copiedFilePath = selectedFile.path;
-    isCutOperation = true;
+    fileItem.addEventListener('dragend', (e) => {
+        fileItem.style.opacity = '1';
+        draggedItem = null;
+    });
     
-    // Visual feedback for cut operation
-    document.querySelectorAll('.file-item').forEach(item => {
-        if (item.dataset.path === selectedFile.path) {
-            item.style.opacity = '0.5';
+    // Make directory items drop targets
+    if (file.is_directory) {
+        fileItem.addEventListener('dragover', handleDirectoryDragOver);
+        fileItem.addEventListener('drop', handleDirectoryDrop);
+        fileItem.addEventListener('dragleave', handleDirectoryDragLeave);
+    }
+    
+    const icon = document.createElement('i');
+    icon.className = `fas ${getFileIcon(file)} file-icon ${getFileIconClass(file)}`;
+    
+    // Apply color to folder icon if set
+    if (file.is_directory && prefs?.color) {
+        icon.style.color = prefs.color;
+    }
+    
+    const fileInfo = document.createElement('div');
+    fileInfo.className = 'file-info';
+    
+    const fileName = document.createElement('div');
+    fileName.className = 'file-name';
+    fileName.textContent = file.name;
+    
+    const fileMeta = document.createElement('div');
+    fileMeta.className = 'file-meta';
+    
+    if (file.is_directory) {
+        fileMeta.innerHTML = `
+            <span class="file-chmod">${file.permissions}</span>
+        `;
+    } else {
+        fileMeta.innerHTML = `
+            <span>${formatFileSize(file.size)}</span>
+            <span class="file-chmod">${file.permissions}</span>
+        `;
+    }
+    
+    fileInfo.appendChild(fileName);
+    fileInfo.appendChild(fileMeta);
+    
+    fileItem.appendChild(icon);
+    fileItem.appendChild(fileInfo);
+    
+    // Click handler
+    fileItem.addEventListener('click', () => {
+        document.querySelectorAll('.file-item').forEach(item => item.classList.remove('selected'));
+        fileItem.classList.add('selected');
+        selectedFile = file;
+        displayFileDetails(file);
+    });
+    
+    // Double-click handler
+    fileItem.addEventListener('dblclick', () => {
+        if (file.is_directory) {
+            loadDirectory(file.path);
+        } else {
+            const ext = file.name.split('.').pop().toLowerCase();
+            if (isImageFile(ext)) {
+                openImageViewer(file);
+            } else if (isTextFile(ext)) {
+                openFileInEditor(file);
+            } else {
+                downloadFile();
+            }
         }
     });
     
-    showNotification('Cut: ' + selectedFile.name, 'warning');
+    // Context menu
+    fileItem.addEventListener('contextmenu', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        
+        // Select the item first
+        document.querySelectorAll('.file-item').forEach(item => item.classList.remove('selected'));
+        fileItem.classList.add('selected');
+        selectedFile = file;
+        displayFileDetails(file);
+        
+        showFileContextMenu(e.clientX, e.clientY, file);
+    });
+    
+    return fileItem;
 }
 
-async function pasteFile() {
+function showFileContextMenu(x, y, file) {
+    // Remove existing context menu if any
+    const existingMenu = document.querySelector('.context-menu');
+    if (existingMenu) {
+        existingMenu.remove();
+    }
+    
+    const menu = document.createElement('div');
+    menu.className = 'context-menu';
+    menu.style.left = x + 'px';
+    menu.style.top = y + 'px';
+    
+    const menuItems = [];
+    
+    // Add folder-specific options for directories
+    if (file.is_directory) {
+        const prefs = folderPreferences[file.path] || {};
+        
+        menuItems.push({ 
+            icon: prefs.favorite ? 'fa-star' : 'fa-star-o', 
+            text: prefs.favorite ? 'Remove from Favorites' : 'Add to Favorites', 
+            action: () => toggleFolderFavorite(file.path),
+            class: prefs.favorite ? 'favorite-active' : ''
+        });
+        
+        menuItems.push({ 
+            icon: 'fa-palette', 
+            text: 'Set Color', 
+            submenu: [
+                { color: '#ff6b6b', name: 'Red' },
+                { color: '#4ecdc4', name: 'Teal' },
+                { color: '#45b7d1', name: 'Blue' },
+                { color: '#96ceb4', name: 'Green' },
+                { color: '#ffeaa7', name: 'Yellow' },
+                { color: '#fd79a8', name: 'Pink' },
+                { color: '#a29bfe', name: 'Purple' },
+                { color: '#e17055', name: 'Orange' },
+                { color: null, name: 'Remove Color' }
+            ]
+        });
+        
+        menuItems.push({ type: 'separator' });
+        menuItems.push({ 
+            icon: 'fa-folder-open', 
+            text: 'Open', 
+            action: () => loadDirectory(file.path) 
+        });
+    } else {
+        // File-specific options
+        const ext = file.name.split('.').pop().toLowerCase();
+        if (isTextFile(ext)) {
+            menuItems.push({ 
+                icon: 'fa-edit', 
+                text: 'Edit', 
+                action: () => openFileInEditor(file) 
+            });
+        }
+        if (isImageFile(ext)) {
+            menuItems.push({ 
+                icon: 'fa-eye', 
+                text: 'View', 
+                action: () => openImageViewer(file) 
+            });
+        }
+        menuItems.push({ 
+            icon: 'fa-download', 
+            text: 'Download', 
+            action: downloadFile 
+        });
+    }
+    
+    menuItems.push({ type: 'separator' });
+    menuItems.push({ 
+        icon: 'fa-copy', 
+        text: 'Copy', 
+        action: copyFile 
+    });
+    menuItems.push({ 
+        icon: 'fa-cut', 
+        text: 'Cut', 
+        action: cutFile 
+    });
+    
+    menuItems.push({ type: 'separator' });
+    menuItems.push({ 
+        icon: 'fa-edit', 
+        text: 'Rename', 
+        action: renameFile 
+    });
+    menuItems.push({ 
+        icon: 'fa-trash', 
+        text: 'Delete', 
+        action: deleteFile,
+        class: 'danger'
+    });
+    
+    menuItems.forEach(item => {
+        if (item.type === 'separator') {
+            const separator = document.createElement('div');
+            separator.className = 'context-menu-separator';
+            menu.appendChild(separator);
+        } else if (item.submenu) {
+            const menuItem = document.createElement('div');
+            menuItem.className = 'context-menu-item context-menu-submenu';
+            menuItem.innerHTML = `<i class="fas ${item.icon}"></i> ${item.text} <i class="fas fa-chevron-right" style="margin-left: auto;"></i>`;
+            
+            const submenu = document.createElement('div');
+            submenu.className = 'context-submenu';
+            
+            item.submenu.forEach(subitem => {
+                const subMenuItem = document.createElement('div');
+                subMenuItem.className = 'context-menu-item';
+                
+                if (subitem.color) {
+                    subMenuItem.innerHTML = `<span class="color-dot" style="background-color: ${subitem.color};"></span> ${subitem.name}`;
+                } else {
+                    subMenuItem.innerHTML = `<i class="fas fa-times"></i> ${subitem.name}`;
+                }
+                
+                subMenuItem.addEventListener('click', () => {
+                    setFolderColor(file.path, subitem.color);
+                    menu.remove();
+                });
+                submenu.appendChild(subMenuItem);
+            });
+            
+            menuItem.appendChild(submenu);
+            menu.appendChild(menuItem);
+        } else {
+            const menuItem = document.createElement('div');
+            menuItem.className = 'context-menu-item' + (item.class ? ' ' + item.class : '');
+            menuItem.innerHTML = `<i class="fas ${item.icon}"></i> ${item.text}`;
+            menuItem.addEventListener('click', () => {
+                item.action();
+                menu.remove();
+            });
+            menu.appendChild(menuItem);
+        }
+    });
+    
+    document.body.appendChild(menu);
+    
+    // Close menu on click outside
+    setTimeout(() => {
+        document.addEventListener('click', function closeMenu() {
+            menu.remove();
+            document.removeEventListener('click', closeMenu);
+        });
+    }, 10);
+}
+
+function filterDirectoryTree(searchTerm) {
+    const items = document.querySelectorAll('.directory-item');
+    items.forEach(item => {
+        const name = item.textContent.toLowerCase();
+        if (name.includes(searchTerm)) {
+            item.style.display = 'flex';
+            // Show parent containers
+            let parent = item.parentElement;
+            while (parent) {
+                if (parent.classList.contains('directory-children')) {
+                    parent.style.display = 'block';
+                }
+                parent = parent.parentElement;
+            }
+        } else if (searchTerm === '') {
+            item.style.display = 'flex';
+        } else {
+            item.style.display = 'none';
+        }
+    });
+}
+
+async function pasteToDirectory(targetPath) {
     if (!copiedFile) return;
     
     try {
@@ -698,7 +977,7 @@ async function pasteFile() {
             },
             body: JSON.stringify({
                 source_path: copiedFilePath,
-                destination_path: currentPath,
+                destination_path: targetPath,
                 is_cut: isCutOperation
             })
         });
@@ -722,7 +1001,7 @@ async function pasteFile() {
             }
             
             loadDirectory(currentPath);
-            reloadDirectoryInTree(currentPath);
+            reloadDirectoryInTree(targetPath);
         } else {
             showNotification('Failed to paste: ' + data.error, 'error');
         }
@@ -731,765 +1010,10 @@ async function pasteFile() {
     }
 }
 
-// Breadcrumb Functions
-function updateBreadcrumb(path) {
-    const breadcrumb = document.getElementById('breadcrumb-nav');
-    const parts = path.split('/').filter(p => p);
-    
-    let html = '<span class="breadcrumb-item" data-path="/" onclick="loadDirectory(\'/\')">root</span>';
-    let currentPath = '';
-    
-    parts.forEach(part => {
-        currentPath += '/' + part;
-        html += `<span class="breadcrumb-item" data-path="${currentPath}" onclick="loadDirectory('${currentPath}')">${part}</span>`;
-    });
-    
-    breadcrumb.innerHTML = html;
-    
-    // Add drag and drop to breadcrumb items
-    document.querySelectorAll('.breadcrumb-item').forEach(item => {
-        item.addEventListener('dragover', handleBreadcrumbDragOver);
-        item.addEventListener('drop', handleBreadcrumbDrop);
-        item.addEventListener('dragleave', handleBreadcrumbDragLeave);
-        
-        // Right-click context menu for breadcrumb
-        item.addEventListener('contextmenu', (e) => {
-            e.preventDefault();
-            const targetPath = item.dataset.path;
-            showBreadcrumbContextMenu(e.clientX, e.clientY, targetPath);
-        });
-    });
-}
-
-function handleBreadcrumbDragOver(e) {
-    if (e.preventDefault) {
-        e.preventDefault();
-    }
-    
-    if (draggedItem) {
-        e.dataTransfer.dropEffect = 'move';
-        e.currentTarget.classList.add('breadcrumb-drag-over');
-        return false;
-    }
-    
-    e.dataTransfer.dropEffect = 'none';
-    return false;
-}
-
-function handleBreadcrumbDragLeave(e) {
-    e.currentTarget.classList.remove('breadcrumb-drag-over');
-}
-
-async function handleBreadcrumbDrop(e) {
-    if (e.stopPropagation) {
-        e.stopPropagation();
-    }
-    if (e.preventDefault) {
-        e.preventDefault();
-    }
-    
-    e.currentTarget.classList.remove('breadcrumb-drag-over');
-    
-    const targetPath = e.currentTarget.dataset.path;
-    
-    if (!draggedItem || draggedItem.path === targetPath) {
-        return false;
-    }
-    
-    try {
-        const response = await fetch('/api/move', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                source_path: draggedItem.path,
-                destination_path: targetPath
-            })
-        });
-        
-        const data = await response.json();
-        if (data.success) {
-            showNotification('Moved successfully', 'success');
-            loadDirectory(currentPath);
-            reloadDirectoryInTree(currentPath);
-        } else {
-            showNotification('Failed to move: ' + data.error, 'error');
-        }
-    } catch (error) {
-        showNotification('Failed to move: ' + error, 'error');
-    }
-    
-    return false;
-}
-
-function showBreadcrumbContextMenu(x, y, targetPath) {
-    // Remove existing context menu if any
-    const existingMenu = document.querySelector('.context-menu');
-    if (existingMenu) {
-        existingMenu.remove();
-    }
-    
-    const menu = document.createElement('div');
-    menu.className = 'context-menu';
-    menu.style.left = x + 'px';
-    menu.style.top = y + 'px';
-    
-    const menuItems = [];
-    
-    if (copiedFile) {
-        menuItems.push({ 
-            icon: 'fa-paste', 
-            text: 'Paste Here', 
-            action: () => pasteToDirectory(targetPath) 
-        });
-    }
-    
-    menuItems.push({ 
-        icon: 'fa-folder-open', 
-        text: 'Open', 
-        action: () => loadDirectory(targetPath) 
-    });
-    
-    menuItems.forEach(item => {
-        const menuItem = document.createElement('div');
-        menuItem.className = 'context-menu-item';
-        menuItem.innerHTML = `<i class="fas ${item.icon}"></i> ${item.text}`;
-        menuItem.addEventListener('click', () => {
-            item.action();
-            menu.remove();
-        });
-        menu.appendChild(menuItem);
-    });
-    
-    document.body.appendChild(menu);
-    
-    // Close menu on click outside
-    setTimeout(() => {
-        document.addEventListener('click', function closeMenu() {
-            menu.remove();
-            document.removeEventListener('click', closeMenu);
-        });
-    }, 10);
-}
-
-// Image Viewer Functions
-function openImageViewer(file) {
-    const viewerWindow = document.getElementById('image-viewer-window');
-    const viewerImg = document.getElementById('image-viewer-img');
-    const viewerTitle = document.getElementById('image-viewer-title');
-    const imageInfo = document.getElementById('image-info');
-    
-    currentZoom = 1;
-    viewerImg.style.transform = `scale(${currentZoom})`;
-    viewerImg.src = `/api/download?path=${encodeURIComponent(file.path)}`;
-    viewerTitle.textContent = file.name;
-    imageInfo.textContent = `Size: ${formatFileSize(file.size)}`;
-    
-    viewerWindow.style.display = 'flex';
-    
-    viewerImg.onload = function() {
-        imageInfo.textContent = `Size: ${formatFileSize(file.size)} | Dimensions: ${this.naturalWidth}x${this.naturalHeight}px`;
-    };
-}
-
-function closeImageViewer() {
-    const viewerWindow = document.getElementById('image-viewer-window');
-    viewerWindow.style.display = 'none';
-    currentZoom = 1;
-}
-
-function setupImageViewer() {
-    const viewerWindow = document.getElementById('image-viewer-window');
-    const header = viewerWindow.querySelector('.image-viewer-header');
-    let isDragging = false;
-    let currentX, currentY, initialX, initialY;
-    
-    header.addEventListener('mousedown', dragStart);
-    document.addEventListener('mousemove', drag);
-    document.addEventListener('mouseup', dragEnd);
-    
-    function dragStart(e) {
-        if (e.target.classList.contains('image-viewer-close')) return;
-        initialX = e.clientX - viewerWindow.offsetLeft;
-        initialY = e.clientY - viewerWindow.offsetTop;
-        isDragging = true;
-    }
-    
-    function drag(e) {
-        if (isDragging) {
-            e.preventDefault();
-            currentX = e.clientX - initialX;
-            currentY = e.clientY - initialY;
-            viewerWindow.style.left = currentX + 'px';
-            viewerWindow.style.top = currentY + 'px';
-            viewerWindow.style.transform = 'none';
-        }
-    }
-    
-    function dragEnd() {
-        isDragging = false;
-    }
-    
-    document.querySelector('.image-viewer-close').addEventListener('click', closeImageViewer);
-    
-    document.getElementById('zoom-in').addEventListener('click', () => {
-        currentZoom = Math.min(currentZoom + 0.25, 5);
-        document.getElementById('image-viewer-img').style.transform = `scale(${currentZoom})`;
-    });
-    
-    document.getElementById('zoom-out').addEventListener('click', () => {
-        currentZoom = Math.max(currentZoom - 0.25, 0.25);
-        document.getElementById('image-viewer-img').style.transform = `scale(${currentZoom})`;
-    });
-    
-    document.getElementById('zoom-reset').addEventListener('click', () => {
-        currentZoom = 1;
-        document.getElementById('image-viewer-img').style.transform = `scale(${currentZoom})`;
-    });
-}
-
-// Code Editor Functions
-async function openFileInEditor(file) {
-    if (file.is_directory) return;
-    
-    editorFile = file;
-    const editorWindow = document.getElementById('code-editor-window');
-    const editorContent = document.getElementById('editor-content');
-    const editorTitle = document.getElementById('editor-title');
-    const editorInfo = document.getElementById('editor-info');
-    
-    try {
-        const response = await fetch(`/api/read-file?path=${encodeURIComponent(file.path)}`);
-        const data = await response.json();
-        
-        if (data.success) {
-            editorContent.value = data.content;
-            editorTitle.innerHTML = `<i class="fas fa-code"></i> ${file.name} <span class="editor-language-badge">${getLanguageFromExtension(file.name)}</span>`;
-            editorInfo.textContent = `Lines: ${data.content.split('\n').length} | Size: ${formatFileSize(file.size)}`;
-            editorWindow.style.display = 'flex';
-            
-            applySyntaxHighlighting(file.name);
-            
-            editorContent.addEventListener('input', () => {
-                const lines = editorContent.value.split('\n').length;
-                editorInfo.textContent = `Lines: ${lines} | Modified`;
-            });
-        } else {
-            alert('Failed to open file: ' + data.error);
-        }
-    } catch (error) {
-        alert('Failed to open file: ' + error);
-    }
-}
-
-function applySyntaxHighlighting(filename) {
-    const ext = filename.split('.').pop().toLowerCase();
-    const editorContent = document.getElementById('editor-content');
-    
-    editorContent.className = 'editor-textarea';
-    if (['js', 'py', 'cpp', 'c', 'h', 'sh', 'bash', 'html', 'css', 'json'].includes(ext)) {
-        editorContent.classList.add(`syntax-${ext}`);
-    }
-}
-
-async function saveFile() {
-    if (!editorFile) return;
-    
-    const editorContent = document.getElementById('editor-content');
-    const editorInfo = document.getElementById('editor-info');
-    const content = editorContent.value;
-    
-    editorInfo.textContent = 'Saving...';
-    
-    try {
-        const response = await fetch('/api/write-file', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                path: editorFile.path,
-                content: content
-            })
-        });
-        
-        const data = await response.json();
-        if (data.success) {
-            const lines = content.split('\n').length;
-            editorInfo.textContent = `Saved successfully! | Lines: ${lines}`;
-            setTimeout(() => {
-                editorInfo.textContent = `Lines: ${lines} | Ready`;
-            }, 2000);
-            loadDirectory(currentPath);
-        } else {
-            editorInfo.textContent = 'Save failed!';
-            alert('Failed to save file: ' + data.error);
-        }
-    } catch (error) {
-        editorInfo.textContent = 'Save failed!';
-        alert('Failed to save file: ' + error);
-    }
-}
-
-function closeEditor() {
-    const editorWindow = document.getElementById('code-editor-window');
-    editorWindow.style.display = 'none';
-    editorFile = null;
-}
-
-function setupCodeEditor() {
-    const editorWindow = document.getElementById('code-editor-window');
-    const header = editorWindow.querySelector('.editor-header');
-    const editorContent = document.getElementById('editor-content');
-    let isDragging = false;
-    let currentX, currentY, initialX, initialY;
-    
-    header.addEventListener('mousedown', dragStart);
-    document.addEventListener('mousemove', drag);
-    document.addEventListener('mouseup', dragEnd);
-    
-    function dragStart(e) {
-        if (e.target.classList.contains('editor-close')) return;
-        initialX = e.clientX - editorWindow.offsetLeft;
-        initialY = e.clientY - editorWindow.offsetTop;
-        isDragging = true;
-        editorWindow.style.cursor = 'move';
-    }
-    
-    function drag(e) {
-        if (isDragging) {
-            e.preventDefault();
-            currentX = e.clientX - initialX;
-            currentY = e.clientY - initialY;
-            editorWindow.style.left = currentX + 'px';
-            editorWindow.style.top = currentY + 'px';
-            editorWindow.style.transform = 'none';
-        }
-    }
-    
-    function dragEnd() {
-        isDragging = false;
-        editorWindow.style.cursor = 'default';
-    }
-    
-    document.querySelector('.editor-close').addEventListener('click', closeEditor);
-    document.getElementById('save-file-btn').addEventListener('click', saveFile);
-    
-    // Handle Tab key for indentation
-    editorContent.addEventListener('keydown', (e) => {
-        // Save with Ctrl+S
-        if (e.ctrlKey && e.key === 's') {
-            e.preventDefault();
-            saveFile();
-            return;
-        }
-        
-        // Tab key handling
-        if (e.key === 'Tab') {
-            e.preventDefault();
-            
-            const start = editorContent.selectionStart;
-            const end = editorContent.selectionEnd;
-            const value = editorContent.value;
-            
-            if (e.shiftKey) {
-                // Shift+Tab: Remove indentation
-                const lineStart = value.lastIndexOf('\n', start - 1) + 1;
-                const beforeLine = value.substring(0, lineStart);
-                const line = value.substring(lineStart, value.indexOf('\n', start) === -1 ? value.length : value.indexOf('\n', start));
-                const afterLine = value.substring(lineStart + line.length);
-                
-                if (line.startsWith('    ')) {
-                    editorContent.value = beforeLine + line.substring(4) + afterLine;
-                    editorContent.selectionStart = start - 4;
-                    editorContent.selectionEnd = end - 4;
-                } else if (line.startsWith('\t')) {
-                    editorContent.value = beforeLine + line.substring(1) + afterLine;
-                    editorContent.selectionStart = start - 1;
-                    editorContent.selectionEnd = end - 1;
-                }
-            } else {
-                // Tab: Add indentation
-                if (start === end) {
-                    // No selection: insert tab at cursor
-                    editorContent.value = value.substring(0, start) + '    ' + value.substring(end);
-                    editorContent.selectionStart = editorContent.selectionEnd = start + 4;
-                } else {
-                    // Selection: indent all selected lines
-                    const beforeSelection = value.substring(0, start);
-                    const selectedText = value.substring(start, end);
-                    const afterSelection = value.substring(end);
-                    
-                    const lineStart = beforeSelection.lastIndexOf('\n') + 1;
-                    const lineEnd = end + (afterSelection.indexOf('\n') === -1 ? afterSelection.length : afterSelection.indexOf('\n'));
-                    
-                    const linesToIndent = value.substring(lineStart, lineEnd);
-                    const indentedLines = linesToIndent.split('\n').map(line => '    ' + line).join('\n');
-                    
-                    editorContent.value = value.substring(0, lineStart) + indentedLines + value.substring(lineEnd);
-                    editorContent.selectionStart = start + 4;
-                    editorContent.selectionEnd = end + (indentedLines.length - linesToIndent.length);
-                }
-            }
-            
-            // Trigger input event for line count update
-            editorContent.dispatchEvent(new Event('input'));
-        }
-    });
-}
-
-// Folder and File Creation
-async function createNewFolder() {
-    const folderName = prompt('Enter folder name:');
-    if (folderName) {
-        try {
-            const response = await fetch('/api/create-folder', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    path: currentPath,
-                    name: folderName
-                })
-            });
-            
-            const data = await response.json();
-            if (data.success) {
-                loadDirectory(currentPath);
-                const parentPath = currentPath.substring(0, currentPath.lastIndexOf('/')) || '/';
-                reloadDirectoryInTree(parentPath);
-            } else {
-                alert('Failed to create folder: ' + data.error);
-            }
-        } catch (error) {
-            alert('Failed to create folder: ' + error);
-        }
-    }
-}
-
-async function createNewFile() {
-    const fileName = prompt('Enter file name:');
-    if (fileName) {
-        try {
-            const response = await fetch('/api/create-file', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    path: currentPath,
-                    name: fileName
-                })
-            });
-            
-            const data = await response.json();
-            if (data.success) {
-                loadDirectory(currentPath);
-            } else {
-                alert('Failed to create file: ' + data.error);
-            }
-        } catch (error) {
-            alert('Failed to create file: ' + error);
-        }
-    }
-}
-
-// File Download, Rename, and Delete
-function downloadFile() {
-    if (selectedFile) {
-        window.location.href = `/api/download?path=${encodeURIComponent(selectedFile.path)}`;
-    }
-}
-
-async function renameFile() {
-    if (selectedFile) {
-        const newName = prompt('Enter new name:', selectedFile.name);
-        if (newName && newName !== selectedFile.name) {
-            try {
-                const response = await fetch('/api/rename', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        old_path: selectedFile.path,
-                        new_name: newName
-                    })
-                });
-                
-                const data = await response.json();
-                if (data.success) {
-                    loadDirectory(currentPath);
-                    if (selectedFile.is_directory) {
-                        const parentPath = currentPath.substring(0, currentPath.lastIndexOf('/')) || '/';
-                        reloadDirectoryInTree(parentPath);
-                    }
-                    selectedFile = null;
-                    document.getElementById('file-details-container').innerHTML = `
-                        <div class="no-selection">
-                            <i class="fas fa-file-alt"></i>
-                            <p>Select a file or folder to view details</p>
-                        </div>
-                    `;
-                } else {
-                    alert('Failed to rename: ' + data.error);
-                }
-            } catch (error) {
-                alert('Failed to rename: ' + error);
-            }
-        }
-    }
-}
-
-async function deleteFile() {
-    if (selectedFile) {
-        const isDirectory = selectedFile.is_directory;
-        const warningMsg = isDirectory 
-            ? `Are you sure you want to delete the folder "${selectedFile.name}" and all its contents? This action cannot be undone!`
-            : `Are you sure you want to delete "${selectedFile.name}"?`;
-        
-        if (confirm(warningMsg)) {
-            try {
-                const response = await fetch('/api/delete', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        path: selectedFile.path,
-                        is_directory: isDirectory
-                    })
-                });
-                
-                const data = await response.json();
-                if (data.success) {
-                    loadDirectory(currentPath);
-                    if (isDirectory) {
-                        const parentPath = currentPath.substring(0, currentPath.lastIndexOf('/')) || '/';
-                        reloadDirectoryInTree(parentPath);
-                    }
-                    selectedFile = null;
-                    document.getElementById('file-details-container').innerHTML = `
-                        <div class="no-selection">
-                            <i class="fas fa-file-alt"></i>
-                            <p>Select a file or folder to view details</p>
-                        </div>
-                    `;
-                } else {
-                    alert('Failed to delete: ' + data.error);
-                }
-            } catch (error) {
-                alert('Failed to delete: ' + error);
-            }
-        }
-    }
-}
-
-// Folder Size Inspection
-async function inspectFolder(path, buttonElement) {
-    const originalHTML = buttonElement.innerHTML;
-    buttonElement.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Calculating...';
-    buttonElement.disabled = true;
-    
-    try {
-        const response = await fetch(`/api/folder-size?path=${encodeURIComponent(path)}`);
-        const data = await response.json();
-        
-        if (data.success) {
-            buttonElement.parentElement.innerHTML = `<span class="folder-size">${data.size_display}</span>`;
-        } else {
-            buttonElement.innerHTML = `<span style="color: #dc3545;">Error</span>`;
-            setTimeout(() => {
-                buttonElement.innerHTML = originalHTML;
-                buttonElement.disabled = false;
-            }, 2000);
-        }
-    } catch (error) {
-        console.error('Error inspecting folder:', error);
-        buttonElement.innerHTML = `<span style="color: #dc3545;">Error</span>`;
-        setTimeout(() => {
-            buttonElement.innerHTML = originalHTML;
-            buttonElement.disabled = false;
-        }, 2000);
-    }
-}
-
-// File Details Display
-async function displayFileDetails(file) {
-    const container = document.getElementById('file-details-container');
-    
-    try {
-        const response = await fetch(`/api/file-details?path=${encodeURIComponent(file.path)}`);
-        const data = await response.json();
-        
-        if (data.success) {
-            const details = data.details;
-            
-            let sizeHTML = '';
-            if (file.is_directory) {
-                sizeHTML = `
-                    <div class="detail-row">
-                        <span class="detail-label">Size:</span>
-                        <span class="detail-value" id="detail-size">
-                            <button class="btn btn-sm btn-info" onclick="event.stopPropagation(); inspectFolderDetails('${file.path}', this)">
-                                <i class="fas fa-search"></i> Calculate Size
-                            </button>
-                        </span>
-                    </div>
-                `;
-            } else {
-                sizeHTML = `
-                    <div class="detail-row">
-                        <span class="detail-label">Size:</span>
-                        <span class="detail-value">${formatFileSize(file.size)}</span>
-                    </div>
-                `;
-            }
-            
-            container.innerHTML = `
-                <div class="detail-section">
-                    <h3><i class="fas ${getFileIcon(file)}"></i> ${file.name}</h3>
-                    <div class="detail-row">
-                        <span class="detail-label">Type:</span>
-                        <span class="detail-value">${file.is_directory ? 'Directory' : 'File'}</span>
-                    </div>
-                    ${sizeHTML}
-                    <div class="detail-row">
-                        <span class="detail-label">Permissions:</span>
-                        <span class="detail-value">${file.permissions}</span>
-                    </div>
-                    <div class="detail-row">
-                        <span class="detail-label">Owner:</span>
-                        <span class="detail-value">${details.owner}</span>
-                    </div>
-                    <div class="detail-row">
-                        <span class="detail-label">Created:</span>
-                        <span class="detail-value">${new Date(details.created * 1000).toLocaleString()}</span>
-                    </div>
-                    <div class="detail-row">
-                        <span class="detail-label">Modified:</span>
-                        <span class="detail-value">${new Date(details.modified * 1000).toLocaleString()}</span>
-                    </div>
-                    <div class="detail-row">
-                        <span class="detail-label">Accessed:</span>
-                        <span class="detail-value">${new Date(details.accessed * 1000).toLocaleString()}</span>
-                    </div>
-                </div>
-                <div class="file-actions">
-                    ${!file.is_directory ? `
-                        <button class="btn btn-sm btn-primary" onclick="downloadFile()">
-                            <i class="fas fa-download"></i> Download
-                        </button>
-                        <button class="btn btn-sm btn-info" onclick="openFileInEditor(selectedFile)">
-                            <i class="fas fa-edit"></i> Edit
-                        </button>
-                    ` : ''}
-                    <button class="btn btn-sm btn-warning" onclick="renameFile()">
-                        <i class="fas fa-edit"></i> Rename
-                    </button>
-                    <button class="btn btn-sm btn-danger" onclick="deleteFile()">
-                        <i class="fas fa-trash"></i> Delete
-                    </button>
-                </div>
-            `;
-        }
-    } catch (error) {
-        console.error('Error loading file details:', error);
-    }
-}
-
-async function inspectFolderDetails(path) {
-    const sizeElement = document.getElementById('detail-size');
-    sizeElement.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Calculating...';
-    
-    try {
-        const response = await fetch(`/api/folder-size?path=${encodeURIComponent(path)}`);
-        const data = await response.json();
-        
-        if (data.success) {
-            sizeElement.innerHTML = `<span class="folder-size">${data.size_display}</span>`;
-        } else {
-            sizeElement.innerHTML = `<span style="color: #dc3545;">Error: ${data.error}</span>`;
-        }
-    } catch (error) {
-        console.error('Error inspecting folder:', error);
-        sizeElement.innerHTML = `<span style="color: #dc3545;">Error calculating size</span>`;
-    }
-}
-
-// Container context menu functions
-function showContainerContextMenu(x, y) {
-    // Remove existing context menu if any
-    const existingMenu = document.querySelector('.context-menu');
-    if (existingMenu) {
-        existingMenu.remove();
-    }
-    
-    const menu = document.createElement('div');
-    menu.className = 'context-menu';
-    menu.style.left = x + 'px';
-    menu.style.top = y + 'px';
-    
-    const menuItems = [];
-    
-    // Add paste option if there's something copied
-    if (copiedFile) {
-        menuItems.push({ 
-            icon: 'fa-paste', 
-            text: 'Paste Here', 
-            action: () => pasteFile()
-        });
-        menuItems.push({ type: 'separator' });
-    }
-    
-    menuItems.push({ 
-        icon: 'fa-folder-plus', 
-        text: 'New Folder', 
-        action: createNewFolder 
-    });
-    
-    menuItems.push({ 
-        icon: 'fa-file-plus', 
-        text: 'New File', 
-        action: createNewFile 
-    });
-    
-    menuItems.push({ type: 'separator' });
-    
-    menuItems.push({ 
-        icon: 'fa-upload', 
-        text: 'Upload Files', 
-        action: triggerFileUpload 
-    });
-    
-    menuItems.forEach(item => {
-        if (item.type === 'separator') {
-            const separator = document.createElement('div');
-            separator.className = 'context-menu-separator';
-            menu.appendChild(separator);
-        } else {
-            const menuItem = document.createElement('div');
-            menuItem.className = 'context-menu-item';
-            menuItem.innerHTML = `<i class="fas ${item.icon}"></i> ${item.text}`;
-            menuItem.addEventListener('click', () => {
-                item.action();
-                menu.remove();
-            });
-            menu.appendChild(menuItem);
-        }
-    });
-    
-    document.body.appendChild(menu);
-    
-    // Close menu on click outside
-    setTimeout(() => {
-        document.addEventListener('click', function closeMenu() {
-            menu.remove();
-            document.removeEventListener('click', closeMenu);
-        });
-    }, 10);
+function reloadDirectoryInTree(path) {
+    // Find and reload the directory tree for the given path
+    const parentPath = path === '/' ? '/' : path.substring(0, path.lastIndexOf('/')) || '/';
+    loadDirectoryTree(parentPath);
 }
 
 function setupFileUpload() {
@@ -1547,27 +1071,4 @@ async function uploadFile(file) {
     } catch (error) {
         showNotification(`Failed to upload ${file.name}: ${error}`, 'error');
     }
-}
-
-// Keyboard Shortcuts
-function setupKeyboardShortcuts() {
-    document.addEventListener('keydown', (e) => {
-        // Copy: Ctrl+C
-        if (e.ctrlKey && e.key === 'c' && selectedFile) {
-            e.preventDefault();
-            copyFile();
-        }
-        
-        // Cut: Ctrl+X
-        if (e.ctrlKey && e.key === 'x' && selectedFile) {
-            e.preventDefault();
-            cutFile();
-        }
-        
-        // Paste: Ctrl+V
-        if (e.ctrlKey && e.key === 'v' && copiedFile) {
-            e.preventDefault();
-            pasteFile();
-        }
-    });
 }
