@@ -102,6 +102,8 @@ body {
     gap: 8px;
     border-radius: 4px;
     user-select: none;
+    word-break: break-word;
+    overflow-wrap: anywhere;
 }
 
 .directory-item:hover {
@@ -337,11 +339,15 @@ body {
     flex: 1;
     display: flex;
     flex-direction: column;
+    min-width: 0;
+    overflow: hidden;
 }
 
 .file-name {
     font-weight: 500;
     font-size: 14px;
+    word-break: break-word;
+    overflow-wrap: anywhere;
 }
 
 .file-meta {
