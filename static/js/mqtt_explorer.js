@@ -70,7 +70,7 @@ function setupEventListeners() {
     document.getElementById('topics-search').addEventListener('input', filterTopics);
     
     // Tab functionality
-    document.querySelectorAll('.tab-button').forEach(button => {
+    document.querySelectorAll('.tab-button:not(.control-button)').forEach(button => {
         button.addEventListener('click', function() {
             switchTab(this.dataset.tab);
         });
@@ -550,7 +550,7 @@ function switchTab(tabName) {
     activeTab = tabName;
     
     // Update tab buttons
-    document.querySelectorAll('.tab-button').forEach(button => {
+    document.querySelectorAll('.tab-button:not(.control-button)').forEach(button => {
         button.classList.remove('active');
     });
     document.querySelector(`[data-tab="${tabName}"]`).classList.add('active');
@@ -650,11 +650,11 @@ function togglePauseMessages() {
     const btn = document.getElementById('pause-messages-btn');
     
     if (isPaused) {
-        btn.innerHTML = '<i class="fas fa-play"></i> Resume';
-        btn.className = 'btn btn-success';
+        btn.innerHTML = '<i class="fas fa-play"></i> Start';
+        btn.classList.add('paused');
     } else {
         btn.innerHTML = '<i class="fas fa-pause"></i> Pause';
-        btn.className = 'btn btn-secondary';
+        btn.classList.remove('paused');
     }
 }
 

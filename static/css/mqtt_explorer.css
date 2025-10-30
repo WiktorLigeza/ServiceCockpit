@@ -209,10 +209,10 @@
 
 .messages-controls {
     margin: 1rem;
-    margin-bottom: 15px;
+    margin-bottom: 10px;
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 8px;
     flex-shrink: 0;
 }
 
@@ -225,11 +225,6 @@
     flex: 1;
 }
 
-.message-filters {
-    display: flex;
-    gap: 10px;
-}
-
 #messages-container {
     flex: 1;
     overflow-y: auto;
@@ -237,6 +232,7 @@
     border-radius: 8px;
     margin: 0 1rem 1rem 1rem;
     height: auto;
+    min-height: 0;
 }
 
 .message-item {
@@ -375,6 +371,7 @@
 }
 
 .json-changed-subtle {
+    opacity: 0.7;
 }
 
 .json-removed {
@@ -404,9 +401,19 @@
 /* Tab styling */
 .message-tabs {
     display: flex;
+    justify-content: space-between;
     border-bottom: 2px solid rgba(255,255,255,0.1);
     margin: 1rem;
     margin-bottom: 15px;
+}
+
+.tab-buttons-left {
+    display: flex;
+}
+
+.tab-buttons-right {
+    display: flex;
+    gap: 5px;
 }
 
 .tab-button {
@@ -423,6 +430,35 @@
     border-bottom-color: #00ffff;
     color: #00ffff;
     font-weight: 500;
+}
+
+.tab-button.control-button {
+    padding: 8px 16px;
+    font-size: 0.9rem;
+}
+
+.tab-button.control-button:hover {
+    background-color: rgba(255,255,255,0.1);
+    border-radius: 4px 4px 0 0;
+}
+
+/* Control button specific colors */
+#pause-messages-btn.paused {
+    color: #28a745;
+    border-bottom-color: #28a745;
+}
+
+#pause-messages-btn.paused:hover {
+    background-color: rgba(40, 167, 69, 0.1);
+}
+
+#clear-messages-btn {
+    color: #dc3545;
+}
+
+#clear-messages-btn:hover {
+    background-color: rgba(220, 53, 69, 0.1);
+    border-bottom-color: #dc3545;
 }
 
 .tab-pane {
@@ -462,6 +498,7 @@
     color: #dadada;
     padding: 1rem;
     height: auto;
+    min-height: 0;
 }
 
 /* Responsive Design */
@@ -496,8 +533,18 @@
         flex-direction: column;
     }
     
-    .message-filters {
+    .message-tabs {
         flex-direction: column;
+        gap: 10px;
+    }
+    
+    .tab-buttons-left,
+    .tab-buttons-right {
+        justify-content: center;
+    }
+    
+    .tab-buttons-right {
+        order: -1;
     }
 }
 

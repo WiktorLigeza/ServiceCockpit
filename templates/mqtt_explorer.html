@@ -100,14 +100,6 @@
                     Connect to MQTT broker to see topics
                 </div>
             </div>
-        </div>
-
-        <!-- Messages Panel -->
-        <div class="messages-panel">
-            <h2 class="section-title">
-                Messages
-                <span id="selected-topic-name"></span>
-            </h2>
             <div class="messages-controls">
                 <div class="form-group">
                     <label for="subscribe-topic">Subscribe to Topic:</label>
@@ -118,24 +110,35 @@
                         </button>
                     </div>
                 </div>
-                <div class="message-filters">
-                    <button id="clear-messages-btn" class="btn btn-warning">
-                        <i class="fas fa-trash"></i> Clear Messages
-                    </button>
-                    <button id="pause-messages-btn" class="btn btn-secondary">
-                        <i class="fas fa-pause"></i> Pause
-                    </button>
-                </div>
             </div>
+        </div>
+
+        <!-- Messages Panel -->
+        <div class="messages-panel">
+            <h2 class="section-title">
+                Messages
+                <span id="selected-topic-name"></span>
+            </h2>
+
             
             <!-- Message Tabs -->
             <div class="message-tabs">
-                <button class="tab-button active" data-tab="history">
-                    <i class="fas fa-history"></i> History
-                </button>
-                <button class="tab-button" data-tab="current">
-                    <i class="fas fa-eye"></i> Current
-                </button>
+                <div class="tab-buttons-left">
+                    <button class="tab-button active" data-tab="history">
+                        <i class="fas fa-history"></i> History
+                    </button>
+                    <button class="tab-button" data-tab="current">
+                        <i class="fas fa-eye"></i> Current
+                    </button>
+                </div>
+                <div class="tab-buttons-right">
+                    <button id="pause-messages-btn" class="tab-button control-button">
+                        <i class="fas fa-pause"></i> Pause
+                    </button>
+                    <button id="clear-messages-btn" class="tab-button control-button">
+                        <i class="fas fa-trash"></i> Clear
+                    </button>
+                </div>
             </div>
             
             <!-- Tab Content -->
