@@ -34,6 +34,16 @@
         </div>
 
     </div>
+    
+    {% if request.endpoint == 'mqtt_explorer' %}
+    <nav class="header-nav">
+        <div class="nav-item">
+            <a href="{{ url_for('index') }}">
+                <i class="fas fa-cogs"></i> Services
+            </a>
+        </div>
+    </nav>
+    {% else %}
     <nav class="header-nav">
         <div class="nav-item" id="devices-manager-btn">
             <a href="#" onclick="toggleDevicesManager(); return false;">Devices</a>
@@ -51,6 +61,7 @@
             <a href="/mqtt_explorer">MQTT Explorer</a>
         </div>
     </nav>
+    {% endif %}
 </header>
 
 <script>
