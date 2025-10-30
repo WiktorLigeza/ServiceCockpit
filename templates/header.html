@@ -43,6 +43,14 @@
             </a>
         </div>
     </nav>
+    {% elif request.endpoint == 'file_explorer' %}
+    <nav class="header-nav">
+        <div class="nav-item">
+            <a href="{{ url_for('index') }}">
+                <i class="fas fa-cogs"></i> Services
+            </a>
+        </div>
+    </nav>
     {% else %}
     <nav class="header-nav">
         <div class="nav-item" id="devices-manager-btn">
@@ -59,6 +67,9 @@
         </div>
         <div class="nav-item">
             <a href="/mqtt_explorer">MQTT Explorer</a>
+        </div>
+        <div class="nav-item">
+            <a href="/file_explorer">File Explorer</a>
         </div>
     </nav>
     {% endif %}

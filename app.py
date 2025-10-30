@@ -14,6 +14,8 @@ import struct
 import re
 from collections import defaultdict
 import paho.mqtt.client as mqtt
+import stat
+from pathlib import Path
 
 app = Flask(__name__, static_folder='static')
 socketio = SocketIO(app, 
@@ -572,6 +574,74 @@ def create_service():
     except Exception as e:
         print(f"Error creating service: {str(e)}")
         return jsonify(success=False, message=f"Error creating service: {str(e)}"), 500
+
+@app.route('/file_explorer')
+def file_explorer():
+    return render_template('file_explorer.html')
+
+@app.route('/api/files')
+def get_files():
+    try:
+        path = request.args.get('path', '/home')
+        path_obj = Path(path)
+        
+        if not path_obj.exists():
+            return jsonify({'success': False, 'error': 'Path does not exist'})
+        
+        if not path_obj.is_dir():
+            return jsonify({'success': False, 'error': 'Path is not a directory'})
+        
+        files = []
+        for item in path_obj.iterdir():
+            try:
+                stat_info = item.stat()
+                files.append({
+                    'name': item.name,
+                    'path': str(item),
+                    'is_directory': item.is_dir(),
+                    'size': stat_info.st_size if item.is_file() else 0,
+                    'permissions': stat.filemode(stat_info.st_mode),
+                    'modified': stat_info.st_mtime
+                })
+            except (PermissionError, OSError):
+                continue
+        
+        return jsonify({'success': True, 'files': files})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/api/file-details')
+def get_file_details():
+    try:
+        path = request.args.get('path')
+        path_obj = Path(path)
+        
+        if not path_obj.exists():
+            return jsonify({'success': False, 'error': 'File does not exist'})
+        
+        stat_info = path_obj.stat()
+        
+        details = {
+            'owner': path_obj.owner() if hasattr(path_obj, 'owner') else 'N/A',
+            'modified': stat_info.st_mtime,
+            'accessed': stat_info.st_atime,
+            'created': stat_info.st_ctime
+        }
+        
+        return jsonify({'success': True, 'details': details})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/api/download')
+def download_file():
+    from flask import send_file
+    try:
+        path = request.args.get('path')
+        return send_file(path, as_attachment=True)
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+# ...existing code...
 
 @socketio.on('connect')
 def handle_connect():
