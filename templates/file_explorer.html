@@ -13,6 +13,25 @@
 <body>
     {% include 'header.html' %}
     
+    <!-- Code Editor Window -->
+    <div id="code-editor-window" class="editor-window">
+        <div class="editor-header">
+            <span id="editor-title">Untitled</span>
+            <div class="editor-controls">
+                <button class="editor-close"><i class="fas fa-times"></i></button>
+            </div>
+        </div>
+        <div class="editor-body">
+            <textarea id="editor-content" class="editor-textarea" spellcheck="false"></textarea>
+        </div>
+        <div class="editor-footer">
+            <button id="save-file-btn" class="btn btn-sm btn-success">
+                <i class="fas fa-save"></i> Save
+            </button>
+            <span class="editor-info" id="editor-info"></span>
+        </div>
+    </div>
+    
     <div class="main-container">
         <!-- Directory Tree Column -->
         <div class="directory-panel">

@@ -911,6 +911,77 @@ def handle_mqtt_publish(data):
         if topic:
             mqtt_manager.publish(topic, payload, qos, retain)
 
+@app.route('/api/read-file')
+def read_file():
+    try:
+        path = request.args.get('path')
+        if not path:
+            return jsonify({'success': False, 'error': 'Path parameter required'}), 400
+            
+        path_obj = Path(path)
+        
+        if not path_obj.exists():
+            return jsonify({'success': False, 'error': 'File does not exist'}), 404
+        
+        if path_obj.is_dir():
+            return jsonify({'success': False, 'error': 'Cannot read directory'}), 400
+        
+        try:
+            with open(path_obj, 'r', encoding='utf-8') as f:
+                content = f.read()
+            return jsonify({'success': True, 'content': content})
+        except UnicodeDecodeError:
+            return jsonify({'success': False, 'error': 'Cannot read binary file'}), 400
+            
+    except PermissionError:
+        return jsonify({'success': False, 'error': 'Permission denied'}), 403
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/write-file', methods=['POST'])
+def write_file():
+    try:
+        data = request.json
+        path = data.get('path')
+        content = data.get('content')
+        
+        if not path:
+            return jsonify({'success': False, 'error': 'Path required'})
+        
+        path_obj = Path(path)
+        
+        if not path_obj.exists():
+            return jsonify({'success': False, 'error': 'File does not exist'})
+        
+        if path_obj.is_dir():
+            return jsonify({'success': False, 'error': 'Cannot write to directory'})
+        
+        # Create backup
+        backup_path = str(path_obj) + '.backup'
+        if path_obj.exists():
+            shutil.copy2(path_obj, backup_path)
+        
+        try:
+            with open(path_obj, 'w', encoding='utf-8') as f:
+                f.write(content)
+            
+            # Remove backup after successful write
+            if Path(backup_path).exists():
+                Path(backup_path).unlink()
+                
+            return jsonify({'success': True})
+        except Exception as e:
+            # Restore backup on error
+            if Path(backup_path).exists():
+                shutil.copy2(backup_path, path_obj)
+                Path(backup_path).unlink()
+            raise e
+            
+    except PermissionError:
+        return jsonify({'success': False, 'error': 'Permission denied'}), 403
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 if __name__ == '__main__':
     update_thread = threading.Thread(target=background_update)
     update_thread.daemon = True

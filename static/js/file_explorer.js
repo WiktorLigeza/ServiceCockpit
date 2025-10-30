@@ -1,18 +1,23 @@
 let currentPath = '/home';
 let selectedFile = null;
-let viewMode = 'list';
+let viewMode = 'grid'; // Changed from 'list' to 'grid'
 let allFiles = [];
 let currentFilter = 'all';
 let nameFilter = '';
+let editorFile = null;
 
 document.addEventListener('DOMContentLoaded', function() {
     initializeFileExplorer();
     setupEventListeners();
+    setupCodeEditor();
 });
 
 function initializeFileExplorer() {
     loadDirectory(currentPath);
     loadDirectoryTree('/');
+    // Set grid view as default
+    const filesContainer = document.getElementById('files-container');
+    filesContainer.classList.add('grid-view');
 }
 
 function setupEventListeners() {
@@ -30,6 +35,10 @@ function setupEventListeners() {
             }
         });
     });
+
+    // Set grid button as active by default
+    document.querySelector('.view-btn[data-view="grid"]').classList.add('active');
+    document.querySelector('.view-btn[data-view="list"]').classList.remove('active');
 
     // Filter change
     document.getElementById('file-filter').addEventListener('change', function(e) {
@@ -215,7 +224,7 @@ function createFileItem(file) {
     
     item.addEventListener('dblclick', () => {
         if (!file.is_directory) {
-            openFile(file);
+            openFileInEditor(file);
         }
     });
     
@@ -429,7 +438,81 @@ async function createNewFile() {
 }
 
 function openFile(file) {
-    window.open(`/api/view-file?path=${encodeURIComponent(file.path)}`, '_blank');
+    openFileInEditor(file);
+}
+
+async function openFileInEditor(file) {
+    if (file.is_directory) return;
+    
+    editorFile = file;
+    const editorWindow = document.getElementById('code-editor-window');
+    const editorContent = document.getElementById('editor-content');
+    const editorTitle = document.getElementById('editor-title');
+    
+    try {
+        const response = await fetch(`/api/read-file?path=${encodeURIComponent(file.path)}`);
+        const data = await response.json();
+        
+        if (data.success) {
+            editorContent.value = data.content;
+            editorTitle.textContent = file.name;
+            editorWindow.style.display = 'flex';
+            
+            // Apply syntax highlighting based on file extension
+            applySyntaxHighlighting(file.name);
+        } else {
+            alert('Failed to open file: ' + data.error);
+        }
+    } catch (error) {
+        alert('Failed to open file: ' + error);
+    }
+}
+
+function applySyntaxHighlighting(filename) {
+    const ext = filename.split('.').pop().toLowerCase();
+    const editorContent = document.getElementById('editor-content');
+    
+    // Simple syntax highlighting by adding class
+    editorContent.className = 'editor-textarea';
+    if (['js', 'py', 'cpp', 'c', 'h', 'sh', 'bash', 'html', 'css', 'json'].includes(ext)) {
+        editorContent.classList.add(`syntax-${ext}`);
+    }
+}
+
+async function saveFile() {
+    if (!editorFile) return;
+    
+    const editorContent = document.getElementById('editor-content');
+    const content = editorContent.value;
+    
+    try {
+        const response = await fetch('/api/write-file', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                path: editorFile.path,
+                content: content
+            })
+        });
+        
+        const data = await response.json();
+        if (data.success) {
+            alert('File saved successfully!');
+            loadDirectory(currentPath); // Refresh file list
+        } else {
+            alert('Failed to save file: ' + data.error);
+        }
+    } catch (error) {
+        alert('Failed to save file: ' + error);
+    }
+}
+
+function closeEditor() {
+    const editorWindow = document.getElementById('code-editor-window');
+    editorWindow.style.display = 'none';
+    editorFile = null;
 }
 
 function downloadFile() {
@@ -621,9 +704,14 @@ async function displayFileDetails(file) {
                     </div>
                 </div>
                 <div class="file-actions">
-                    ${!file.is_directory ? `<button class="btn btn-sm btn-primary" onclick="downloadFile()">
-                        <i class="fas fa-download"></i> Download
-                    </button>` : ''}
+                    ${!file.is_directory ? `
+                        <button class="btn btn-sm btn-primary" onclick="downloadFile()">
+                            <i class="fas fa-download"></i> Download
+                        </button>
+                        <button class="btn btn-sm btn-info" onclick="openFileInEditor(selectedFile)">
+                            <i class="fas fa-edit"></i> Edit
+                        </button>
+                    ` : ''}
                     <button class="btn btn-sm btn-warning" onclick="renameFile()">
                         <i class="fas fa-edit"></i> Rename
                     </button>
@@ -670,4 +758,50 @@ function updateBreadcrumb(path) {
     });
     
     breadcrumb.innerHTML = html;
+}
+
+// Code Editor Functions
+function setupCodeEditor() {
+    const editorWindow = document.getElementById('code-editor-window');
+    const header = editorWindow.querySelector('.editor-header');
+    let isDragging = false;
+    let currentX;
+    let currentY;
+    let initialX;
+    let initialY;
+    
+    header.addEventListener('mousedown', dragStart);
+    document.addEventListener('mousemove', drag);
+    document.addEventListener('mouseup', dragEnd);
+    
+    function dragStart(e) {
+        if (e.target.classList.contains('editor-close') || e.target.classList.contains('editor-minimize')) return;
+        
+        initialX = e.clientX - editorWindow.offsetLeft;
+        initialY = e.clientY - editorWindow.offsetTop;
+        isDragging = true;
+        editorWindow.style.cursor = 'move';
+    }
+    
+    function drag(e) {
+        if (isDragging) {
+            e.preventDefault();
+            currentX = e.clientX - initialX;
+            currentY = e.clientY - initialY;
+            
+            editorWindow.style.left = currentX + 'px';
+            editorWindow.style.top = currentY + 'px';
+        }
+    }
+    
+    function dragEnd() {
+        isDragging = false;
+        editorWindow.style.cursor = 'default';
+    }
+    
+    // Close button
+    document.querySelector('.editor-close').addEventListener('click', closeEditor);
+    
+    // Save button
+    document.getElementById('save-file-btn').addEventListener('click', saveFile);
 }
