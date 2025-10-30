@@ -11,6 +11,7 @@ let copiedFile = null;
 let copiedFilePath = null;
 let isCutOperation = false;
 let draggedItem = null;
+let folderPreferences = {}; // Store folder colors and favorites
 
 // Import modules
 document.addEventListener('DOMContentLoaded', function() {
@@ -22,6 +23,12 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 function initializeFileExplorer() {
+    // Load folder preferences from localStorage
+    const savedPreferences = localStorage.getItem('folderPreferences');
+    if (savedPreferences) {
+        folderPreferences = JSON.parse(savedPreferences);
+    }
+    
     // Load the last visited path from localStorage
     const savedPath = localStorage.getItem('fileExplorerLastPath');
     if (savedPath) {
@@ -303,7 +310,15 @@ function displayFiles(files) {
         return;
     }
     
+    // Sort: favorites first, then directories, then by name
     files.sort((a, b) => {
+        const aIsFavorite = folderPreferences[a.path]?.favorite || false;
+        const bIsFavorite = folderPreferences[b.path]?.favorite || false;
+        
+        if (aIsFavorite !== bIsFavorite) {
+            return bIsFavorite - aIsFavorite;
+        }
+        
         if (a.is_directory !== b.is_directory) {
             return b.is_directory - a.is_directory;
         }
@@ -345,6 +360,18 @@ function createDirectoryTreeItem(dir) {
     item.className = 'directory-item';
     item.dataset.path = dir.path;
     
+    // Apply folder color and favorite styling
+    const prefs = folderPreferences[dir.path];
+    if (prefs) {
+        if (prefs.color) {
+            item.style.setProperty('--folder-color', prefs.color);
+            item.classList.add('colored-folder');
+        }
+        if (prefs.favorite) {
+            item.classList.add('favorite-folder');
+        }
+    }
+    
     // Make directory items drop targets
     item.addEventListener('dragover', handleDirectoryDragOver);
     item.addEventListener('drop', handleDirectoryDrop);
@@ -358,6 +385,16 @@ function createDirectoryTreeItem(dir) {
     
     const name = document.createElement('span');
     name.textContent = dir.name;
+    
+    // Add favorite star if folder is favorite
+    if (prefs?.favorite) {
+        const star = document.createElement('i');
+        star.className = 'fas fa-star favorite-star';
+        star.style.marginLeft = '5px';
+        star.style.color = '#ffc107';
+        star.style.fontSize = '10px';
+        name.appendChild(star);
+    }
     
     item.appendChild(chevron);
     item.appendChild(icon);
@@ -474,6 +511,35 @@ function showDirectoryContextMenu(x, y, dir) {
     
     const menuItems = [];
     
+    const prefs = folderPreferences[dir.path] || {};
+    
+    // Toggle favorite
+    menuItems.push({ 
+        icon: prefs.favorite ? 'fa-star' : 'fa-star-o', 
+        text: prefs.favorite ? 'Remove from Favorites' : 'Add to Favorites', 
+        action: () => toggleFolderFavorite(dir.path),
+        class: prefs.favorite ? 'favorite-active' : ''
+    });
+    
+    // Set color submenu
+    menuItems.push({ 
+        icon: 'fa-palette', 
+        text: 'Set Color', 
+        submenu: [
+            { color: '#ff6b6b', name: 'Red' },
+            { color: '#4ecdc4', name: 'Teal' },
+            { color: '#45b7d1', name: 'Blue' },
+            { color: '#96ceb4', name: 'Green' },
+            { color: '#ffeaa7', name: 'Yellow' },
+            { color: '#fd79a8', name: 'Pink' },
+            { color: '#a29bfe', name: 'Purple' },
+            { color: '#fd79a8', name: 'Orange' },
+            { color: null, name: 'Remove Color' }
+        ]
+    });
+    
+    menuItems.push({ type: 'separator' });
+    
     if (copiedFile) {
         menuItems.push({ 
             icon: 'fa-paste', 
@@ -489,14 +555,47 @@ function showDirectoryContextMenu(x, y, dir) {
     });
     
     menuItems.forEach(item => {
-        const menuItem = document.createElement('div');
-        menuItem.className = 'context-menu-item';
-        menuItem.innerHTML = `<i class="fas ${item.icon}"></i> ${item.text}`;
-        menuItem.addEventListener('click', () => {
-            item.action();
-            menu.remove();
-        });
-        menu.appendChild(menuItem);
+        if (item.type === 'separator') {
+            const separator = document.createElement('div');
+            separator.className = 'context-menu-separator';
+            menu.appendChild(separator);
+        } else if (item.submenu) {
+            const menuItem = document.createElement('div');
+            menuItem.className = 'context-menu-item context-menu-submenu';
+            menuItem.innerHTML = `<i class="fas ${item.icon}"></i> ${item.text} <i class="fas fa-chevron-right" style="margin-left: auto;"></i>`;
+            
+            const submenu = document.createElement('div');
+            submenu.className = 'context-submenu';
+            
+            item.submenu.forEach(subitem => {
+                const subMenuItem = document.createElement('div');
+                subMenuItem.className = 'context-menu-item';
+                
+                if (subitem.color) {
+                    subMenuItem.innerHTML = `<span class="color-dot" style="background-color: ${subitem.color};"></span> ${subitem.name}`;
+                } else {
+                    subMenuItem.innerHTML = `<i class="fas fa-times"></i> ${subitem.name}`;
+                }
+                
+                subMenuItem.addEventListener('click', () => {
+                    setFolderColor(dir.path, subitem.color);
+                    menu.remove();
+                });
+                submenu.appendChild(subMenuItem);
+            });
+            
+            menuItem.appendChild(submenu);
+            menu.appendChild(menuItem);
+        } else {
+            const menuItem = document.createElement('div');
+            menuItem.className = 'context-menu-item' + (item.class ? ' ' + item.class : '');
+            menuItem.innerHTML = `<i class="fas ${item.icon}"></i> ${item.text}`;
+            menuItem.addEventListener('click', () => {
+                item.action();
+                menu.remove();
+            });
+            menu.appendChild(menuItem);
+        }
     });
     
     document.body.appendChild(menu);
@@ -510,48 +609,54 @@ function showDirectoryContextMenu(x, y, dir) {
     }, 10);
 }
 
-async function pasteToDirectory(targetPath) {
-    if (!copiedFile) return;
-    
-    try {
-        const response = await fetch('/api/paste', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                source_path: copiedFilePath,
-                destination_path: targetPath,
-                is_cut: isCutOperation
-            })
-        });
-        
-        const data = await response.json();
-        if (data.success) {
-            showNotification(
-                isCutOperation ? 'Moved successfully' : 'Copied successfully',
-                'success'
-            );
-            
-            // Reset cut operation styling
-            document.querySelectorAll('.file-item').forEach(item => {
-                item.style.opacity = '1';
-            });
-            
-            if (isCutOperation) {
-                copiedFile = null;
-                copiedFilePath = null;
-                isCutOperation = false;
-            }
-            
-            loadDirectory(currentPath);
-            reloadDirectoryInTree(targetPath);
-        } else {
-            showNotification('Failed to paste: ' + data.error, 'error');
-        }
-    } catch (error) {
-        showNotification('Failed to paste: ' + error, 'error');
+function toggleFolderFavorite(path) {
+    if (!folderPreferences[path]) {
+        folderPreferences[path] = {};
     }
+    
+    folderPreferences[path].favorite = !folderPreferences[path].favorite;
+    
+    // Save to localStorage
+    localStorage.setItem('folderPreferences', JSON.stringify(folderPreferences));
+    
+    // Refresh displays
+    loadDirectory(currentPath);
+    reloadDirectoryInTree(path.substring(0, path.lastIndexOf('/')) || '/');
+    
+    showNotification(
+        folderPreferences[path].favorite ? 'Added to favorites' : 'Removed from favorites',
+        'success'
+    );
+}
+
+function setFolderColor(path, color) {
+    if (!folderPreferences[path]) {
+        folderPreferences[path] = {};
+    }
+    
+    if (color) {
+        folderPreferences[path].color = color;
+    } else {
+        delete folderPreferences[path].color;
+    }
+    
+    // Save to localStorage
+    localStorage.setItem('folderPreferences', JSON.stringify(folderPreferences));
+    
+    // Refresh displays
+    loadDirectory(currentPath);
+    reloadDirectoryInTree(path.substring(0, path.lastIndexOf('/')) || '/');
+    
+    showNotification(
+        color ? 'Folder color updated' : 'Folder color removed',
+        'success'
+    );
+}
+
+function reloadDirectoryInTree(path) {
+    // Find and reload the directory tree for the given path
+    const parentPath = path === '/' ? '/' : path.substring(0, path.lastIndexOf('/')) || '/';
+    loadDirectoryTree(parentPath);
 }
 
 // File Copy/Cut/Paste Functions

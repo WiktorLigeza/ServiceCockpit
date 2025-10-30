@@ -882,7 +882,7 @@ body {
 .context-menu {
     position: fixed;
     background: #1a1a2e;
-    border: 2px solid #00ff41;
+    border: 2px solid #00ffcc;
     border-radius: 8px;
     box-shadow: 0 5px 20px rgba(0, 255, 65, 0.3);
     z-index: 10000;
@@ -904,7 +904,7 @@ body {
 
 .context-menu-item {
     padding: 10px 20px;
-    color: #00ff41;
+    color: #00ffcc;
     cursor: pointer;
     display: flex;
     align-items: center;
@@ -990,4 +990,86 @@ body {
 /* Cut operation visual feedback */
 .file-item.cut-item {
     opacity: 0.5;
+}
+
+/* Colored folder styling */
+.directory-item.colored-folder {
+    background: linear-gradient(to right, var(--folder-color, transparent) 0%, transparent 100%);
+    border-left: 3px solid var(--folder-color, transparent);
+}
+
+.directory-item.colored-folder .file-icon {
+    color: var(--folder-color) !important;
+}
+
+/* Favorite folder styling */
+.directory-item.favorite-folder {
+    font-weight: 600;
+}
+
+.favorite-star {
+    display: inline-block;
+    animation: starPulse 2s ease-in-out infinite;
+}
+
+@keyframes starPulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.6; }
+}
+
+/* Context menu submenu */
+.context-menu-submenu {
+    position: relative;
+}
+
+.context-submenu {
+    display: none;
+    position: absolute;
+    left: 100%;
+    top: 0;
+    min-width: 150px;
+    background: white;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    z-index: 10001;
+}
+
+.context-menu-submenu:hover .context-submenu {
+    display: block;
+}
+
+.color-dot {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    margin-right: 8px;
+    border: 1px solid rgba(0,0,0,0.1);
+}
+
+.context-menu-item.favorite-active {
+    color: #ffc107;
+}
+
+/* File item styling for colored folders */
+.file-item.colored-folder {
+    border: 2px solid var(--folder-color);
+    box-shadow: 0 0 10px rgba(0,0,0,0.1);
+}
+
+.file-item.colored-folder .file-icon {
+    color: var(--folder-color) !important;
+}
+
+.file-item.favorite-folder::before {
+    content: '\f005';
+    font-family: 'Font Awesome 5 Free';
+    font-weight: 900;
+    position: absolute;
+    top: 5px;
+    right: 5px;
+    color: #ffc107;
+    font-size: 14px;
+    z-index: 1;
 }
