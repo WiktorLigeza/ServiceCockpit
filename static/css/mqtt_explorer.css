@@ -1,9 +1,8 @@
 /* MQTT Explorer Styles */
 .main-container {
-    display: grid;
-    grid-template-columns: 1fr 1fr 1fr;
+    display: flex;
     width: 100%;
-    height: calc(100vh - 60px);
+    height: calc(100vh - 60px);  /* subtract header height */
     overflow: hidden;
     gap: 1rem;
     padding: 1rem;
