@@ -463,7 +463,7 @@
 
 .tab-pane {
     display: none;
-    height: auto;
+    max-height: 90%;
     
 }
 
@@ -496,9 +496,10 @@
     border-radius: 8px;
     margin: 0 1rem 1rem 1rem;
     color: #dadada;
-    padding: 1rem;
+    padding: 1rem 1rem 10px 1rem;
     height: auto;
     min-height: 0;
+    max-height: 100%;
 }
 
 /* Responsive Design */

@@ -394,7 +394,6 @@ function createCurrentMessageElement(data, previousMessage) {
 
     div.innerHTML = `
         <div class="current-message-header">
-            <h4>Latest Message</h4>
             <span class="current-timestamp">${timestamp}</span>
         </div>
         <div class="current-payload">${payloadHtml}</div>
