@@ -146,10 +146,14 @@ body {
 .breadcrumb-item {
     cursor: pointer;
     transition: color 0.3s ease;
+    padding: 5px 10px;
+    display: inline-block;
 }
 
 .breadcrumb-item:hover {
     color: #00ffff;
+    background: rgba(0, 255, 65, 0.1);
+    border-radius: 4px;
 }
 
 .breadcrumb-item:not(:last-child)::after {
@@ -832,19 +836,26 @@ body {
 /* Drag and Drop Styles */
 .file-item.drag-over {
     background: rgba(0, 255, 65, 0.2) !important;
-    border: 2px dashed #00ff41 !important;
+    border: 2px dashed #00ffcc !important;
     transform: scale(1.02);
 }
 
-.file-item[draggable="true"] {
-    cursor: move;
+.directory-item.drag-over {
+    background: rgba(0, 255, 65, 0.2) !important;
+    border-left: 3px solid #00ffcc !important;
+}
+
+.breadcrumb-item.breadcrumb-drag-over {
+    background: rgba(0, 255, 65, 0.3);
+    border-radius: 4px;
+    transform: scale(1.05);
 }
 
 /* Context Menu */
 .context-menu {
     position: fixed;
     background: #1a1a2e;
-    border: 2px solid #00ff41;
+    border: 2px solid #00ffcc;
     border-radius: 8px;
     box-shadow: 0 5px 20px rgba(0, 255, 65, 0.3);
     z-index: 10000;
@@ -866,7 +877,7 @@ body {
 
 .context-menu-item {
     padding: 10px 20px;
-    color: #00ff41;
+    color: #00ffcc;
     cursor: pointer;
     display: flex;
     align-items: center;
@@ -898,7 +909,7 @@ body {
     top: 80px;
     right: -400px;
     background: #1a1a2e;
-    border: 2px solid #00ff41;
+    border: 2px solid #00ffcc;
     border-radius: 8px;
     padding: 15px 20px;
     display: flex;
@@ -919,8 +930,8 @@ body {
 }
 
 .notification-success {
-    border-color: #00ff41;
-    color: #00ff41;
+    border-color: #00ffcc;
+    color: #00ffcc;
 }
 
 .notification-error {

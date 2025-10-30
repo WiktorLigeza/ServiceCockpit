@@ -121,6 +121,15 @@
         </div>
     </div>
 
+    <!-- Load scripts in correct order -->
+    <script src="{{ url_for('static', filename='js/file_explorer_utils.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/file_explorer_drag.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/file_explorer_tree.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/file_explorer_menu.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/file_explorer_files.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/file_explorer_operations.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/file_explorer_editor.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/file_explorer_viewer.js') }}"></script>
     <script src="{{ url_for('static', filename='js/file_explorer.js') }}"></script>
 </body>
 </html>

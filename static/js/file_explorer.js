@@ -1,3 +1,4 @@
+// Global state
 let currentPath = '/home';
 let selectedFile = null;
 let viewMode = 'grid';
@@ -11,6 +12,7 @@ let copiedFilePath = null;
 let isCutOperation = false;
 let draggedItem = null;
 
+// Import modules
 document.addEventListener('DOMContentLoaded', function() {
     initializeFileExplorer();
     setupEventListeners();
@@ -18,6 +20,50 @@ document.addEventListener('DOMContentLoaded', function() {
     setupImageViewer();
     setupKeyboardShortcuts();
 });
+
+function initializeFileExplorer() {
+    loadDirectory(currentPath);
+    loadDirectoryTree('/');
+    const filesContainer = document.getElementById('files-container');
+    filesContainer.classList.add('grid-view');
+}
+
+function setupEventListeners() {
+    document.querySelectorAll('.view-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            document.querySelectorAll('.view-btn').forEach(b => b.classList.remove('active'));
+            this.classList.add('active');
+            viewMode = this.dataset.view;
+            const filesContainer = document.getElementById('files-container');
+            if (viewMode === 'grid') {
+                filesContainer.classList.add('grid-view');
+            } else {
+                filesContainer.classList.remove('grid-view');
+            }
+        });
+    });
+
+    document.querySelector('.view-btn[data-view="grid"]').classList.add('active');
+    document.querySelector('.view-btn[data-view="list"]').classList.remove('active');
+
+    document.getElementById('file-filter').addEventListener('change', function(e) {
+        currentFilter = e.target.value;
+        applyFilters();
+    });
+
+    document.getElementById('file-search').addEventListener('input', function(e) {
+        nameFilter = e.target.value.toLowerCase();
+        applyFilters();
+    });
+
+    document.getElementById('directory-search').addEventListener('input', function(e) {
+        const searchTerm = e.target.value.toLowerCase();
+        filterDirectoryTree(searchTerm);
+    });
+
+    document.getElementById('new-folder-btn').addEventListener('click', createNewFolder);
+    document.getElementById('new-file-btn').addEventListener('click', createNewFile);
+}
 
 // Utility Functions
 function formatFileSize(bytes) {
@@ -141,59 +187,35 @@ function showError(message) {
     `;
 }
 
-// Initialization
-function initializeFileExplorer() {
-    loadDirectory(currentPath);
-    loadDirectoryTree('/');
-    const filesContainer = document.getElementById('files-container');
-    filesContainer.classList.add('grid-view');
-}
-
-function setupEventListeners() {
-    document.querySelectorAll('.view-btn').forEach(btn => {
-        btn.addEventListener('click', function() {
-            document.querySelectorAll('.view-btn').forEach(b => b.classList.remove('active'));
-            this.classList.add('active');
-            viewMode = this.dataset.view;
-            const filesContainer = document.getElementById('files-container');
-            if (viewMode === 'grid') {
-                filesContainer.classList.add('grid-view');
-            } else {
-                filesContainer.classList.remove('grid-view');
-            }
-        });
-    });
-
-    document.querySelector('.view-btn[data-view="grid"]').classList.add('active');
-    document.querySelector('.view-btn[data-view="list"]').classList.remove('active');
-
-    document.getElementById('file-filter').addEventListener('change', function(e) {
-        currentFilter = e.target.value;
-        applyFilters();
-    });
-
-    document.getElementById('file-search').addEventListener('input', function(e) {
-        nameFilter = e.target.value.toLowerCase();
-        applyFilters();
-    });
-
-    document.getElementById('directory-search').addEventListener('input', function(e) {
-        const searchTerm = e.target.value.toLowerCase();
-        filterDirectoryTree(searchTerm);
-    });
-
-    document.getElementById('new-folder-btn').addEventListener('click', createNewFolder);
-    document.getElementById('new-file-btn').addEventListener('click', createNewFile);
-}
-
-function filterDirectoryTree(searchTerm) {
-    const allDirItems = document.querySelectorAll('.directory-item');
-    allDirItems.forEach(item => {
-        const name = item.querySelector('span').textContent.toLowerCase();
-        if (name.includes(searchTerm)) {
-            item.style.display = 'flex';
+// Directory and File Operations
+async function loadDirectory(path) {
+    currentPath = path;
+    document.getElementById('current-path').textContent = path;
+    updateBreadcrumb(path);
+    
+    try {
+        const response = await fetch(`/api/files?path=${encodeURIComponent(path)}`);
+        const data = await response.json();
+        
+        if (data.success) {
+            allFiles = data.files;
+            applyFilters();
+            highlightActiveDirectory(path);
         } else {
-            item.style.display = 'none';
+            console.error('Error loading directory:', data.error);
+            showError('Failed to load directory: ' + data.error);
+        }
+    } catch (error) {
+        console.error('Error loading directory:', error);
+        showError('Failed to load directory');
+    }
+}
+
+function highlightActiveDirectory(path) {
+    document.querySelectorAll('.directory-item').forEach(item => {
+        item.classList.remove('active');
+        if (item.dataset.path === path) {
+            item.classList.add('active');
         }
     });
 }
@@ -237,38 +259,6 @@ function applyFilters() {
     displayFiles(filteredFiles);
 }
 
-async function loadDirectory(path) {
-    currentPath = path;
-    document.getElementById('current-path').textContent = path;
-    updateBreadcrumb(path);
-    
-    try {
-        const response = await fetch(`/api/files?path=${encodeURIComponent(path)}`);
-        const data = await response.json();
-        
-        if (data.success) {
-            allFiles = data.files;
-            applyFilters();
-            highlightActiveDirectory(path);
-        } else {
-            console.error('Error loading directory:', data.error);
-            showError('Failed to load directory: ' + data.error);
-        }
-    } catch (error) {
-        console.error('Error loading directory:', error);
-        showError('Failed to load directory');
-    }
-}
-
-function highlightActiveDirectory(path) {
-    document.querySelectorAll('.directory-item').forEach(item => {
-        item.classList.remove('active');
-        if (item.dataset.path === path) {
-            item.classList.add('active');
-        }
-    });
-}
-
 function displayFiles(files) {
     const container = document.getElementById('files-container');
     container.innerHTML = '';
@@ -291,28 +281,245 @@ function displayFiles(files) {
     });
 }
 
-function setupKeyboardShortcuts() {
-    document.addEventListener('keydown', (e) => {
-        // Copy: Ctrl+C
-        if (e.ctrlKey && e.key === 'c' && selectedFile) {
-            e.preventDefault();
-            copyFile();
-        }
+// Directory Tree Functions
+async function loadDirectoryTree(path, parentElement = null) {
+    try {
+        const response = await fetch(`/api/directories?path=${encodeURIComponent(path)}`);
+        const data = await response.json();
         
-        // Cut: Ctrl+X
-        if (e.ctrlKey && e.key === 'x' && selectedFile) {
-            e.preventDefault();
-            cutFile();
+        if (data.success) {
+            const container = parentElement || document.getElementById('directory-tree-container');
+            if (!parentElement) {
+                container.innerHTML = '';
+            }
+            
+            data.directories.forEach(dir => {
+                const dirItem = createDirectoryTreeItem(dir);
+                container.appendChild(dirItem);
+            });
         }
-        
-        // Paste: Ctrl+V
-        if (e.ctrlKey && e.key === 'v' && copiedFile) {
-            e.preventDefault();
-            pasteFile();
-        }
-    });
+    } catch (error) {
+        console.error('Error loading directory tree:', error);
+    }
 }
 
+function createDirectoryTreeItem(dir) {
+    const wrapper = document.createElement('div');
+    
+    const item = document.createElement('div');
+    item.className = 'directory-item';
+    item.dataset.path = dir.path;
+    
+    // Make directory items drop targets
+    item.addEventListener('dragover', handleDirectoryDragOver);
+    item.addEventListener('drop', handleDirectoryDrop);
+    item.addEventListener('dragleave', handleDirectoryDragLeave);
+    
+    const chevron = document.createElement('i');
+    chevron.className = 'fas fa-chevron-right';
+    
+    const icon = document.createElement('i');
+    icon.className = 'fas fa-folder file-icon folder';
+    
+    const name = document.createElement('span');
+    name.textContent = dir.name;
+    
+    item.appendChild(chevron);
+    item.appendChild(icon);
+    item.appendChild(name);
+    
+    const childrenContainer = document.createElement('div');
+    childrenContainer.className = 'directory-children';
+    childrenContainer.style.display = 'none';
+    
+    chevron.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        item.classList.toggle('expanded');
+        
+        if (item.classList.contains('expanded')) {
+            if (childrenContainer.children.length === 0) {
+                await loadDirectoryTree(dir.path, childrenContainer);
+            }
+            childrenContainer.style.display = 'block';
+        } else {
+            childrenContainer.style.display = 'none';
+        }
+    });
+    
+    item.addEventListener('click', (e) => {
+        e.stopPropagation();
+        loadDirectory(dir.path);
+    });
+    
+    // Context menu for directory tree items
+    item.addEventListener('contextmenu', (e) => {
+        e.preventDefault();
+        showDirectoryContextMenu(e.clientX, e.clientY, dir);
+    });
+    
+    wrapper.appendChild(item);
+    wrapper.appendChild(childrenContainer);
+    
+    return wrapper;
+}
+
+function handleDirectoryDragOver(e) {
+    if (e.preventDefault) {
+        e.preventDefault();
+    }
+    
+    if (draggedItem) {
+        e.dataTransfer.dropEffect = 'move';
+        e.currentTarget.classList.add('drag-over');
+        return false;
+    }
+    
+    e.dataTransfer.dropEffect = 'none';
+    return false;
+}
+
+function handleDirectoryDragLeave(e) {
+    e.currentTarget.classList.remove('drag-over');
+}
+
+async function handleDirectoryDrop(e) {
+    if (e.stopPropagation) {
+        e.stopPropagation();
+    }
+    if (e.preventDefault) {
+        e.preventDefault();
+    }
+    
+    e.currentTarget.classList.remove('drag-over');
+    
+    const targetPath = e.currentTarget.dataset.path;
+    
+    if (!draggedItem || draggedItem.path === targetPath) {
+        return false;
+    }
+    
+    try {
+        const response = await fetch('/api/move', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                source_path: draggedItem.path,
+                destination_path: targetPath
+            })
+        });
+        
+        const data = await response.json();
+        if (data.success) {
+            showNotification('Moved successfully', 'success');
+            loadDirectory(currentPath);
+            reloadDirectoryInTree(currentPath);
+        } else {
+            showNotification('Failed to move: ' + data.error, 'error');
+        }
+    } catch (error) {
+        showNotification('Failed to move: ' + error, 'error');
+    }
+    
+    return false;
+}
+
+function showDirectoryContextMenu(x, y, dir) {
+    // Remove existing context menu if any
+    const existingMenu = document.querySelector('.context-menu');
+    if (existingMenu) {
+        existingMenu.remove();
+    }
+    
+    const menu = document.createElement('div');
+    menu.className = 'context-menu';
+    menu.style.left = x + 'px';
+    menu.style.top = y + 'px';
+    
+    const menuItems = [];
+    
+    if (copiedFile) {
+        menuItems.push({ 
+            icon: 'fa-paste', 
+            text: 'Paste Here', 
+            action: () => pasteToDirectory(dir.path) 
+        });
+    }
+    
+    menuItems.push({ 
+        icon: 'fa-folder-open', 
+        text: 'Open', 
+        action: () => loadDirectory(dir.path) 
+    });
+    
+    menuItems.forEach(item => {
+        const menuItem = document.createElement('div');
+        menuItem.className = 'context-menu-item';
+        menuItem.innerHTML = `<i class="fas ${item.icon}"></i> ${item.text}`;
+        menuItem.addEventListener('click', () => {
+            item.action();
+            menu.remove();
+        });
+        menu.appendChild(menuItem);
+    });
+    
+    document.body.appendChild(menu);
+    
+    // Close menu on click outside
+    setTimeout(() => {
+        document.addEventListener('click', function closeMenu() {
+            menu.remove();
+            document.removeEventListener('click', closeMenu);
+        });
+    }, 10);
+}
+
+async function pasteToDirectory(targetPath) {
+    if (!copiedFile) return;
+    
+    try {
+        const response = await fetch('/api/paste', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                source_path: copiedFilePath,
+                destination_path: targetPath,
+                is_cut: isCutOperation
+            })
+        });
+        
+        const data = await response.json();
+        if (data.success) {
+            showNotification(
+                isCutOperation ? 'Moved successfully' : 'Copied successfully',
+                'success'
+            );
+            
+            // Reset cut operation styling
+            document.querySelectorAll('.file-item').forEach(item => {
+                item.style.opacity = '1';
+            });
+            
+            if (isCutOperation) {
+                copiedFile = null;
+                copiedFilePath = null;
+                isCutOperation = false;
+            }
+            
+            loadDirectory(currentPath);
+            reloadDirectoryInTree(targetPath);
+        } else {
+            showNotification('Failed to paste: ' + data.error, 'error');
+        }
+    } catch (error) {
+        showNotification('Failed to paste: ' + error, 'error');
+    }
+}
+
+// File Copy/Cut/Paste Functions
 function copyFile() {
     if (!selectedFile) return;
     
@@ -384,211 +591,44 @@ async function pasteFile() {
     }
 }
 
-// Directory Tree Functions
-async function loadDirectoryTree(path, parentElement = null) {
-    try {
-        const response = await fetch(`/api/directories?path=${encodeURIComponent(path)}`);
-        const data = await response.json();
+// Breadcrumb Functions
+function updateBreadcrumb(path) {
+    const breadcrumb = document.getElementById('breadcrumb-nav');
+    const parts = path.split('/').filter(p => p);
+    
+    let html = '<span class="breadcrumb-item" data-path="/" onclick="loadDirectory(\'/\')">root</span>';
+    let currentPath = '';
+    
+    parts.forEach(part => {
+        currentPath += '/' + part;
+        html += `<span class="breadcrumb-item" data-path="${currentPath}" onclick="loadDirectory('${currentPath}')">${part}</span>`;
+    });
+    
+    breadcrumb.innerHTML = html;
+    
+    // Add drag and drop to breadcrumb items
+    document.querySelectorAll('.breadcrumb-item').forEach(item => {
+        item.addEventListener('dragover', handleBreadcrumbDragOver);
+        item.addEventListener('drop', handleBreadcrumbDrop);
+        item.addEventListener('dragleave', handleBreadcrumbDragLeave);
         
-        if (data.success) {
-            const container = parentElement || document.getElementById('directory-tree-container');
-            if (!parentElement) {
-                container.innerHTML = '';
-            }
-            
-            data.directories.forEach(dir => {
-                const dirItem = createDirectoryTreeItem(dir);
-                container.appendChild(dirItem);
-            });
-        }
-    } catch (error) {
-        console.error('Error loading directory tree:', error);
-    }
-}
-
-function createDirectoryTreeItem(dir) {
-    const wrapper = document.createElement('div');
-    
-    const item = document.createElement('div');
-    item.className = 'directory-item';
-    item.dataset.path = dir.path;
-    
-    const chevron = document.createElement('i');
-    chevron.className = 'fas fa-chevron-right';
-    
-    const icon = document.createElement('i');
-    icon.className = 'fas fa-folder file-icon folder';
-    
-    const name = document.createElement('span');
-    name.textContent = dir.name;
-    
-    item.appendChild(chevron);
-    item.appendChild(icon);
-    item.appendChild(name);
-    
-    const childrenContainer = document.createElement('div');
-    childrenContainer.className = 'directory-children';
-    childrenContainer.style.display = 'none';
-    
-    chevron.addEventListener('click', async (e) => {
-        e.stopPropagation();
-        item.classList.toggle('expanded');
-        
-        if (item.classList.contains('expanded')) {
-            if (childrenContainer.children.length === 0) {
-                await loadDirectoryTree(dir.path, childrenContainer);
-            }
-            childrenContainer.style.display = 'block';
-        } else {
-            childrenContainer.style.display = 'none';
-        }
-    });
-    
-    item.addEventListener('click', (e) => {
-        e.stopPropagation();
-        loadDirectory(dir.path);
-    });
-    
-    wrapper.appendChild(item);
-    wrapper.appendChild(childrenContainer);
-    
-    return wrapper;
-}
-
-function reloadDirectoryInTree(path) {
-    const dirItems = document.querySelectorAll('.directory-item');
-    dirItems.forEach(item => {
-        if (item.dataset.path === path && item.classList.contains('expanded')) {
-            const childrenContainer = item.parentElement.querySelector('.directory-children');
-            if (childrenContainer) {
-                childrenContainer.innerHTML = '';
-                loadDirectoryTree(path, childrenContainer);
-            }
-        }
+        // Right-click context menu for breadcrumb
+        item.addEventListener('contextmenu', (e) => {
+            e.preventDefault();
+            const targetPath = item.dataset.path;
+            showBreadcrumbContextMenu(e.clientX, e.clientY, targetPath);
+        });
     });
 }
 
-// File Display Functions
-function selectFile(element, file) {
-    document.querySelectorAll('.file-item').forEach(item => {
-        item.classList.remove('selected');
-    });
-    element.classList.add('selected');
-    selectedFile = file;
-    displayFileDetails(file);
-}
-
-function createFileItem(file) {
-    const item = document.createElement('div');
-    item.className = 'file-item';
-    item.dataset.path = file.path;
-    item.dataset.isDirectory = file.is_directory;
-    
-    // Make items draggable
-    item.draggable = true;
-    
-    const icon = document.createElement('i');
-    icon.className = `fas ${getFileIcon(file)} file-icon ${getFileIconClass(file)}`;
-    
-    const info = document.createElement('div');
-    info.className = 'file-info';
-    
-    const name = document.createElement('div');
-    name.className = 'file-name';
-    name.textContent = file.name;
-    
-    const meta = document.createElement('div');
-    meta.className = 'file-meta';
-    
-    const chmod = document.createElement('span');
-    chmod.className = 'file-chmod';
-    chmod.textContent = file.permissions;
-    
-    const sizeElement = document.createElement('span');
-    
-    if (file.is_directory) {
-        sizeElement.innerHTML = `<button class="btn-inspect" onclick="event.stopPropagation(); inspectFolder('${file.path}', this)"><i class="fas fa-search"></i> Inspect</button>`;
-    } else {
-        sizeElement.textContent = formatFileSize(file.size);
-    }
-    
-    meta.appendChild(chmod);
-    meta.appendChild(sizeElement);
-    
-    info.appendChild(name);
-    info.appendChild(meta);
-    
-    item.appendChild(icon);
-    item.appendChild(info);
-    
-    // Drag and drop event listeners
-    item.addEventListener('dragstart', handleDragStart);
-    item.addEventListener('dragend', handleDragEnd);
-    item.addEventListener('dragover', handleDragOver);
-    item.addEventListener('drop', handleDrop);
-    item.addEventListener('dragleave', handleDragLeave);
-    
-    item.addEventListener('click', () => {
-        if (file.is_directory) {
-            loadDirectory(file.path);
-        } else {
-            selectFile(item, file);
-        }
-    });
-    
-    item.addEventListener('dblclick', () => {
-        if (!file.is_directory) {
-            const ext = file.name.split('.').pop().toLowerCase();
-            if (isImageFile(ext)) {
-                openImageViewer(file);
-            } else if (isTextFile(ext)) {
-                openFileInEditor(file);
-            }
-        }
-    });
-    
-    // Context menu for copy/paste operations
-    item.addEventListener('contextmenu', (e) => {
-        e.preventDefault();
-        selectFile(item, file);
-        showContextMenu(e.clientX, e.clientY, file);
-    });
-    
-    return item;
-}
-
-function handleDragStart(e) {
-    draggedItem = {
-        path: e.currentTarget.dataset.path,
-        isDirectory: e.currentTarget.dataset.isDirectory === 'true'
-    };
-    
-    e.currentTarget.style.opacity = '0.5';
-    e.dataTransfer.effectAllowed = 'move';
-    e.dataTransfer.setData('text/html', e.currentTarget.innerHTML);
-}
-
-function handleDragEnd(e) {
-    e.currentTarget.style.opacity = '1';
-    
-    // Remove all drag-over effects
-    document.querySelectorAll('.file-item').forEach(item => {
-        item.classList.remove('drag-over');
-    });
-}
-
-function handleDragOver(e) {
+function handleBreadcrumbDragOver(e) {
     if (e.preventDefault) {
         e.preventDefault();
     }
     
-    const targetItem = e.currentTarget;
-    const isDirectory = targetItem.dataset.isDirectory === 'true';
-    
-    // Only allow dropping on directories
-    if (isDirectory && draggedItem && draggedItem.path !== targetItem.dataset.path) {
+    if (draggedItem) {
         e.dataTransfer.dropEffect = 'move';
-        targetItem.classList.add('drag-over');
+        e.currentTarget.classList.add('breadcrumb-drag-over');
         return false;
     }
     
@@ -596,27 +636,23 @@ function handleDragOver(e) {
     return false;
 }
 
-function handleDragLeave(e) {
-    e.currentTarget.classList.remove('drag-over');
+function handleBreadcrumbDragLeave(e) {
+    e.currentTarget.classList.remove('breadcrumb-drag-over');
 }
 
-async function handleDrop(e) {
+async function handleBreadcrumbDrop(e) {
     if (e.stopPropagation) {
         e.stopPropagation();
     }
-    
-    e.currentTarget.classList.remove('drag-over');
-    
-    const targetPath = e.currentTarget.dataset.path;
-    const isTargetDirectory = e.currentTarget.dataset.isDirectory === 'true';
-    
-    if (!isTargetDirectory || !draggedItem) {
-        return false;
+    if (e.preventDefault) {
+        e.preventDefault();
     }
     
-    // Don't allow dropping a folder into itself
-    if (draggedItem.path === targetPath) {
-        showNotification('Cannot move a folder into itself', 'error');
+    e.currentTarget.classList.remove('breadcrumb-drag-over');
+    
+    const targetPath = e.currentTarget.dataset.path;
+    
+    if (!draggedItem || draggedItem.path === targetPath) {
         return false;
     }
     
@@ -647,7 +683,7 @@ async function handleDrop(e) {
     return false;
 }
 
-function showContextMenu(x, y, file) {
+function showBreadcrumbContextMenu(x, y, targetPath) {
     // Remove existing context menu if any
     const existingMenu = document.querySelector('.context-menu');
     if (existingMenu) {
@@ -659,31 +695,25 @@ function showContextMenu(x, y, file) {
     menu.style.left = x + 'px';
     menu.style.top = y + 'px';
     
-    const menuItems = [
-        { icon: 'fa-copy', text: 'Copy', action: copyFile },
-        { icon: 'fa-cut', text: 'Cut', action: cutFile }
-    ];
+    const menuItems = [];
     
     if (copiedFile) {
-        menuItems.push({ icon: 'fa-paste', text: 'Paste', action: pasteFile });
+        menuItems.push({ 
+            icon: 'fa-paste', 
+            text: 'Paste Here', 
+            action: () => pasteToDirectory(targetPath) 
+        });
     }
     
-    menuItems.push({ icon: 'fa-edit', text: 'Rename', action: renameFile });
-    
-    if (!file.is_directory) {
-        menuItems.push({ icon: 'fa-download', text: 'Download', action: downloadFile });
-        
-        const ext = file.name.split('.').pop().toLowerCase();
-        if (isTextFile(ext)) {
-            menuItems.push({ icon: 'fa-edit', text: 'Edit', action: () => openFileInEditor(selectedFile) });
-        }
-    }
-    
-    menuItems.push({ icon: 'fa-trash', text: 'Delete', action: deleteFile, className: 'danger' });
+    menuItems.push({ 
+        icon: 'fa-folder-open', 
+        text: 'Open', 
+        action: () => loadDirectory(targetPath) 
+    });
     
     menuItems.forEach(item => {
         const menuItem = document.createElement('div');
-        menuItem.className = 'context-menu-item' + (item.className ? ' ' + item.className : '');
+        menuItem.className = 'context-menu-item';
         menuItem.innerHTML = `<i class="fas ${item.icon}"></i> ${item.text}`;
         menuItem.addEventListener('click', () => {
             item.action();
@@ -969,6 +999,7 @@ function setupCodeEditor() {
     });
 }
 
+// Folder and File Creation
 async function createNewFolder() {
     const folderName = prompt('Enter folder name:');
     if (folderName) {
@@ -1025,6 +1056,7 @@ async function createNewFile() {
     }
 }
 
+// File Download, Rename, and Delete
 function downloadFile() {
     if (selectedFile) {
         window.location.href = `/api/download?path=${encodeURIComponent(selectedFile.path)}`;
@@ -1115,6 +1147,7 @@ async function deleteFile() {
     }
 }
 
+// Folder Size Inspection
 async function inspectFolder(path, buttonElement) {
     const originalHTML = buttonElement.innerHTML;
     buttonElement.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Calculating...';
@@ -1143,6 +1176,7 @@ async function inspectFolder(path, buttonElement) {
     }
 }
 
+// File Details Display
 async function displayFileDetails(file) {
     const container = document.getElementById('file-details-container');
     
@@ -1159,7 +1193,7 @@ async function displayFileDetails(file) {
                     <div class="detail-row">
                         <span class="detail-label">Size:</span>
                         <span class="detail-value" id="detail-size">
-                            <button class="btn btn-sm btn-info" onclick="event.stopPropagation(); inspectFolderDetails('${file.path}')">
+                            <button class="btn btn-sm btn-info" onclick="event.stopPropagation(); inspectFolderDetails('${file.path}', this)">
                                 <i class="fas fa-search"></i> Calculate Size
                             </button>
                         </span>
@@ -1243,19 +1277,4 @@ async function inspectFolderDetails(path) {
         console.error('Error inspecting folder:', error);
         sizeElement.innerHTML = `<span style="color: #dc3545;">Error calculating size</span>`;
     }
-}
-
-function updateBreadcrumb(path) {
-    const breadcrumb = document.getElementById('breadcrumb-nav');
-    const parts = path.split('/').filter(p => p);
-    
-    let html = '<span class="breadcrumb-item" onclick="loadDirectory(\'/\')">root</span>';
-    let currentPath = '';
-    
-    parts.forEach(part => {
-        currentPath += '/' + part;
-        html += `<span class="breadcrumb-item" onclick="loadDirectory('${currentPath}')">${part}</span>`;
-    });
-    
-    breadcrumb.innerHTML = html;
 }
