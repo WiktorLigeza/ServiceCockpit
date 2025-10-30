@@ -22,6 +22,12 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 function initializeFileExplorer() {
+    // Load the last visited path from localStorage
+    const savedPath = localStorage.getItem('fileExplorerLastPath');
+    if (savedPath) {
+        currentPath = savedPath;
+    }
+    
     loadDirectory(currentPath);
     loadDirectoryTree('/');
     const filesContainer = document.getElementById('files-container');
@@ -203,6 +209,10 @@ function showError(message) {
 // Directory and File Operations
 async function loadDirectory(path) {
     currentPath = path;
+    
+    // Save the current path to localStorage
+    localStorage.setItem('fileExplorerLastPath', path);
+    
     document.getElementById('current-path').textContent = path;
     updateBreadcrumb(path);
     
@@ -217,10 +227,22 @@ async function loadDirectory(path) {
         } else {
             console.error('Error loading directory:', data.error);
             showError('Failed to load directory: ' + data.error);
+            
+            // If the saved path fails to load, fallback to /home and update localStorage
+            if (path !== '/home') {
+                localStorage.setItem('fileExplorerLastPath', '/home');
+                loadDirectory('/home');
+            }
         }
     } catch (error) {
         console.error('Error loading directory:', error);
         showError('Failed to load directory');
+        
+        // If the saved path fails to load, fallback to /home and update localStorage
+        if (path !== '/home') {
+            localStorage.setItem('fileExplorerLastPath', '/home');
+            loadDirectory('/home');
+        }
     }
 }
 
