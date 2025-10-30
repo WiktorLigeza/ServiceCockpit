@@ -6,14 +6,142 @@ let currentFilter = 'all';
 let nameFilter = '';
 let editorFile = null;
 let currentZoom = 1;
+let copiedFile = null;
+let copiedFilePath = null;
+let isCutOperation = false;
+let draggedItem = null;
 
 document.addEventListener('DOMContentLoaded', function() {
     initializeFileExplorer();
     setupEventListeners();
     setupCodeEditor();
     setupImageViewer();
+    setupKeyboardShortcuts();
 });
 
+// Utility Functions
+function formatFileSize(bytes) {
+    if (bytes === 0) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+}
+
+function getFileIcon(file) {
+    if (file.is_directory) return 'fa-folder';
+    
+    const ext = file.name.split('.').pop().toLowerCase();
+    const iconMap = {
+        'js': 'fa-file-code',
+        'py': 'fa-file-code',
+        'html': 'fa-file-code',
+        'css': 'fa-file-code',
+        'json': 'fa-file-code',
+        'txt': 'fa-file-alt',
+        'md': 'fa-file-alt',
+        'pdf': 'fa-file-pdf',
+        'png': 'fa-file-image',
+        'jpg': 'fa-file-image',
+        'jpeg': 'fa-file-image',
+        'gif': 'fa-file-image',
+        'zip': 'fa-file-archive',
+        'tar': 'fa-file-archive',
+        'gz': 'fa-file-archive'
+    };
+    
+    return iconMap[ext] || 'fa-file';
+}
+
+function getFileIconClass(file) {
+    if (file.is_directory) return 'folder';
+    
+    const ext = file.name.split('.').pop().toLowerCase();
+    const classMap = {
+        'js': 'js',
+        'py': 'py',
+        'html': 'html',
+        'css': 'css',
+        'json': 'json',
+        'txt': 'txt',
+        'png': 'image',
+        'jpg': 'image',
+        'jpeg': 'image',
+        'gif': 'image'
+    };
+    
+    return classMap[ext] || 'default';
+}
+
+function isImageFile(ext) {
+    return ['png', 'jpg', 'jpeg', 'gif', 'bmp', 'svg', 'webp', 'ico'].includes(ext);
+}
+
+function isTextFile(ext) {
+    const textExtensions = ['txt', 'md', 'json', 'xml', 'html', 'css', 'js', 'py', 
+                           'cpp', 'c', 'h', 'sh', 'bash', 'java', 'php', 'sql', 
+                           'yml', 'yaml', 'conf', 'cfg', 'ini', 'log'];
+    return textExtensions.includes(ext);
+}
+
+function getLanguageFromExtension(filename) {
+    const ext = filename.split('.').pop().toLowerCase();
+    const languageMap = {
+        'py': 'Python',
+        'js': 'JavaScript',
+        'html': 'HTML',
+        'css': 'CSS',
+        'json': 'JSON',
+        'cpp': 'C++',
+        'c': 'C',
+        'h': 'C/C++ Header',
+        'sh': 'Bash',
+        'bash': 'Bash',
+        'java': 'Java',
+        'php': 'PHP',
+        'sql': 'SQL',
+        'xml': 'XML',
+        'md': 'Markdown',
+        'txt': 'Text',
+        'yml': 'YAML',
+        'yaml': 'YAML'
+    };
+    return languageMap[ext] || 'Text';
+}
+
+function showNotification(message, type = 'info') {
+    const notification = document.createElement('div');
+    notification.className = `notification notification-${type}`;
+    notification.innerHTML = `
+        <i class="fas fa-${type === 'success' ? 'check-circle' : type === 'error' ? 'exclamation-circle' : 'info-circle'}"></i>
+        <span>${message}</span>
+    `;
+    
+    document.body.appendChild(notification);
+    
+    setTimeout(() => {
+        notification.classList.add('show');
+    }, 10);
+    
+    setTimeout(() => {
+        notification.classList.remove('show');
+        setTimeout(() => {
+            notification.remove();
+        }, 300);
+    }, 3000);
+}
+
+function showError(message) {
+    const container = document.getElementById('files-container');
+    container.innerHTML = `
+        <div class="no-selection">
+            <i class="fas fa-exclamation-triangle" style="color: #dc3545;"></i>
+            <p>${message}</p>
+        </div>
+    `;
+}
+
+// Initialization
 function initializeFileExplorer() {
     loadDirectory(currentPath);
     loadDirectoryTree('/');
@@ -163,166 +291,100 @@ function displayFiles(files) {
     });
 }
 
-function createFileItem(file) {
-    const item = document.createElement('div');
-    item.className = 'file-item';
-    item.dataset.path = file.path;
-    item.dataset.isDirectory = file.is_directory;
-    
-    const icon = document.createElement('i');
-    icon.className = `fas ${getFileIcon(file)} file-icon ${getFileIconClass(file)}`;
-    
-    const info = document.createElement('div');
-    info.className = 'file-info';
-    
-    const name = document.createElement('div');
-    name.className = 'file-name';
-    name.textContent = file.name;
-    
-    const meta = document.createElement('div');
-    meta.className = 'file-meta';
-    
-    const chmod = document.createElement('span');
-    chmod.className = 'file-chmod';
-    chmod.textContent = file.permissions;
-    
-    const sizeElement = document.createElement('span');
-    
-    if (file.is_directory) {
-        sizeElement.innerHTML = `<button class="btn-inspect" onclick="event.stopPropagation(); inspectFolder('${file.path}', this)"><i class="fas fa-search"></i> Inspect</button>`;
-    } else {
-        sizeElement.textContent = formatFileSize(file.size);
-    }
-    
-    meta.appendChild(chmod);
-    meta.appendChild(sizeElement);
-    
-    info.appendChild(name);
-    info.appendChild(meta);
-    
-    item.appendChild(icon);
-    item.appendChild(info);
-    
-    item.addEventListener('click', () => {
-        if (file.is_directory) {
-            loadDirectory(file.path);
-        } else {
-            selectFile(item, file);
+function setupKeyboardShortcuts() {
+    document.addEventListener('keydown', (e) => {
+        // Copy: Ctrl+C
+        if (e.ctrlKey && e.key === 'c' && selectedFile) {
+            e.preventDefault();
+            copyFile();
+        }
+        
+        // Cut: Ctrl+X
+        if (e.ctrlKey && e.key === 'x' && selectedFile) {
+            e.preventDefault();
+            cutFile();
+        }
+        
+        // Paste: Ctrl+V
+        if (e.ctrlKey && e.key === 'v' && copiedFile) {
+            e.preventDefault();
+            pasteFile();
         }
     });
-    
-    item.addEventListener('dblclick', () => {
-        if (!file.is_directory) {
-            const ext = file.name.split('.').pop().toLowerCase();
-            if (isImageFile(ext)) {
-                openImageViewer(file);
-            } else if (isTextFile(ext)) {
-                openFileInEditor(file);
-            }
-        }
-    });
-    
-    return item;
 }
 
-function getFileIcon(file) {
-    if (file.is_directory) return 'fa-folder';
+function copyFile() {
+    if (!selectedFile) return;
     
-    const ext = file.name.split('.').pop().toLowerCase();
-    const iconMap = {
-        'js': 'fa-file-code',
-        'py': 'fa-file-code',
-        'html': 'fa-file-code',
-        'css': 'fa-file-code',
-        'json': 'fa-file-code',
-        'txt': 'fa-file-alt',
-        'md': 'fa-file-alt',
-        'pdf': 'fa-file-pdf',
-        'png': 'fa-file-image',
-        'jpg': 'fa-file-image',
-        'jpeg': 'fa-file-image',
-        'gif': 'fa-file-image',
-        'zip': 'fa-file-archive',
-        'tar': 'fa-file-archive',
-        'gz': 'fa-file-archive'
-    };
+    copiedFile = selectedFile;
+    copiedFilePath = selectedFile.path;
+    isCutOperation = false;
     
-    return iconMap[ext] || 'fa-file';
+    showNotification('Copied: ' + selectedFile.name, 'success');
 }
 
-function getFileIconClass(file) {
-    if (file.is_directory) return 'folder';
+function cutFile() {
+    if (!selectedFile) return;
     
-    const ext = file.name.split('.').pop().toLowerCase();
-    const classMap = {
-        'js': 'js',
-        'py': 'py',
-        'html': 'html',
-        'css': 'css',
-        'json': 'json',
-        'txt': 'txt',
-        'png': 'image',
-        'jpg': 'image',
-        'jpeg': 'image',
-        'gif': 'image'
-    };
+    copiedFile = selectedFile;
+    copiedFilePath = selectedFile.path;
+    isCutOperation = true;
     
-    return classMap[ext] || 'default';
-}
-
-function formatFileSize(bytes) {
-    if (bytes === 0) return '0 B';
-    const k = 1024;
-    const sizes = ['B', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-}
-
-function selectFile(element, file) {
+    // Visual feedback for cut operation
     document.querySelectorAll('.file-item').forEach(item => {
-        item.classList.remove('selected');
+        if (item.dataset.path === selectedFile.path) {
+            item.style.opacity = '0.5';
+        }
     });
-    element.classList.add('selected');
-    selectedFile = file;
-    displayFileDetails(file);
+    
+    showNotification('Cut: ' + selectedFile.name, 'warning');
 }
 
-function isImageFile(ext) {
-    return ['png', 'jpg', 'jpeg', 'gif', 'bmp', 'svg', 'webp', 'ico'].includes(ext);
+async function pasteFile() {
+    if (!copiedFile) return;
+    
+    try {
+        const response = await fetch('/api/paste', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                source_path: copiedFilePath,
+                destination_path: currentPath,
+                is_cut: isCutOperation
+            })
+        });
+        
+        const data = await response.json();
+        if (data.success) {
+            showNotification(
+                isCutOperation ? 'Moved successfully' : 'Copied successfully',
+                'success'
+            );
+            
+            // Reset cut operation styling
+            document.querySelectorAll('.file-item').forEach(item => {
+                item.style.opacity = '1';
+            });
+            
+            if (isCutOperation) {
+                copiedFile = null;
+                copiedFilePath = null;
+                isCutOperation = false;
+            }
+            
+            loadDirectory(currentPath);
+            reloadDirectoryInTree(currentPath);
+        } else {
+            showNotification('Failed to paste: ' + data.error, 'error');
+        }
+    } catch (error) {
+        showNotification('Failed to paste: ' + error, 'error');
+    }
 }
 
-function isTextFile(ext) {
-    const textExtensions = ['txt', 'md', 'json', 'xml', 'html', 'css', 'js', 'py', 
-                           'cpp', 'c', 'h', 'sh', 'bash', 'java', 'php', 'sql', 
-                           'yml', 'yaml', 'conf', 'cfg', 'ini', 'log'];
-    return textExtensions.includes(ext);
-}
-
-function getLanguageFromExtension(filename) {
-    const ext = filename.split('.').pop().toLowerCase();
-    const languageMap = {
-        'py': 'Python',
-        'js': 'JavaScript',
-        'html': 'HTML',
-        'css': 'CSS',
-        'json': 'JSON',
-        'cpp': 'C++',
-        'c': 'C',
-        'h': 'C/C++ Header',
-        'sh': 'Bash',
-        'bash': 'Bash',
-        'java': 'Java',
-        'php': 'PHP',
-        'sql': 'SQL',
-        'xml': 'XML',
-        'md': 'Markdown',
-        'txt': 'Text',
-        'yml': 'YAML',
-        'yaml': 'YAML'
-    };
-    return languageMap[ext] || 'Text';
-}
-
+// Directory Tree Functions
 async function loadDirectoryTree(path, parentElement = null) {
     try {
         const response = await fetch(`/api/directories?path=${encodeURIComponent(path)}`);
@@ -391,6 +453,254 @@ function createDirectoryTreeItem(dir) {
     wrapper.appendChild(childrenContainer);
     
     return wrapper;
+}
+
+function reloadDirectoryInTree(path) {
+    const dirItems = document.querySelectorAll('.directory-item');
+    dirItems.forEach(item => {
+        if (item.dataset.path === path && item.classList.contains('expanded')) {
+            const childrenContainer = item.parentElement.querySelector('.directory-children');
+            if (childrenContainer) {
+                childrenContainer.innerHTML = '';
+                loadDirectoryTree(path, childrenContainer);
+            }
+        }
+    });
+}
+
+// File Display Functions
+function selectFile(element, file) {
+    document.querySelectorAll('.file-item').forEach(item => {
+        item.classList.remove('selected');
+    });
+    element.classList.add('selected');
+    selectedFile = file;
+    displayFileDetails(file);
+}
+
+function createFileItem(file) {
+    const item = document.createElement('div');
+    item.className = 'file-item';
+    item.dataset.path = file.path;
+    item.dataset.isDirectory = file.is_directory;
+    
+    // Make items draggable
+    item.draggable = true;
+    
+    const icon = document.createElement('i');
+    icon.className = `fas ${getFileIcon(file)} file-icon ${getFileIconClass(file)}`;
+    
+    const info = document.createElement('div');
+    info.className = 'file-info';
+    
+    const name = document.createElement('div');
+    name.className = 'file-name';
+    name.textContent = file.name;
+    
+    const meta = document.createElement('div');
+    meta.className = 'file-meta';
+    
+    const chmod = document.createElement('span');
+    chmod.className = 'file-chmod';
+    chmod.textContent = file.permissions;
+    
+    const sizeElement = document.createElement('span');
+    
+    if (file.is_directory) {
+        sizeElement.innerHTML = `<button class="btn-inspect" onclick="event.stopPropagation(); inspectFolder('${file.path}', this)"><i class="fas fa-search"></i> Inspect</button>`;
+    } else {
+        sizeElement.textContent = formatFileSize(file.size);
+    }
+    
+    meta.appendChild(chmod);
+    meta.appendChild(sizeElement);
+    
+    info.appendChild(name);
+    info.appendChild(meta);
+    
+    item.appendChild(icon);
+    item.appendChild(info);
+    
+    // Drag and drop event listeners
+    item.addEventListener('dragstart', handleDragStart);
+    item.addEventListener('dragend', handleDragEnd);
+    item.addEventListener('dragover', handleDragOver);
+    item.addEventListener('drop', handleDrop);
+    item.addEventListener('dragleave', handleDragLeave);
+    
+    item.addEventListener('click', () => {
+        if (file.is_directory) {
+            loadDirectory(file.path);
+        } else {
+            selectFile(item, file);
+        }
+    });
+    
+    item.addEventListener('dblclick', () => {
+        if (!file.is_directory) {
+            const ext = file.name.split('.').pop().toLowerCase();
+            if (isImageFile(ext)) {
+                openImageViewer(file);
+            } else if (isTextFile(ext)) {
+                openFileInEditor(file);
+            }
+        }
+    });
+    
+    // Context menu for copy/paste operations
+    item.addEventListener('contextmenu', (e) => {
+        e.preventDefault();
+        selectFile(item, file);
+        showContextMenu(e.clientX, e.clientY, file);
+    });
+    
+    return item;
+}
+
+function handleDragStart(e) {
+    draggedItem = {
+        path: e.currentTarget.dataset.path,
+        isDirectory: e.currentTarget.dataset.isDirectory === 'true'
+    };
+    
+    e.currentTarget.style.opacity = '0.5';
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/html', e.currentTarget.innerHTML);
+}
+
+function handleDragEnd(e) {
+    e.currentTarget.style.opacity = '1';
+    
+    // Remove all drag-over effects
+    document.querySelectorAll('.file-item').forEach(item => {
+        item.classList.remove('drag-over');
+    });
+}
+
+function handleDragOver(e) {
+    if (e.preventDefault) {
+        e.preventDefault();
+    }
+    
+    const targetItem = e.currentTarget;
+    const isDirectory = targetItem.dataset.isDirectory === 'true';
+    
+    // Only allow dropping on directories
+    if (isDirectory && draggedItem && draggedItem.path !== targetItem.dataset.path) {
+        e.dataTransfer.dropEffect = 'move';
+        targetItem.classList.add('drag-over');
+        return false;
+    }
+    
+    e.dataTransfer.dropEffect = 'none';
+    return false;
+}
+
+function handleDragLeave(e) {
+    e.currentTarget.classList.remove('drag-over');
+}
+
+async function handleDrop(e) {
+    if (e.stopPropagation) {
+        e.stopPropagation();
+    }
+    
+    e.currentTarget.classList.remove('drag-over');
+    
+    const targetPath = e.currentTarget.dataset.path;
+    const isTargetDirectory = e.currentTarget.dataset.isDirectory === 'true';
+    
+    if (!isTargetDirectory || !draggedItem) {
+        return false;
+    }
+    
+    // Don't allow dropping a folder into itself
+    if (draggedItem.path === targetPath) {
+        showNotification('Cannot move a folder into itself', 'error');
+        return false;
+    }
+    
+    try {
+        const response = await fetch('/api/move', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                source_path: draggedItem.path,
+                destination_path: targetPath
+            })
+        });
+        
+        const data = await response.json();
+        if (data.success) {
+            showNotification('Moved successfully', 'success');
+            loadDirectory(currentPath);
+            reloadDirectoryInTree(currentPath);
+        } else {
+            showNotification('Failed to move: ' + data.error, 'error');
+        }
+    } catch (error) {
+        showNotification('Failed to move: ' + error, 'error');
+    }
+    
+    return false;
+}
+
+function showContextMenu(x, y, file) {
+    // Remove existing context menu if any
+    const existingMenu = document.querySelector('.context-menu');
+    if (existingMenu) {
+        existingMenu.remove();
+    }
+    
+    const menu = document.createElement('div');
+    menu.className = 'context-menu';
+    menu.style.left = x + 'px';
+    menu.style.top = y + 'px';
+    
+    const menuItems = [
+        { icon: 'fa-copy', text: 'Copy', action: copyFile },
+        { icon: 'fa-cut', text: 'Cut', action: cutFile }
+    ];
+    
+    if (copiedFile) {
+        menuItems.push({ icon: 'fa-paste', text: 'Paste', action: pasteFile });
+    }
+    
+    menuItems.push({ icon: 'fa-edit', text: 'Rename', action: renameFile });
+    
+    if (!file.is_directory) {
+        menuItems.push({ icon: 'fa-download', text: 'Download', action: downloadFile });
+        
+        const ext = file.name.split('.').pop().toLowerCase();
+        if (isTextFile(ext)) {
+            menuItems.push({ icon: 'fa-edit', text: 'Edit', action: () => openFileInEditor(selectedFile) });
+        }
+    }
+    
+    menuItems.push({ icon: 'fa-trash', text: 'Delete', action: deleteFile, className: 'danger' });
+    
+    menuItems.forEach(item => {
+        const menuItem = document.createElement('div');
+        menuItem.className = 'context-menu-item' + (item.className ? ' ' + item.className : '');
+        menuItem.innerHTML = `<i class="fas ${item.icon}"></i> ${item.text}`;
+        menuItem.addEventListener('click', () => {
+            item.action();
+            menu.remove();
+        });
+        menu.appendChild(menuItem);
+    });
+    
+    document.body.appendChild(menu);
+    
+    // Close menu on click outside
+    setTimeout(() => {
+        document.addEventListener('click', function closeMenu() {
+            menu.remove();
+            document.removeEventListener('click', closeMenu);
+        });
+    }, 10);
 }
 
 // Image Viewer Functions
@@ -688,19 +998,6 @@ async function createNewFolder() {
     }
 }
 
-function reloadDirectoryInTree(path) {
-    const dirItems = document.querySelectorAll('.directory-item');
-    dirItems.forEach(item => {
-        if (item.dataset.path === path && item.classList.contains('expanded')) {
-            const childrenContainer = item.parentElement.querySelector('.directory-children');
-            if (childrenContainer) {
-                childrenContainer.innerHTML = '';
-                loadDirectoryTree(path, childrenContainer);
-            }
-        }
-    });
-}
-
 async function createNewFile() {
     const fileName = prompt('Enter file name:');
     if (fileName) {
@@ -818,16 +1115,6 @@ async function deleteFile() {
     }
 }
 
-function showError(message) {
-    const container = document.getElementById('files-container');
-    container.innerHTML = `
-        <div class="no-selection">
-            <i class="fas fa-exclamation-triangle" style="color: #dc3545;"></i>
-            <p>${message}</p>
-        </div>
-    `;
-}
-
 async function inspectFolder(path, buttonElement) {
     const originalHTML = buttonElement.innerHTML;
     buttonElement.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Calculating...';
@@ -872,7 +1159,7 @@ async function displayFileDetails(file) {
                     <div class="detail-row">
                         <span class="detail-label">Size:</span>
                         <span class="detail-value" id="detail-size">
-                            <button class="btn btn-sm btn-info" onclick="inspectFolderDetails('${file.path}')">
+                            <button class="btn btn-sm btn-info" onclick="event.stopPropagation(); inspectFolderDetails('${file.path}')">
                                 <i class="fas fa-search"></i> Calculate Size
                             </button>
                         </span>

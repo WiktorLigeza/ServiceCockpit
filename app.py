@@ -763,6 +763,90 @@ def rename_item():
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)})
 
+@app.route('/api/move', methods=['POST'])
+def move_item():
+    try:
+        data = request.json
+        source_path = data.get('source_path')
+        destination_path = data.get('destination_path')
+        
+        if not source_path or not destination_path:
+            return jsonify({'success': False, 'error': 'Source and destination paths required'})
+        
+        source_obj = Path(source_path)
+        dest_dir_obj = Path(destination_path)
+        
+        if not source_obj.exists():
+            return jsonify({'success': False, 'error': 'Source does not exist'})
+        
+        if not dest_dir_obj.is_dir():
+            return jsonify({'success': False, 'error': 'Destination must be a directory'})
+        
+        # Check if moving into itself or subdirectory
+        if source_obj.is_dir() and dest_dir_obj.is_relative_to(source_obj):
+            return jsonify({'success': False, 'error': 'Cannot move a folder into itself or its subdirectory'})
+        
+        destination_path_obj = dest_dir_obj / source_obj.name
+        
+        if destination_path_obj.exists():
+            return jsonify({'success': False, 'error': 'An item with that name already exists in the destination'})
+        
+        shutil.move(str(source_obj), str(destination_path_obj))
+        
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/api/paste', methods=['POST'])
+def paste_item():
+    try:
+        data = request.json
+        source_path = data.get('source_path')
+        destination_path = data.get('destination_path')
+        is_cut = data.get('is_cut', False)
+        
+        if not source_path or not destination_path:
+            return jsonify({'success': False, 'error': 'Source and destination paths required'})
+        
+        source_obj = Path(source_path)
+        dest_dir_obj = Path(destination_path)
+        
+        if not source_obj.exists():
+            return jsonify({'success': False, 'error': 'Source does not exist'})
+        
+        if not dest_dir_obj.is_dir():
+            return jsonify({'success': False, 'error': 'Destination must be a directory'})
+        
+        destination_path_obj = dest_dir_obj / source_obj.name
+        
+        # Handle name conflicts
+        if destination_path_obj.exists():
+            base_name = source_obj.stem
+            extension = source_obj.suffix
+            counter = 1
+            
+            while destination_path_obj.exists():
+                if source_obj.is_dir():
+                    new_name = f"{source_obj.name}_copy{counter}"
+                else:
+                    new_name = f"{base_name}_copy{counter}{extension}"
+                destination_path_obj = dest_dir_obj / new_name
+                counter += 1
+        
+        if is_cut:
+            # Move operation
+            shutil.move(str(source_obj), str(destination_path_obj))
+        else:
+            # Copy operation
+            if source_obj.is_dir():
+                shutil.copytree(str(source_obj), str(destination_path_obj))
+            else:
+                shutil.copy2(str(source_obj), str(destination_path_obj))
+        
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
 def format_size(bytes_size):
     """Format bytes to human readable size"""
     for unit in ['B', 'KB', 'MB', 'GB', 'TB']:
