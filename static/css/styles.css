@@ -1,6 +1,26 @@
+:root {
+    --page-zoom: 0.67;
+}
+
+/* Make the whole app render like browser zoom=67% (works in Chromium-based browsers) */
+html {
+    zoom: var(--page-zoom);
+}
+
+/* Firefox doesn’t support `zoom`; approximate via transform */
+@-moz-document url-prefix() {
+    html {
+        zoom: 1;
+        transform: scale(var(--page-zoom));
+        transform-origin: 0 0;
+        width: calc(100% / var(--page-zoom));
+        min-height: calc(100% / var(--page-zoom));
+    }
+}
+
 body {
     background: linear-gradient(135deg, #2a0845 0%, #191970 100%);
-    height: 100vh;
+    height: calc(100vh / var(--page-zoom));
     margin: 0;
     overflow: hidden;
 }
@@ -28,7 +48,7 @@ body {
     backdrop-filter: blur(10px);
     border-radius: 12px;
     box-shadow: 0 4px 6px rgba(0,0,0,0.5);
-    height: 100%;          /* Changed from max-height to height */
+    height: calc(100vh / var(--page-zoom));         /* Changed from max-height to height */
     overflow: hidden;      /* Add this to contain the flex items */
     flex: 1;
     min-width: 0;
@@ -111,7 +131,7 @@ body {
 .main-container {
     display: flex;
     width: 100%;
-    height: calc(100vh - 60px);  /* subtract header height */
+    height: calc((100vh - 60px) / var(--page-zoom));  /* subtract header height */
     overflow: hidden;
     gap: 1rem;
     padding: 1rem;
