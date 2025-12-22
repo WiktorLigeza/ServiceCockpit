@@ -45,6 +45,9 @@
         <div class="nav-item">
             <a href="/file_explorer">File Explorer</a>
         </div>
+        <div class="nav-item">
+            <a href="/logout">Logout</a>
+        </div>
     </nav>
     {% elif request.endpoint == 'file_explorer' %}
     <nav class="header-nav">
@@ -55,6 +58,9 @@
         </div>
         <div class="nav-item">
             <a href="/mqtt_explorer">MQTT Explorer</a>
+        </div>
+        <div class="nav-item">
+            <a href="/logout">Logout</a>
         </div>
     </nav>
     {% else %}
@@ -76,6 +82,9 @@
         </div>
         <div class="nav-item">
             <a href="/file_explorer">File Explorer</a>
+        </div>
+        <div class="nav-item">
+            <a href="/logout">Logout</a>
         </div>
     </nav>
     {% endif %}

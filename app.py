@@ -1,4 +1,4 @@
-from flask import Flask, render_template, url_for, jsonify, request
+from flask import Flask, render_template, url_for, jsonify, request, session, redirect
 from flask_socketio import SocketIO, emit, join_room, leave_room
 from systemd_manager import SystemdManager
 import threading
@@ -17,8 +17,22 @@ import paho.mqtt.client as mqtt
 import stat
 from pathlib import Path
 import shutil
+from flask_session import Session
 
 app = Flask(__name__, static_folder='static')
+
+# Server-side sessions are required because we cannot safely store a sudo password
+# in Flask's default signed-cookie session.
+app.secret_key = os.environ.get('SECRET_KEY') or os.urandom(32)
+app.config.update(
+    SESSION_TYPE='filesystem',
+    SESSION_FILE_DIR=os.path.join(os.path.dirname(__file__), '.flask_session'),
+    SESSION_PERMANENT=False,
+    SESSION_USE_SIGNER=True,
+    SESSION_COOKIE_HTTPONLY=True,
+    SESSION_COOKIE_SAMESITE='Lax',
+)
+Session(app)
 socketio = SocketIO(app, 
                    cors_allowed_origins="*",
                    async_mode='threading',
@@ -26,6 +40,62 @@ socketio = SocketIO(app,
                    ping_interval=5)
 
 CONFIG_FILE = 'config.json'
+
+SUDO_SESSION_KEY = 'sudo_password'
+AUTH_SESSION_KEY = 'sudo_authenticated'
+
+
+def is_authenticated() -> bool:
+    return bool(session.get(AUTH_SESSION_KEY))
+
+
+def _sudo_validate(password: str) -> tuple[bool, str]:
+    if not password:
+        return False, 'Password required'
+    try:
+        # IMPORTANT: `sudo -v` can succeed even with a wrong password if a sudo
+        # timestamp is already cached. Use `-k` with a harmless command to force
+        # sudo to actually verify the provided password.
+        result = subprocess.run(
+            ['sudo', '-S', '-p', '', '-k', '/usr/bin/true'],
+            input=password + '\n',
+            text=True,
+            capture_output=True,
+            timeout=5,
+        )
+        if result.returncode == 0:
+            return True, ''
+        stderr = (result.stderr or '').strip()
+        return False, stderr or 'Invalid sudo password'
+    except Exception as e:
+        return False, str(e)
+
+
+def run_sudo(args: list[str], password: str, input_text: str | None = None, check: bool = True):
+    """Run a command via sudo using -S and a password from server-side session."""
+    command = ['sudo', '-S', '-p', ''] + args
+    stdin = password + '\n'
+    if input_text:
+        stdin += input_text
+    return subprocess.run(
+        command,
+        input=stdin,
+        text=True,
+        capture_output=True,
+        check=check,
+    )
+
+
+@app.before_request
+def require_login_for_all_pages():
+    endpoint = request.endpoint or ''
+    # Allow static assets and login itself
+    if endpoint == 'static' or endpoint in {'login', 'logout'}:
+        return None
+    if not is_authenticated():
+        next_url = request.full_path if request.query_string else request.path
+        return redirect(url_for('login', next=next_url))
+    return None
 
 # MQTT Manager Class
 class MQTTManager:
@@ -154,7 +224,7 @@ ALLOWED_COMMANDS = {
 
 class CommandExecutor:
     @staticmethod
-    def execute_command(command, socket_id):
+    def execute_command(command, socket_id, sudo_password=None, sudo_enabled=False):
         try:
             # Parse the command
             args = shlex.split(command)
@@ -174,14 +244,30 @@ class CommandExecutor:
                     return "Error: Invalid characters in arguments"
 
             # Execute the command
+            popen_args = args
+            popen_input = None
+
+            # If the user is sudo-authenticated, allow sudo for systemctl/journalctl
+            if sudo_enabled and sudo_password and base_command in ['systemctl', 'journalctl']:
+                popen_args = ['sudo', '-S', '-p', ''] + args
+                popen_input = sudo_password + '\n'
+
             process = subprocess.Popen(
-                args,
+                popen_args,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
+                stdin=subprocess.PIPE if popen_input is not None else None,
                 text=True,
                 bufsize=1,
                 universal_newlines=True
             )
+
+            if popen_input is not None:
+                try:
+                    process.stdin.write(popen_input)
+                    process.stdin.flush()
+                except Exception:
+                    pass
 
             # Stream output in real-time
             while True:
@@ -472,13 +558,40 @@ def background_update():
 def index():
     return render_template('services.html')
 
+
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    error = ''
+    next_url = request.args.get('next') or request.form.get('next') or url_for('index')
+    if request.method == 'POST':
+        password = (request.form.get('password') or '').strip('\n')
+        ok, msg = _sudo_validate(password)
+        if ok:
+            session[AUTH_SESSION_KEY] = True
+            session[SUDO_SESSION_KEY] = password
+            session['login_time'] = time.time()
+            return redirect(next_url)
+        error = msg
+    return render_template('login.html', error=error, next=next_url)
+
+
+@app.route('/logout', methods=['GET'])
+def logout():
+    session.clear()
+    try:
+        subprocess.run(['sudo', '-k'], capture_output=True, text=True)
+    except Exception:
+        pass
+    return redirect(url_for('login'))
+
 @app.route('/mqtt_explorer')
 def mqtt_explorer():
     return render_template('mqtt_explorer.html')
 
 @app.route('/journal/<service>')
 def get_journal(service):
-    logs = SystemdManager.get_journal_logs(service)
+    sudo_password = session.get(SUDO_SESSION_KEY)
+    logs = SystemdManager.get_journal_logs(service, sudo_password=sudo_password)
     return {'logs': logs}
 
 @app.route('/api/devices')
@@ -552,7 +665,8 @@ def update_favorites():
 
 @app.route('/service/<service>', methods=['DELETE'])
 def delete_service(service):
-    success = SystemdManager.delete_service(service)
+    sudo_password = session.get(SUDO_SESSION_KEY)
+    success = SystemdManager.delete_service(service, sudo_password=sudo_password)
     if success:
         services = SystemdManager.get_all_services()
         socketio.emit('update_services', {'services': services})
@@ -569,16 +683,17 @@ def create_service():
 
     service_file_path = f'/etc/systemd/system/{service_name}.service'
 
+    sudo_password = session.get(SUDO_SESSION_KEY)
+    if not sudo_password:
+        return jsonify(success=False, message="Not authenticated"), 401
+
     try:
-        # Save the service content to a file
-        # Use subprocess to write the file with sudo privileges
-        subprocess.run(['sudo', 'tee', service_file_path], input=service_content, text=True, check=True)
+        # Save the service content to a file with sudo privileges.
+        run_sudo(['tee', service_file_path], sudo_password, input_text=(service_content or '') + '\n', check=True)
 
-        # Enable the service
-        subprocess.run(['sudo', 'systemctl', 'enable', service_name], check=True)
-
-        # Start the service
-        subprocess.run(['sudo', 'systemctl', 'start', service_name], check=True)
+        # Enable + start the service
+        run_sudo(['systemctl', 'enable', service_name], sudo_password, check=True)
+        run_sudo(['systemctl', 'start', service_name], sudo_password, check=True)
 
         services = SystemdManager.get_all_services()
         socketio.emit('update_services', {'services': services})
@@ -912,15 +1027,21 @@ def download_file():
 
 @socketio.on('connect')
 def handle_connect():
+    if not is_authenticated():
+        return False
     services = SystemdManager.get_all_services()
     socketio.emit('update_services', {'services': services})
 
 @socketio.on('service_action')
 def handle_service_action(data):
+    if not is_authenticated():
+        emit('console_output', {'output': "[ERROR] Not authenticated"}, room=request.sid)
+        return
     service = data['service']
     action = data['action']
     print(f"Service action: {service} - {action}")
-    success = SystemdManager.control_service(service, action)
+    sudo_password = session.get(SUDO_SESSION_KEY)
+    success = SystemdManager.control_service(service, action, sudo_password=sudo_password)
     if success:
         services = SystemdManager.get_all_services()
         socketio.emit('update_services', {'services': services})
@@ -928,14 +1049,22 @@ def handle_service_action(data):
 @socketio.on('console_command')
 def handle_console_command(data):
     try:
+        if not is_authenticated():
+            socketio.emit('console_output',
+                         {'output': "[ERROR] Not authenticated"},
+                         room=request.sid)
+            return
         command = data.get('command', '').strip()
         if not command:
             return
+
+        sudo_password = session.get(SUDO_SESSION_KEY)
+        sudo_enabled = bool(session.get(AUTH_SESSION_KEY) and sudo_password)
         
         # Create a thread for command execution
         thread = threading.Thread(
             target=CommandExecutor.execute_command,
-            args=(command, request.sid)
+            args=(command, request.sid, sudo_password, sudo_enabled)
         )
         thread.daemon = True
         thread.start()
@@ -947,6 +1076,8 @@ def handle_console_command(data):
 
 @socketio.on('join_console')
 def on_join_console():
+    if not is_authenticated():
+        return
     socketio.emit('console_output', 
                  {'output': f"[SUCCESS] Connected to console. Type 'help' for available commands."}, 
                  room=request.sid)
@@ -961,6 +1092,8 @@ def handle_console_help():
 # MQTT Socket Handlers
 @socketio.on('connect', namespace='/mqtt')
 def handle_mqtt_connect():
+    if not is_authenticated():
+        return False
     print("Client connected to MQTT namespace")
 
 @socketio.on('disconnect', namespace='/mqtt')
