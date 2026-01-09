@@ -89,6 +89,54 @@ body {
     box-shadow: 0 0 0 0.2rem rgba(0,255,255,0.25);
 }
 
+/* Small icon filter buttons (used in File Explorer + Processes) */
+.toolbar-section {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.filter-buttons {
+    display: flex;
+    gap: 5px;
+    align-items: center;
+}
+
+.filter-btn {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 4px;
+    padding: 8px 12px;
+    color: #b0b0b0;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 36px;
+    height: 36px;
+    gap: 6px;
+}
+
+.filter-btn:hover {
+    background: rgba(179, 0, 255, 0.1);
+    border-color: rgba(191, 0, 255, 0.3);
+    color: #c300ff;
+    transform: translateY(-1px);
+}
+
+.filter-btn.active {
+    background: rgba(174, 0, 255, 0.2);
+    border-color: #fb00ff;
+    color: #d000ff;
+    box-shadow: 0 0 10px rgba(162, 0, 255, 0.3);
+}
+
+.filter-btn i {
+    font-size: 14px;
+}
+
 .journal-container {
     color: #dadada;
     background: rgba(30, 30, 30, 0.1);
@@ -122,6 +170,7 @@ body {
     margin-right: 5px;
 }
 .active { background-color: #28a745; }
+.sleeping { background-color: var(--bs-warning); }
 .inactive { background-color: #dc3545; }
 .search-box {
     margin: 20px 0;

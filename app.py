@@ -757,6 +757,14 @@ def api_processes():
             cpu_percent = proc.cpu_percent(interval=None)
             memory_rss = proc.memory_info().rss
 
+            # Lightweight proxy for "network usage" (connection count).
+            try:
+                network_connections = len(proc.net_connections())
+            except (psutil.AccessDenied, psutil.ZombieProcess):
+                network_connections = 0
+            except Exception:
+                network_connections = 0
+
             processes.append({
                 'pid': pid,
                 'name': name,
@@ -764,6 +772,7 @@ def api_processes():
                 'status': status,
                 'cpu_percent': cpu_percent,
                 'memory_rss': memory_rss,
+                'network_connections': network_connections,
             })
         except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
             continue

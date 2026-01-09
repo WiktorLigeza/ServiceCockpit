@@ -17,28 +17,84 @@
     {% include 'console.html' %}
 
     <div class="main-container">
-        <div class="favorites-side">
-            <h2 class="section-title">Favorite Processes</h2>
-            <div class="search-container">
-                <input type="text" class="form-control" id="processFavoritesSearchInput" placeholder="Search favorites...">
-            </div>
-            <div id="processes-favorites-container">
-                <div class="loading-spinner">
-                    <i class="fas fa-spinner"></i>
-                    <p>Loading favorites...</p>
-                </div>
-            </div>
-        </div>
-
         <div class="services-side">
             <h2 class="section-title">All Processes</h2>
             <div class="search-container">
                 <input type="text" class="form-control" id="processesSearchInput" placeholder="Search processes...">
+                <div class="toolbar-section" style="margin-top: 10px; justify-content: space-between;">
+                    <div class="filter-buttons" id="all-status-filters" aria-label="Status filter">
+                        <button class="filter-btn active" type="button" data-scope="all" data-status="both" title="All statuses">
+                            <i class="fas fa-layer-group"></i>
+                        </button>
+                        <button class="filter-btn" type="button" data-scope="all" data-status="running" title="Running">
+                            <span class="status-dot active" style="margin-right: 0;"></span>
+                        </button>
+                        <button class="filter-btn" type="button" data-scope="all" data-status="sleeping" title="Sleeping">
+                            <span class="status-dot sleeping" style="margin-right: 0;"></span>
+                        </button>
+                    </div>
+
+                    <div class="filter-buttons" id="all-sort-controls" aria-label="Sort controls">
+                        <button class="filter-btn active" type="button" data-scope="all" data-sort="cpu" title="Sort by CPU">
+                            <i class="fas fa-microchip"></i>
+                            <i class="fas fa-arrow-down" data-sort-dir></i>
+                        </button>
+                        <button class="filter-btn" type="button" data-scope="all" data-sort="mem" title="Sort by Memory">
+                            <i class="fas fa-memory"></i>
+                            <i class="fas fa-arrow-down" data-sort-dir style="display: none;"></i>
+                        </button>
+                        <button class="filter-btn" type="button" data-scope="all" data-sort="net" title="Sort by Network">
+                            <i class="fas fa-network-wired"></i>
+                            <i class="fas fa-arrow-down" data-sort-dir style="display: none;"></i>
+                        </button>
+                    </div>
+                </div>
             </div>
             <div id="processes-container">
                 <div class="loading-spinner">
                     <i class="fas fa-spinner"></i>
                     <p>Loading processes...</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="favorites-side">
+            <h2 class="section-title">Favorite Processes</h2>
+            <div class="search-container">
+                <input type="text" class="form-control" id="processFavoritesSearchInput" placeholder="Search favorites...">
+                <div class="toolbar-section" style="margin-top: 10px; justify-content: space-between;">
+                    <div class="filter-buttons" id="fav-status-filters" aria-label="Status filter">
+                        <button class="filter-btn active" type="button" data-scope="favorites" data-status="both" title="All statuses">
+                            <i class="fas fa-layer-group"></i>
+                        </button>
+                        <button class="filter-btn" type="button" data-scope="favorites" data-status="running" title="Running">
+                            <span class="status-dot active" style="margin-right: 0;"></span>
+                        </button>
+                        <button class="filter-btn" type="button" data-scope="favorites" data-status="sleeping" title="Sleeping">
+                            <span class="status-dot sleeping" style="margin-right: 0;"></span>
+                        </button>
+                    </div>
+
+                    <div class="filter-buttons" id="fav-sort-controls" aria-label="Sort controls">
+                        <button class="filter-btn active" type="button" data-scope="favorites" data-sort="cpu" title="Sort by CPU">
+                            <i class="fas fa-microchip"></i>
+                            <i class="fas fa-arrow-down" data-sort-dir></i>
+                        </button>
+                        <button class="filter-btn" type="button" data-scope="favorites" data-sort="mem" title="Sort by Memory">
+                            <i class="fas fa-memory"></i>
+                            <i class="fas fa-arrow-down" data-sort-dir style="display: none;"></i>
+                        </button>
+                        <button class="filter-btn" type="button" data-scope="favorites" data-sort="net" title="Sort by Network">
+                            <i class="fas fa-network-wired"></i>
+                            <i class="fas fa-arrow-down" data-sort-dir style="display: none;"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div id="processes-favorites-container">
+                <div class="loading-spinner">
+                    <i class="fas fa-spinner"></i>
+                    <p>Loading favorites...</p>
                 </div>
             </div>
         </div>

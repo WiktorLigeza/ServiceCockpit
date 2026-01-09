@@ -2,6 +2,19 @@ let processFavorites = new Set();
 let lastProcessesData = [];
 let selectedPid = null;
 
+const uiState = {
+    all: {
+        status: 'both',
+        sortKey: 'cpu',
+        sortDir: 'desc'
+    },
+    favorites: {
+        status: 'both',
+        sortKey: 'cpu',
+        sortDir: 'desc'
+    }
+};
+
 // Chart instances
 let cpuChart = null;
 let memoryChart = null;
@@ -44,6 +57,32 @@ function escapeHtml(str) {
         .replaceAll("'", '&#39;');
 }
 
+function normalizeStatus(status) {
+    return (status || '').toString().toLowerCase();
+}
+
+function statusGroup(status) {
+    const s = normalizeStatus(status);
+    if (s === 'running') return 'running';
+    // psutil can report: sleeping, disk-sleep
+    if (s === 'sleeping' || s === 'disk-sleep') return 'sleeping';
+    return 'other';
+}
+
+function statusDotClass(status) {
+    const group = statusGroup(status);
+    if (group === 'running') return 'active';
+    if (group === 'sleeping') return 'sleeping';
+    return 'inactive';
+}
+
+function sortValue(proc, key) {
+    if (key === 'cpu') return Number(proc.cpu_percent) || 0;
+    if (key === 'mem') return Number(proc.memory_rss) || 0;
+    if (key === 'net') return Number(proc.network_connections) || 0;
+    return 0;
+}
+
 async function loadProcessFavorites() {
     try {
         const response = await fetch('/api/process_favorites');
@@ -82,6 +121,8 @@ function createProcessCard(proc, container = 'all') {
     const name = proc.name || 'unknown';
     const pid = proc.pid;
     const isFavorite = processFavorites.has(name);
+    const statusText = normalizeStatus(proc.status || '');
+    const dotClass = statusDotClass(statusText);
 
     if (container === 'favorites' && !isFavorite) return '';
 
@@ -94,9 +135,12 @@ function createProcessCard(proc, container = 'all') {
                     <i class="${isFavorite ? 'fas' : 'far'} fa-star"></i>
                 </button>
                 <div class="card-body" onclick="selectProcess(${pid})">
-                    <h5 class="card-title">${escapeHtml(name)} <span style="opacity: 0.8; font-size: 0.9rem;">(PID: ${pid})</span></h5>
+                    <h5 class="card-title">
+                        <span class="status-dot ${dotClass}" title="${escapeHtml(statusText || 'unknown')}"></span>
+                        ${escapeHtml(name)} <span style="opacity: 0.8; font-size: 0.9rem;">(PID: ${pid})</span>
+                    </h5>
                     <div style="opacity: 0.9; font-size: 0.9rem; margin-bottom: 0.5rem;">
-                        <div>User: ${escapeHtml(proc.username || 'N/A')} | Status: ${escapeHtml(proc.status || 'N/A')}</div>
+                        <div>User: ${escapeHtml(proc.username || 'N/A')} | Status: ${escapeHtml(statusText || 'N/A')}</div>
                         <div>CPU: ${(proc.cpu_percent ?? 0).toFixed(1)}% | Mem: ${fmtMB(proc.memory_rss || 0)} MB</div>
                     </div>
                     <div class="btn-group w-100">
@@ -110,14 +154,95 @@ function createProcessCard(proc, container = 'all') {
     `;
 }
 
-function applySearchFilter(items, searchValue) {
+function applyFiltersAndSort(items, searchValue, statusFilterValue, sortKey, sortDir) {
     const q = (searchValue || '').trim().toLowerCase();
-    if (!q) return items;
-    return items.filter(p => {
+    const statusFilter = (statusFilterValue || 'both').toLowerCase();
+
+    const direction = (sortDir || 'desc').toLowerCase() === 'asc' ? 1 : -1;
+
+    const filtered = items.filter(p => {
+        if (statusFilter !== 'both') {
+            const group = statusGroup(p.status);
+            if (group !== statusFilter) return false;
+        }
+
+        if (!q) return true;
         const name = (p.name || '').toLowerCase();
         const username = (p.username || '').toLowerCase();
         const pid = String(p.pid || '');
         return name.includes(q) || username.includes(q) || pid.includes(q);
+    });
+
+    const key = (sortKey || 'cpu').toLowerCase();
+    filtered.sort((a, b) => {
+        const av = sortValue(a, key);
+        const bv = sortValue(b, key);
+        if (av !== bv) return (av < bv ? -1 : 1) * direction;
+        // tie-breaker: name then pid for stability
+        const an = (a.name || '').toLowerCase();
+        const bn = (b.name || '').toLowerCase();
+        if (an !== bn) return an < bn ? -1 : 1;
+        return (a.pid || 0) - (b.pid || 0);
+    });
+    return filtered;
+}
+
+function setActiveControls(scope) {
+    const state = uiState[scope];
+    if (!state) return;
+
+    // Status buttons
+    document.querySelectorAll(`.filter-btn[data-scope="${scope}"][data-status]`).forEach(btn => {
+        const isActive = (btn.getAttribute('data-status') || 'both') === state.status;
+        btn.classList.toggle('active', isActive);
+    });
+
+    // Sort buttons + arrow direction
+    document.querySelectorAll(`.filter-btn[data-scope="${scope}"][data-sort]`).forEach(btn => {
+        const sort = btn.getAttribute('data-sort');
+        const isActive = sort === state.sortKey;
+        btn.classList.toggle('active', isActive);
+
+        const arrow = btn.querySelector('[data-sort-dir]');
+        if (!arrow) return;
+        if (!isActive) {
+            arrow.style.display = 'none';
+            return;
+        }
+        arrow.style.display = 'inline-block';
+        arrow.classList.remove('fa-arrow-up', 'fa-arrow-down');
+        arrow.classList.add(state.sortDir === 'asc' ? 'fa-arrow-up' : 'fa-arrow-down');
+    });
+}
+
+function wireControls() {
+    document.querySelectorAll('.filter-btn[data-scope][data-status]').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const scope = btn.getAttribute('data-scope');
+            const status = btn.getAttribute('data-status') || 'both';
+            if (!uiState[scope]) return;
+            uiState[scope].status = status;
+            setActiveControls(scope);
+            renderProcesses(lastProcessesData);
+        });
+    });
+
+    document.querySelectorAll('.filter-btn[data-scope][data-sort]').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const scope = btn.getAttribute('data-scope');
+            const sortKey = btn.getAttribute('data-sort') || 'cpu';
+            if (!uiState[scope]) return;
+
+            if (uiState[scope].sortKey === sortKey) {
+                uiState[scope].sortDir = uiState[scope].sortDir === 'asc' ? 'desc' : 'asc';
+            } else {
+                uiState[scope].sortKey = sortKey;
+                uiState[scope].sortDir = 'desc';
+            }
+
+            setActiveControls(scope);
+            renderProcesses(lastProcessesData);
+        });
     });
 }
 
@@ -127,8 +252,21 @@ function renderProcesses(processes) {
     const allSearch = document.getElementById('processesSearchInput');
     const favSearch = document.getElementById('processFavoritesSearchInput');
 
-    const filteredAll = applySearchFilter(processes, allSearch?.value);
-    const filteredFav = applySearchFilter(processes.filter(p => processFavorites.has(p.name || 'unknown')), favSearch?.value);
+    const filteredAll = applyFiltersAndSort(
+        processes,
+        allSearch?.value,
+        uiState.all.status,
+        uiState.all.sortKey,
+        uiState.all.sortDir
+    );
+
+    const filteredFav = applyFiltersAndSort(
+        processes.filter(p => processFavorites.has(p.name || 'unknown')),
+        favSearch?.value,
+        uiState.favorites.status,
+        uiState.favorites.sortKey,
+        uiState.favorites.sortDir
+    );
 
     allContainer.innerHTML = filteredAll.map(p => createProcessCard(p, 'all')).join('') || '<div style="padding: 1rem; color: #dadada;">No processes found</div>';
     favContainer.innerHTML = filteredFav.map(p => createProcessCard(p, 'favorites')).join('') || '<div style="padding: 1rem; color: #dadada;">No favorites yet</div>';
@@ -440,6 +578,11 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     const allSearch = document.getElementById('processesSearchInput');
     const favSearch = document.getElementById('processFavoritesSearchInput');
+
+    // Setup icon controls (status + sort)
+    wireControls();
+    setActiveControls('all');
+    setActiveControls('favorites');
 
     allSearch?.addEventListener('input', () => renderProcesses(lastProcessesData));
     favSearch?.addEventListener('input', () => renderProcesses(lastProcessesData));
