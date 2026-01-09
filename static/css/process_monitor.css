@@ -33,7 +33,7 @@
     flex-direction: column;
     gap: 20px;
     flex-grow: 1;
-    overflow-y: auto;
+    margin-bottom: 50px;
 }
 
 .chart-wrapper {
