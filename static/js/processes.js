@@ -127,7 +127,6 @@ function createProcessCard(proc, container = 'all') {
     const isFavorite = processFavorites.has(name);
     const statusText = normalizeStatus(proc.status || '');
     const dotClass = statusDotClass(statusText);
-    const exePath = proc.exe || '';
 
     if (container === 'favorites' && !isFavorite) return '';
 
@@ -139,22 +138,19 @@ function createProcessCard(proc, container = 'all') {
                 <button class="star-btn" onclick='toggleProcessFavorite(event, ${JSON.stringify(name)})' title="${isFavorite ? 'Remove from favorites' : 'Add to favorites'}">
                     <i class="${isFavorite ? 'fas' : 'far'} fa-star"></i>
                 </button>
-                <button class="info-btn" onclick="showProcessInfo(event, ${pid})" title="More info">
-                    <i class="fas fa-info-circle"></i>
-                </button>
                 <div class="card-body" onclick="selectProcess(${pid})">
                     <h5 class="card-title">
                         <span class="status-dot ${dotClass}" title="${escapeHtml(statusText || 'unknown')}"></span>
                         ${escapeHtml(name)} <span style="opacity: 0.8; font-size: 0.9rem;">(PID: ${pid})</span>
                     </h5>
-                    <div style="opacity: 0.9; font-size: 0.9rem; margin-bottom: 0.5rem;">
-                        <div>User: ${escapeHtml(proc.username || 'N/A')} | Status: ${escapeHtml(statusText || 'N/A')}</div>
-                        <div>CPU: ${(proc.cpu_percent ?? 0).toFixed(1)}% | Mem: ${fmtMB(proc.memory_rss || 0)} MB</div>
-                        <div>Path: ${escapeHtml(exePath || 'N/A')}</div>
+                    <div class="btn-group w-100" role="group" aria-label="Process actions">
+                        <button class="btn btn-sm btn-info" onclick="showProcessInfo(event, ${pid})" title="Process Info">
+                            <i class="fas fa-info"></i>
+                        </button>
+                        <button class="btn btn-sm btn-danger" onclick="killProcess(event, ${pid})" title="Kill process">
+                            <i class="fas fa-skull-crossbones"></i>
+                        </button>
                     </div>
-                    <button class="btn btn-sm btn-danger w-100" onclick="killProcess(event, ${pid})" title="Kill process">
-                        <i class="fas fa-skull-crossbones"></i>
-                    </button>
                 </div>
             </div>
         </div>

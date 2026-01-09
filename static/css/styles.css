@@ -223,7 +223,10 @@ body {
 #favorites-container::-webkit-scrollbar,
 #processes-container::-webkit-scrollbar,
 #processes-favorites-container::-webkit-scrollbar,
-#journal-container::-webkit-scrollbar {
+#journal-container::-webkit-scrollbar,
+#process-details-container::-webkit-scrollbar,
+.journal-container::-webkit-scrollbar,
+.process-graphs-container::-webkit-scrollbar {
     width: 6px;
 }
 
@@ -231,7 +234,10 @@ body {
 #favorites-container::-webkit-scrollbar-track,
 #processes-container::-webkit-scrollbar-track,
 #processes-favorites-container::-webkit-scrollbar-track,
-#journal-container::-webkit-scrollbar-track {
+#journal-container::-webkit-scrollbar-track,
+#process-details-container::-webkit-scrollbar-track,
+.journal-container::-webkit-scrollbar-track,
+.process-graphs-container::-webkit-scrollbar-track {
     background: rgba(0,0,0,0.1);
 }
 
@@ -239,9 +245,25 @@ body {
 #favorites-container::-webkit-scrollbar-thumb,
 #processes-container::-webkit-scrollbar-thumb,
 #processes-favorites-container::-webkit-scrollbar-thumb,
-#journal-container::-webkit-scrollbar-thumb {
+#journal-container::-webkit-scrollbar-thumb,
+#process-details-container::-webkit-scrollbar-thumb,
+.journal-container::-webkit-scrollbar-thumb,
+.process-graphs-container::-webkit-scrollbar-thumb {
     background-color: #00ffff;
     border-radius: 3px;
+}
+
+/* Firefox scrollbar styling (keeps Processes consistent with Services) */
+#services-container,
+#favorites-container,
+#processes-container,
+#processes-favorites-container,
+#journal-container,
+#process-details-container,
+.journal-container,
+.process-graphs-container {
+    scrollbar-width: thin;
+    scrollbar-color: #00ffff rgba(0, 0, 0, 0.1);
 }
 
 .star-btn {
@@ -259,6 +281,8 @@ body {
     transform: scale(1.2);
 }
 
+/* Legacy: older process cards used a floating info icon.
+   Kept for compatibility, but current UIs prefer action buttons in `.btn-group`. */
 .info-btn {
     position: absolute;
     right: 48px;
@@ -369,6 +393,12 @@ body {
 .btn-warning i {
     color: #ffc107;
     filter: drop-shadow(0 0 5px rgba(255, 193, 7, 0.5));
+}
+
+/* Info button icon should match the cockpit accent like other actions */
+.btn-info i {
+    color: #00ffff;
+    filter: drop-shadow(0 0 5px rgba(0, 255, 255, 0.5));
 }
 
 .btn:hover i {
