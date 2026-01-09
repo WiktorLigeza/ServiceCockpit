@@ -1,9 +1,10 @@
 import time
 
 import paho.mqtt.client as mqtt
-from flask import Blueprint, render_template
+from flask import Blueprint, jsonify, render_template
 
 from auth import is_authenticated
+from config_store import get_mqtt_connection_settings, save_mqtt_connection
 
 
 class MQTTManager:
@@ -124,6 +125,12 @@ def build_mqtt_blueprint() -> Blueprint:
     def mqtt_explorer():
         return render_template('mqtt_explorer.html')
 
+    @bp.route('/api/mqtt/connection_settings')
+    def mqtt_connection_settings():
+        if not is_authenticated():
+            return jsonify({'success': False, 'error': 'unauthorized'}), 401
+        return jsonify({'success': True, 'connections': get_mqtt_connection_settings()})
+
     return bp
 
 
@@ -149,6 +156,12 @@ def register_mqtt_socket_handlers(socketio):
         port = (data or {}).get('port', 1883)
         username = (data or {}).get('username', '')
         password = (data or {}).get('password', '')
+
+        try:
+            save_mqtt_connection(host, int(port))
+        except Exception:
+            # Connection persistence should never block connecting.
+            pass
 
         success = mqtt_manager.connect(host, port, username, password)
         if not success:
