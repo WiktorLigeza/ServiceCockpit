@@ -307,7 +307,16 @@ async function showServiceInfo(serviceName) {
     if (!service) return;
 
     // Show the info card
+    const infocard = document.getElementById('infocard');
+    if (!infocard) return;
     infocard.classList.remove('hidden');
+
+    const title = document.getElementById('infocard-title');
+    if (title) title.textContent = 'Service Info';
+    const svc = document.getElementById('service-info-section');
+    const proc = document.getElementById('process-info-section');
+    if (svc) svc.style.display = 'block';
+    if (proc) proc.style.display = 'none';
 
     // Update all service details
     document.getElementById('info-name').textContent = service.name;

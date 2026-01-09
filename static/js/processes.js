@@ -123,6 +123,7 @@ function createProcessCard(proc, container = 'all') {
     const isFavorite = processFavorites.has(name);
     const statusText = normalizeStatus(proc.status || '');
     const dotClass = statusDotClass(statusText);
+    const exePath = proc.exe || '';
 
     if (container === 'favorites' && !isFavorite) return '';
 
@@ -142,8 +143,12 @@ function createProcessCard(proc, container = 'all') {
                     <div style="opacity: 0.9; font-size: 0.9rem; margin-bottom: 0.5rem;">
                         <div>User: ${escapeHtml(proc.username || 'N/A')} | Status: ${escapeHtml(statusText || 'N/A')}</div>
                         <div>CPU: ${(proc.cpu_percent ?? 0).toFixed(1)}% | Mem: ${fmtMB(proc.memory_rss || 0)} MB</div>
+                        <div>Path: ${escapeHtml(exePath || 'N/A')}</div>
                     </div>
                     <div class="btn-group w-100">
+                        <button class="btn btn-sm btn-info" onclick="showProcessInfo(event, ${pid})" title="Process Info">
+                            <i class="fas fa-info"></i>
+                        </button>
                         <button class="btn btn-sm btn-danger" onclick="killProcess(event, ${pid})" title="Kill process">
                             <i class="fas fa-skull-crossbones"></i>
                         </button>
@@ -152,6 +157,70 @@ function createProcessCard(proc, container = 'all') {
             </div>
         </div>
     `;
+}
+
+function _bytesToHuman(bytes) {
+    const b = Number(bytes) || 0;
+    const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+    let v = b;
+    let i = 0;
+    while (v >= 1024 && i < units.length - 1) {
+        v /= 1024;
+        i++;
+    }
+    return `${v.toFixed(2)} ${units[i]}`;
+}
+
+function _formatStarted(ts) {
+    if (!ts) return 'N/A';
+    const d = new Date(ts * 1000);
+    if (Number.isNaN(d.getTime())) return 'N/A';
+    return d.toLocaleString();
+}
+
+function _showInfocardProcessSection() {
+    const title = document.getElementById('infocard-title');
+    const svc = document.getElementById('service-info-section');
+    const proc = document.getElementById('process-info-section');
+    if (title) title.textContent = 'Process Info';
+    if (svc) svc.style.display = 'none';
+    if (proc) proc.style.display = 'block';
+}
+
+async function showProcessInfo(event, pid) {
+    event?.stopPropagation?.();
+
+    const infocard = document.getElementById('infocard');
+    if (!infocard) return;
+
+    infocard.classList.remove('hidden');
+    _showInfocardProcessSection();
+
+    try {
+        const resp = await fetch(`/api/process_info/${pid}`);
+        const data = await resp.json().catch(() => ({}));
+        if (!resp.ok || !data.success) {
+            alert(data.error || 'Failed to load process info');
+            return;
+        }
+
+        document.getElementById('proc-info-name').textContent = data.name || 'N/A';
+        document.getElementById('proc-info-pid').textContent = data.pid ?? 'N/A';
+        document.getElementById('proc-info-ppid').textContent = data.ppid ?? 'N/A';
+        document.getElementById('proc-info-user').textContent = data.username || 'N/A';
+        document.getElementById('proc-info-status').textContent = data.status || 'N/A';
+        document.getElementById('proc-info-exe').textContent = data.exe || 'N/A';
+        document.getElementById('proc-info-cwd').textContent = data.cwd || 'N/A';
+        document.getElementById('proc-info-cmdline').textContent = (data.cmdline || []).join(' ') || 'N/A';
+        document.getElementById('proc-info-cpu').textContent = `${Number(data.cpu_percent || 0).toFixed(1)}`;
+        document.getElementById('proc-info-mem').textContent = _bytesToHuman(data.memory_rss || 0);
+        document.getElementById('proc-info-threads').textContent = data.threads ?? 'N/A';
+        document.getElementById('proc-info-started').textContent = _formatStarted(data.create_time);
+        document.getElementById('proc-info-connections').textContent = data.network_connections ?? '0';
+    } catch (e) {
+        console.error('Process info failed:', e);
+        alert('Failed to load process info');
+    }
 }
 
 function applyFiltersAndSort(items, searchValue, statusFilterValue, sortKey, sortDir) {
@@ -573,6 +642,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     window.toggleProcessFavorite = toggleProcessFavorite;
     window.selectProcess = selectProcess;
     window.killProcess = killProcess;
+    window.showProcessInfo = showProcessInfo;
 
     await loadProcessFavorites();
 
@@ -591,4 +661,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     updateDetailsEmptyState();
 
     setInterval(fetchProcesses, 3000);
+
+    // Info card close button (Processes page also uses it)
+    const infocard = document.getElementById('infocard');
+    const closeBtn = infocard?.querySelector('.btn-close');
+    closeBtn?.addEventListener('click', () => infocard.classList.add('hidden'));
 });

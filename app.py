@@ -753,6 +753,13 @@ def api_processes():
             username = proc.info.get('username') or ''
             status = proc.info.get('status') or ''
 
+            try:
+                exe = proc.exe()
+            except (psutil.AccessDenied, psutil.ZombieProcess):
+                exe = ''
+            except Exception:
+                exe = ''
+
             # cpu_percent is a sampled metric; it may be 0 for the first call.
             cpu_percent = proc.cpu_percent(interval=None)
             memory_rss = proc.memory_info().rss
@@ -770,6 +777,7 @@ def api_processes():
                 'name': name,
                 'username': username,
                 'status': status,
+                'exe': exe,
                 'cpu_percent': cpu_percent,
                 'memory_rss': memory_rss,
                 'network_connections': network_connections,
@@ -782,6 +790,59 @@ def api_processes():
     # Sort to keep UI stable: highest CPU, then memory.
     processes.sort(key=lambda p: (p.get('cpu_percent', 0), p.get('memory_rss', 0)), reverse=True)
     return jsonify(success=True, processes=processes)
+
+
+@app.route('/api/process_info/<int:pid>')
+def api_process_info(pid: int):
+    try:
+        p = psutil.Process(pid)
+
+        def safe(callable_, default=None):
+            try:
+                return callable_()
+            except (psutil.AccessDenied, psutil.ZombieProcess):
+                return default
+            except psutil.NoSuchProcess:
+                raise
+            except Exception:
+                return default
+
+        name = safe(p.name, '')
+        username = safe(p.username, '')
+        status = safe(p.status, '')
+        exe = safe(p.exe, '')
+        cwd = safe(p.cwd, '')
+        cmdline = safe(p.cmdline, []) or []
+        ppid = safe(p.ppid, None)
+        create_time = safe(p.create_time, None)
+        threads = safe(p.num_threads, None)
+
+        # Light metrics (avoid long sampling here)
+        cpu_percent = safe(lambda: p.cpu_percent(interval=0.0), 0.0)
+        mem_rss = safe(lambda: p.memory_info().rss, 0)
+
+        connections = safe(lambda: len(p.net_connections()), 0)
+
+        return jsonify({
+            'success': True,
+            'pid': pid,
+            'ppid': ppid,
+            'name': name,
+            'username': username,
+            'status': status,
+            'exe': exe,
+            'cwd': cwd,
+            'cmdline': cmdline,
+            'cpu_percent': cpu_percent,
+            'memory_rss': mem_rss,
+            'threads': threads,
+            'create_time': create_time,
+            'network_connections': connections,
+        })
+    except psutil.NoSuchProcess:
+        return jsonify({'success': False, 'process_exists': False, 'error': 'process_not_found'}), 404
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 
 @app.route('/api/process/kill', methods=['POST'])

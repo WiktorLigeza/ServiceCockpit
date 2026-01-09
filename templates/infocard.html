@@ -1,13 +1,13 @@
 <div id="infocard" class="infocard hidden">
     <div class="infocard-header">
-        <span class="infocard-title">Service Info</span>
+        <span class="infocard-title" id="infocard-title">Service Info</span>
         <div class="infocard-controls">
             <button class="btn-close"><i class="fas fa-times"></i></button>
         </div>
     </div>
     <div class="infocard-body">
         <div class="infocard-content">
-            <div class="info-section">
+            <div class="info-section" id="service-info-section">
                 <h3>Service Details</h3>
                 <div id="service-details">
                     <p><strong>Name: </strong><span id="info-name"></span></p>
@@ -16,6 +16,25 @@
                     <p><strong>Main PID: </strong><span id="info-pid"></span></p>
                     <p><strong>Tasks: </strong><span id="info-tasks"></span></p>
                     <p><strong>Path: </strong><span id="info-path"></span></p>
+                </div>
+            </div>
+
+            <div class="info-section" id="process-info-section" style="display: none;">
+                <h3>Process Details</h3>
+                <div id="process-details">
+                    <p><strong>Name: </strong><span id="proc-info-name"></span></p>
+                    <p><strong>PID: </strong><span id="proc-info-pid"></span></p>
+                    <p><strong>PPID: </strong><span id="proc-info-ppid"></span></p>
+                    <p><strong>User: </strong><span id="proc-info-user"></span></p>
+                    <p><strong>Status: </strong><span id="proc-info-status"></span></p>
+                    <p><strong>Path: </strong><span id="proc-info-exe"></span></p>
+                    <p><strong>CWD: </strong><span id="proc-info-cwd"></span></p>
+                    <p><strong>Cmdline: </strong><span id="proc-info-cmdline"></span></p>
+                    <p><strong>CPU (%): </strong><span id="proc-info-cpu"></span></p>
+                    <p><strong>Memory (RSS): </strong><span id="proc-info-mem"></span></p>
+                    <p><strong>Threads: </strong><span id="proc-info-threads"></span></p>
+                    <p><strong>Started: </strong><span id="proc-info-started"></span></p>
+                    <p><strong>Connections: </strong><span id="proc-info-connections"></span></p>
                 </div>
             </div>
         </div>
