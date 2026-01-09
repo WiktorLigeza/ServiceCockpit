@@ -43,6 +43,9 @@
             </a>
         </div>
         <div class="nav-item">
+            <a href="/processes">Processes</a>
+        </div>
+        <div class="nav-item">
             <a href="/file_explorer">File Explorer</a>
         </div>
         <div class="nav-item header-gear" id="header-gear">
@@ -69,7 +72,37 @@
             </a>
         </div>
         <div class="nav-item">
+            <a href="/processes">Processes</a>
+        </div>
+        <div class="nav-item">
             <a href="/mqtt_explorer">MQTT Explorer</a>
+        </div>
+        <div class="nav-item header-gear" id="header-gear">
+            <a href="#" onclick="toggleGearMenu(event); return false;" aria-label="Menu">
+                <i class="fas fa-cog"></i>
+            </a>
+            <div class="gear-menu" id="gear-menu" style="display: none;">
+                <a href="#" onclick="hideGearMenu(); requestReboot(); return false;">
+                    <i class="fas fa-sync-alt"></i>
+                    Reboot
+                </a>
+                <a href="/logout">
+                    <i class="fas fa-sign-out-alt"></i>
+                    Logout
+                </a>
+            </div>
+        </div>
+    </nav>
+    {% elif request.endpoint == 'processes_page' %}
+    <nav class="header-nav">
+        <div class="nav-item">
+            <a href="{{ url_for('index') }}">Services</a>
+        </div>
+        <div class="nav-item">
+            <a href="/mqtt_explorer">MQTT Explorer</a>
+        </div>
+        <div class="nav-item">
+            <a href="/file_explorer">File Explorer</a>
         </div>
         <div class="nav-item header-gear" id="header-gear">
             <a href="#" onclick="toggleGearMenu(event); return false;" aria-label="Menu">
@@ -99,7 +132,7 @@
             <a href="#" onclick="toggleConsole(); return false;">Console</a>
         </div>
         <div class="nav-item">
-            <a href="#" onclick="toggleProcessMonitor(); return false;">Processes</a>
+            <a href="/processes">Processes</a>
         </div>
         <div class="nav-item">
             <a href="/mqtt_explorer">MQTT Explorer</a>
@@ -169,13 +202,6 @@ function toggleConsole() {
 function toggleDevicesManager() {
     const devicesManager = document.getElementById('devices-manager-card');
     devicesManager.style.display = devicesManager.style.display === 'none' || devicesManager.style.display === '' 
-        ? 'flex' 
-        : 'none';
-}
-
-function toggleProcessMonitor() {
-    const processMonitor = document.getElementById('process-monitor-card');
-    processMonitor.style.display = processMonitor.style.display === 'none' || processMonitor.style.display === '' 
         ? 'flex' 
         : 'none';
 }

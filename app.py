@@ -17,6 +17,7 @@ import paho.mqtt.client as mqtt
 import stat
 from pathlib import Path
 import shutil
+import signal
 from flask_session import Session
 
 app = Flask(__name__, static_folder='static')
@@ -301,9 +302,23 @@ class CommandExecutor:
 def load_config():
     if not os.path.exists(CONFIG_FILE):
         with open(CONFIG_FILE, 'w') as f:
-            json.dump({"services": {"favorites": []}, "folders": {"preferences": {}}}, f)
+            json.dump({"services": {"favorites": []}, "folders": {"preferences": {}}, "processes": {"favorites": []}}, f)
     with open(CONFIG_FILE, 'r') as f:
-        return json.load(f)
+        config = json.load(f)
+    # Backwards compatible defaults
+    if 'services' not in config:
+        config['services'] = {}
+    if 'favorites' not in config['services']:
+        config['services']['favorites'] = []
+    if 'folders' not in config:
+        config['folders'] = {}
+    if 'preferences' not in config['folders']:
+        config['folders']['preferences'] = {}
+    if 'processes' not in config:
+        config['processes'] = {}
+    if 'favorites' not in config['processes']:
+        config['processes']['favorites'] = []
+    return config
 
 def save_config(config):
     with open(CONFIG_FILE, 'w') as f:
@@ -314,6 +329,14 @@ def save_favorites(favorites):
     if 'services' not in config:
         config['services'] = {}
     config['services']['favorites'] = favorites
+    save_config(config)
+
+
+def save_process_favorites(favorites: list[str]):
+    config = load_config()
+    if 'processes' not in config:
+        config['processes'] = {}
+    config['processes']['favorites'] = favorites
     save_config(config)
 
 def save_folder_preferences(preferences):
@@ -559,6 +582,11 @@ def index():
     return render_template('services.html')
 
 
+@app.route('/processes')
+def processes_page():
+    return render_template('processes.html')
+
+
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     error = ''
@@ -697,6 +725,86 @@ def update_favorites():
     new_favorites = request.json.get('favorites', [])
     save_favorites(new_favorites)
     return jsonify(success=True)
+
+
+@app.route('/api/process_favorites', methods=['GET'])
+def get_process_favorites():
+    config = load_config()
+    return jsonify(favorites=config.get('processes', {}).get('favorites', []))
+
+
+@app.route('/api/process_favorites', methods=['POST'])
+def update_process_favorites():
+    new_favorites = request.json.get('favorites', [])
+    # Ensure stable JSON output
+    if not isinstance(new_favorites, list):
+        new_favorites = []
+    save_process_favorites(new_favorites)
+    return jsonify(success=True)
+
+
+@app.route('/api/processes')
+def api_processes():
+    processes = []
+    for proc in psutil.process_iter(['pid', 'name', 'username', 'status']):
+        try:
+            pid = proc.info.get('pid')
+            name = proc.info.get('name') or 'unknown'
+            username = proc.info.get('username') or ''
+            status = proc.info.get('status') or ''
+
+            # cpu_percent is a sampled metric; it may be 0 for the first call.
+            cpu_percent = proc.cpu_percent(interval=None)
+            memory_rss = proc.memory_info().rss
+
+            processes.append({
+                'pid': pid,
+                'name': name,
+                'username': username,
+                'status': status,
+                'cpu_percent': cpu_percent,
+                'memory_rss': memory_rss,
+            })
+        except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
+            continue
+        except Exception:
+            continue
+
+    # Sort to keep UI stable: highest CPU, then memory.
+    processes.sort(key=lambda p: (p.get('cpu_percent', 0), p.get('memory_rss', 0)), reverse=True)
+    return jsonify(success=True, processes=processes)
+
+
+@app.route('/api/process/kill', methods=['POST'])
+def api_kill_process():
+    data = request.get_json(silent=True) or {}
+    pid = int(data.get('pid') or 0)
+    if pid <= 1:
+        return jsonify(success=False, error='Invalid PID'), 400
+
+    # First try without sudo (works for same-user processes).
+    try:
+        os.kill(pid, signal.SIGKILL)
+        return jsonify(success=True)
+    except ProcessLookupError:
+        return jsonify(success=False, error='process_not_found', process_exists=False), 404
+    except PermissionError:
+        pass
+    except Exception as e:
+        return jsonify(success=False, error=str(e)), 500
+
+    sudo_password = session.get(SUDO_SESSION_KEY)
+    if not sudo_password:
+        return jsonify(error='sudo_required', message='Sudo password required to kill this process.'), 401
+
+    try:
+        run_sudo(['/bin/kill', '-9', str(pid)], sudo_password)
+        return jsonify(success=True)
+    except subprocess.CalledProcessError as e:
+        msg = (e.stderr or e.stdout or '').strip() or 'Failed to kill process'
+        return jsonify(success=False, error=msg), 400
+    except Exception as e:
+        return jsonify(success=False, error=str(e)), 500
 
 @app.route('/service/<service>', methods=['DELETE'])
 def delete_service(service):

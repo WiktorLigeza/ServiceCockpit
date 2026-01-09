@@ -138,7 +138,7 @@ body {
     box-sizing: border-box;
 }
 
-#services-container, #favorites-container {
+#services-container, #favorites-container, #processes-container, #processes-favorites-container {
     flex: 1;              /* Take remaining space */
     overflow-y: auto;     /* Enable vertical scrolling */
     overflow-x: hidden;   /* Prevent horizontal scrolling */
@@ -172,18 +172,24 @@ body {
 
 #services-container::-webkit-scrollbar,
 #favorites-container::-webkit-scrollbar,
+#processes-container::-webkit-scrollbar,
+#processes-favorites-container::-webkit-scrollbar,
 #journal-container::-webkit-scrollbar {
     width: 6px;
 }
 
 #services-container::-webkit-scrollbar-track,
 #favorites-container::-webkit-scrollbar-track,
+#processes-container::-webkit-scrollbar-track,
+#processes-favorites-container::-webkit-scrollbar-track,
 #journal-container::-webkit-scrollbar-track {
     background: rgba(0,0,0,0.1);
 }
 
 #services-container::-webkit-scrollbar-thumb,
 #favorites-container::-webkit-scrollbar-thumb,
+#processes-container::-webkit-scrollbar-thumb,
+#processes-favorites-container::-webkit-scrollbar-thumb,
 #journal-container::-webkit-scrollbar-thumb {
     background-color: #00ffff;
     border-radius: 3px;

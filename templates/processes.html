@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Phantom Cockpit - Processes</title>
+    <link rel="icon" type="image/webp" href="{{ url_for('static', filename='images/H2A_Render_Phantom.webp') }}">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/process_monitor.css') }}">
+    <script src="https://cdn.socket.io/4.0.1/socket.io.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body class="bg-light">
+    {% include 'header.html' %}
+    {% include 'console.html' %}
+
+    <div class="main-container">
+        <div class="favorites-side">
+            <h2 class="section-title">Favorite Processes</h2>
+            <div class="search-container">
+                <input type="text" class="form-control" id="processFavoritesSearchInput" placeholder="Search favorites...">
+            </div>
+            <div id="processes-favorites-container">
+                <div class="loading-spinner">
+                    <i class="fas fa-spinner"></i>
+                    <p>Loading favorites...</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="services-side">
+            <h2 class="section-title">All Processes</h2>
+            <div class="search-container">
+                <input type="text" class="form-control" id="processesSearchInput" placeholder="Search processes...">
+            </div>
+            <div id="processes-container">
+                <div class="loading-spinner">
+                    <i class="fas fa-spinner"></i>
+                    <p>Loading processes...</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="journal-side">
+            <h2 class="section-title" id="process-title">Process Metrics</h2>
+            <div id="process-details-container" class="journal-container">
+                <div id="process-details-empty">Select a process to view metrics</div>
+                <div id="process-graphs" class="process-graphs-container" style="display: none;">
+                    <div class="chart-wrapper">
+                        <canvas id="cpu-usage-chart" width="650" height="150"></canvas>
+                    </div>
+                    <div class="chart-wrapper">
+                        <canvas id="memory-usage-chart" width="650" height="150"></canvas>
+                    </div>
+                    <div class="chart-wrapper">
+                        <canvas id="network-traffic-chart" width="650" height="150"></canvas>
+                    </div>
+                    <div class="chart-wrapper">
+                        <canvas id="network-conn-chart" width="650" height="150"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/processes.js') }}"></script>
+</body>
+</html>

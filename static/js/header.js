@@ -178,10 +178,10 @@ headerSocket.on('connect', () => {
 });
 
 headerSocket.on('connect_error', (error) => {
-    console.error('Connection error:', error);
+    console.error('-:', error);
     ['cpu-temp', 'memory-usage', 'storage-usage'].forEach(id => {
         const element = document.querySelector(`#${id}`);
-        element.querySelector('.metric-value').textContent = 'Connection error';
+        element.querySelector('.metric-value').textContent = '-';
         element.querySelector('i').style.color = '#ff0000';
     });
 });
