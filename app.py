@@ -389,18 +389,17 @@ def check_internet_connection():
 
 def get_system_metrics():
     cpu_temp = get_cpu_temp()
-    # CPU percent: per-core sampling then sum to get a "total" (can exceed 100% on multi-core).
+    # CPU percent: normalize overall to 0..100 by averaging per-core usage.
+    # (Summing cores can exceed 100% and is usually not what users expect in a header.)
     cpu_per_core = psutil.cpu_percent(interval=0.1, percpu=True) or []
-    cpu_percent_avg = round(float(sum(cpu_per_core)) / float(len(cpu_per_core)), 1) if cpu_per_core else 0.0
-    cpu_percent_sum = round(float(sum(cpu_per_core)), 1) if cpu_per_core else 0.0
+    cpu_percent = round(float(sum(cpu_per_core)) / float(len(cpu_per_core)), 1) if cpu_per_core else 0.0
     memory = psutil.virtual_memory()
     disk = psutil.disk_usage('/')
     has_internet = check_internet_connection()
     
     return {
         'cpu_temp': cpu_temp,
-        'cpu_percent_sum': cpu_percent_sum,
-        'cpu_percent_avg': cpu_percent_avg,
+        'cpu_percent': cpu_percent,
         'cpu_percent_per_core': cpu_per_core,
         'memory_percent': memory.percent,
         'memory_used': round(memory.used / (1024 * 1024 * 1024), 2),  # GB

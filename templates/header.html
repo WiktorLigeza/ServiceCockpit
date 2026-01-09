@@ -13,7 +13,12 @@
         <div class="nav-item " id="cpu-usage">
             <i class="fas fa-microchip"></i>
             <span class="metric-value">0%</span>
-            <div class="tooltip"><span>CPU Usage</span></div>
+            <div class="tooltip"><span>CPU Usage (click for cores)</span></div>
+
+            <div class="cpu-menu" id="cpu-menu" style="display: none;">
+                <div class="cpu-menu-title">Per-core usage</div>
+                <div class="cpu-menu-list" id="cpu-menu-list"></div>
+            </div>
         </div>
         <div class="nav-item " id="memory-usage">
             <i class="fas fa-memory"></i>

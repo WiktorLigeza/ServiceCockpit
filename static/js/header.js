@@ -30,6 +30,74 @@ function getColorForValue(value, type) {
     return `rgb(${color[0]}, ${color[1]}, ${color[2]})`;
 }
 
+function getCpuClassForPercent(value) {
+    const v = Number(value) || 0;
+    if (v >= 90) return 'cpu-hot';
+    if (v >= 70) return 'cpu-warn';
+    return 'cpu-ok';
+}
+
+function getCpuColorForPercent(value) {
+    const v = Number(value) || 0;
+    if (v >= 90) return 'rgb(231, 76, 60)';
+    if (v >= 70) return 'rgb(255, 165, 0)';
+    return 'rgb(46, 204, 113)';
+}
+
+function _getCpuMenuEls() {
+    return {
+        wrapper: document.getElementById('cpu-usage'),
+        menu: document.getElementById('cpu-menu'),
+        list: document.getElementById('cpu-menu-list')
+    };
+}
+
+function hideCpuMenu() {
+    const { menu } = _getCpuMenuEls();
+    if (menu) menu.style.display = 'none';
+}
+
+function toggleCpuMenu(ev) {
+    ev?.stopPropagation?.();
+    const { menu } = _getCpuMenuEls();
+    if (!menu) return;
+    const isOpen = menu.style.display !== 'none';
+    menu.style.display = isOpen ? 'none' : 'block';
+}
+
+function renderCpuMenu(perCore) {
+    const { list } = _getCpuMenuEls();
+    if (!list) return;
+    list.innerHTML = '';
+
+    const cores = Array.isArray(perCore) ? perCore : [];
+    if (!cores.length) {
+        const row = document.createElement('div');
+        row.className = 'cpu-core-row';
+        row.textContent = 'No per-core data';
+        list.appendChild(row);
+        return;
+    }
+
+    cores.forEach((percent, idx) => {
+        const row = document.createElement('div');
+        row.className = 'cpu-core-row';
+
+        const label = document.createElement('div');
+        label.className = 'cpu-core-label';
+        label.textContent = `Core ${idx}`;
+
+        const value = document.createElement('div');
+        const cls = getCpuClassForPercent(percent);
+        value.className = `cpu-core-value ${cls}`;
+        value.textContent = `${percent}%`;
+
+        row.appendChild(label);
+        row.appendChild(value);
+        list.appendChild(row);
+    });
+}
+
 function updateMetrics(data) {
     console.log('Updating metrics:', data);
     
@@ -41,14 +109,14 @@ function updateMetrics(data) {
 
     // CPU Usage (summed across cores)
     const cpuUsage = document.querySelector('#cpu-usage');
-    if (cpuUsage && data && typeof data.cpu_percent_sum !== 'undefined') {
-        cpuUsage.querySelector('.metric-value').textContent = `${data.cpu_percent_sum}%`;
-        const avg = typeof data.cpu_percent_avg !== 'undefined' ? data.cpu_percent_avg : 0;
-        cpuUsage.querySelector('i').style.color = getColorForValue(avg, 'cpu_usage');
+    if (cpuUsage && data && typeof data.cpu_percent !== 'undefined') {
+        const overall = Number(data.cpu_percent) || 0;
+        cpuUsage.querySelector('.metric-value').textContent = `${overall}%`;
+        cpuUsage.querySelector('i').style.color = getCpuColorForPercent(overall);
 
         const perCore = Array.isArray(data.cpu_percent_per_core) ? data.cpu_percent_per_core : [];
-        const perCoreText = perCore.length ? `Per-core: ${perCore.map(v => `${v}%`).join(', ')}` : 'Per-core: N/A';
-        cpuUsage.querySelector('.tooltip').textContent = `CPU Usage (sum): ${data.cpu_percent_sum}%\nCPU Usage (avg): ${avg}%\n${perCoreText}`;
+        renderCpuMenu(perCore);
+        cpuUsage.querySelector('.tooltip').textContent = 'CPU Usage (click for cores)';
     }
 
     // Memory Usage
@@ -229,13 +297,8 @@ document.addEventListener('DOMContentLoaded', () => {
         fetch('/system_metrics')
             .then(response => response.json())
             .then(data => {
-                document.getElementById('cpu-temp').querySelector('.metric-value').textContent = `${data.cpu_temp}°C`;
-                const cpuEl = document.getElementById('cpu-usage');
-                if (cpuEl && typeof data.cpu_percent_sum !== 'undefined') {
-                    cpuEl.querySelector('.metric-value').textContent = `${data.cpu_percent_sum}%`;
-                }
-                document.getElementById('memory-usage').querySelector('.metric-value').textContent = `${data.memory_percent}%`;
-                document.getElementById('storage-usage').querySelector('.metric-value').textContent = `${data.storage_percent}%`;
+                // Reuse the same renderer as the socket updates
+                updateMetrics(data);
 
                 const internetIcon = document.getElementById('internet-connection').querySelector('i');
                 if (data.has_internet) {
@@ -306,6 +369,24 @@ document.addEventListener('DOMContentLoaded', () => {
         if (menu.style.display === 'none') return;
         if (!wrapper.contains(e.target)) {
             hideGearMenu();
+        }
+    });
+
+    // CPU usage dropdown
+    const cpuWrapper = document.getElementById('cpu-usage');
+    if (cpuWrapper) {
+        cpuWrapper.addEventListener('click', (ev) => {
+            toggleCpuMenu(ev);
+        });
+    }
+
+    // Close CPU menu on outside click
+    document.addEventListener('click', (e) => {
+        const { wrapper, menu } = _getCpuMenuEls();
+        if (!menu || !wrapper) return;
+        if (menu.style.display === 'none') return;
+        if (!wrapper.contains(e.target)) {
+            hideCpuMenu();
         }
     });
 });

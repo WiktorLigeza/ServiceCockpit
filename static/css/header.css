@@ -137,6 +137,69 @@
     opacity: 1;
 }
 
+/* CPU per-core dropdown */
+#cpu-usage {
+    cursor: pointer;
+}
+
+.cpu-menu {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    width: 260px;
+    margin-top: 10px;
+    background: rgba(35, 0, 63, 1);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+    padding: 10px;
+    z-index: 10001;
+}
+
+.cpu-menu-title {
+    font-weight: 600;
+    font-size: 0.95rem;
+    margin-bottom: 8px;
+    color: rgba(255, 255, 255, 0.9);
+}
+
+.cpu-menu-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.cpu-core-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 6px 8px;
+    border-radius: 6px;
+    background: rgba(0, 0, 0, 0.18);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    font-size: 0.9rem;
+}
+
+.cpu-core-label {
+    color: rgba(255, 255, 255, 0.85);
+}
+
+.cpu-core-value {
+    font-weight: 600;
+}
+
+.cpu-ok {
+    color: rgb(46, 204, 113);
+}
+
+.cpu-warn {
+    color: rgb(255, 165, 0);
+}
+
+.cpu-hot {
+    color: rgb(231, 76, 60);
+}
+
 .fa-globe.connected {
     color: green;
 }
