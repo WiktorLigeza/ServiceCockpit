@@ -206,6 +206,14 @@ serviceSocket.on('update_services', data => {
     updateServices(data.services);
 });
 
+serviceSocket.on('sudo_required', (payload = {}) => {
+    if (typeof window.showSudoModal === 'function') {
+        window.showSudoModal(payload.message || 'Sudo password required.');
+    } else {
+        alert(payload.message || 'Sudo password required.');
+    }
+});
+
 servicesSearchInput.addEventListener('input', () => {
     if (!isLoading) updateServices(lastServicesData);
 });

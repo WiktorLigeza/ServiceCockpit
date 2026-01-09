@@ -575,6 +575,22 @@ def login():
     return render_template('login.html', error=error, next=next_url)
 
 
+@app.route('/api/sudo/login', methods=['POST'])
+def api_sudo_login():
+    try:
+        data = request.get_json(silent=True) or {}
+        password = (data.get('password') or '').strip('\n')
+        ok, msg = _sudo_validate(password)
+        if not ok:
+            return jsonify({'success': False, 'error': msg or 'Invalid sudo password'}), 401
+        session[AUTH_SESSION_KEY] = True
+        session[SUDO_SESSION_KEY] = password
+        session['login_time'] = time.time()
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
 @app.route('/logout', methods=['GET'])
 def logout():
     session.clear()
@@ -583,6 +599,25 @@ def logout():
     except Exception:
         pass
     return redirect(url_for('login'))
+
+
+@app.route('/api/reboot', methods=['POST'])
+def api_reboot():
+    sudo_password = session.get(SUDO_SESSION_KEY)
+    if not sudo_password:
+        return jsonify({
+            'success': False,
+            'error': 'sudo_required',
+            'message': 'Sudo password required to reboot.'
+        }), 401
+    try:
+        # Trigger reboot. The server may terminate quickly after this call.
+        run_sudo(['systemctl', 'reboot'], sudo_password, check=False)
+        return jsonify({'success': True})
+    except subprocess.CalledProcessError as e:
+        return jsonify({'success': False, 'error': (e.stderr or str(e)).strip()}), 500
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/mqtt_explorer')
 def mqtt_explorer():
@@ -666,6 +701,8 @@ def update_favorites():
 @app.route('/service/<service>', methods=['DELETE'])
 def delete_service(service):
     sudo_password = session.get(SUDO_SESSION_KEY)
+    if not sudo_password:
+        return jsonify({'success': False, 'error': 'sudo_required', 'message': 'Sudo password required.'}), 401
     success = SystemdManager.delete_service(service, sudo_password=sudo_password)
     if success:
         services = SystemdManager.get_all_services()
@@ -685,7 +722,7 @@ def create_service():
 
     sudo_password = session.get(SUDO_SESSION_KEY)
     if not sudo_password:
-        return jsonify(success=False, message="Not authenticated"), 401
+        return jsonify(success=False, error='sudo_required', message="Sudo password required."), 401
 
     try:
         # Save the service content to a file with sudo privileges.
@@ -1041,6 +1078,10 @@ def handle_service_action(data):
     action = data['action']
     print(f"Service action: {service} - {action}")
     sudo_password = session.get(SUDO_SESSION_KEY)
+    if not sudo_password:
+        emit('sudo_required', {'message': 'Sudo password required to control services.'}, room=request.sid)
+        emit('console_output', {'output': "[ERROR] Sudo password required"}, room=request.sid)
+        return
     success = SystemdManager.control_service(service, action, sudo_password=sudo_password)
     if success:
         services = SystemdManager.get_all_services()

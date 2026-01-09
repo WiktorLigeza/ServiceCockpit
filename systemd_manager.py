@@ -56,10 +56,9 @@ class SystemdManager:
         if action not in valid_actions:
             return False
         try:
-            if sudo_password:
-                SystemdManager._run_sudo(['systemctl', action, service_name], sudo_password, check=True)
-            else:
-                subprocess.run(['sudo', 'systemctl', action, service_name], check=True)
+            if not sudo_password:
+                return False
+            SystemdManager._run_sudo(['systemctl', action, service_name], sudo_password, check=True)
             return True
         except Exception:
             return False
@@ -79,16 +78,12 @@ class SystemdManager:
     @staticmethod
     def delete_service(service_name, sudo_password: str | None = None):
         try:
-            if sudo_password:
-                SystemdManager._run_sudo(['systemctl', 'stop', service_name], sudo_password, check=True)
-                SystemdManager._run_sudo(['systemctl', 'disable', service_name], sudo_password, check=True)
-                SystemdManager._run_sudo(['rm', f'/etc/systemd/system/{service_name}'], sudo_password, check=True)
-                SystemdManager._run_sudo(['systemctl', 'daemon-reload'], sudo_password, check=True)
-            else:
-                subprocess.run(['sudo', 'systemctl', 'stop', service_name], check=True)
-                subprocess.run(['sudo', 'systemctl', 'disable', service_name], check=True)
-                subprocess.run(['sudo', 'rm', f'/etc/systemd/system/{service_name}'], check=True)
-                subprocess.run(['sudo', 'systemctl', 'daemon-reload'], check=True)
+            if not sudo_password:
+                return False
+            SystemdManager._run_sudo(['systemctl', 'stop', service_name], sudo_password, check=True)
+            SystemdManager._run_sudo(['systemctl', 'disable', service_name], sudo_password, check=True)
+            SystemdManager._run_sudo(['rm', f'/etc/systemd/system/{service_name}'], sudo_password, check=True)
+            SystemdManager._run_sudo(['systemctl', 'daemon-reload'], sudo_password, check=True)
             return True
         except Exception:
             return False

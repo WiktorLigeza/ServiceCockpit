@@ -65,7 +65,7 @@ WantedBy=default.target`;
                 console.log('Service created successfully:', data.message);
                 // Optionally, display a success message to the user
             } else {
-                console.error('Failed to create service:', data.message);
+                console.error('Failed to create service:', data.message || data.error);
                 // Optionally, display an error message to the user
             }
         })
