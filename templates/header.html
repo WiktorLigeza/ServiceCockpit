@@ -45,8 +45,20 @@
         <div class="nav-item">
             <a href="/file_explorer">File Explorer</a>
         </div>
-        <div class="nav-item">
-            <a href="/logout">Logout</a>
+        <div class="nav-item header-gear" id="header-gear">
+            <a href="#" onclick="toggleGearMenu(event); return false;" aria-label="Menu">
+                <i class="fas fa-cog"></i>
+            </a>
+            <div class="gear-menu" id="gear-menu" style="display: none;">
+                <a href="#" onclick="hideGearMenu(); requestReboot(); return false;">
+                    <i class="fas fa-sync-alt"></i>
+                    Reboot
+                </a>
+                <a href="/logout">
+                    <i class="fas fa-sign-out-alt"></i>
+                    Logout
+                </a>
+            </div>
         </div>
     </nav>
     {% elif request.endpoint == 'file_explorer' %}
@@ -59,8 +71,20 @@
         <div class="nav-item">
             <a href="/mqtt_explorer">MQTT Explorer</a>
         </div>
-        <div class="nav-item">
-            <a href="/logout">Logout</a>
+        <div class="nav-item header-gear" id="header-gear">
+            <a href="#" onclick="toggleGearMenu(event); return false;" aria-label="Menu">
+                <i class="fas fa-cog"></i>
+            </a>
+            <div class="gear-menu" id="gear-menu" style="display: none;">
+                <a href="#" onclick="hideGearMenu(); requestReboot(); return false;">
+                    <i class="fas fa-sync-alt"></i>
+                    Reboot
+                </a>
+                <a href="/logout">
+                    <i class="fas fa-sign-out-alt"></i>
+                    Logout
+                </a>
+            </div>
         </div>
     </nav>
     {% else %}
@@ -83,12 +107,56 @@
         <div class="nav-item">
             <a href="/file_explorer">File Explorer</a>
         </div>
-        <div class="nav-item">
-            <a href="/logout">Logout</a>
+        <div class="nav-item header-gear" id="header-gear">
+            <a href="#" onclick="toggleGearMenu(event); return false;" aria-label="Menu">
+                <i class="fas fa-cog"></i>
+            </a>
+            <div class="gear-menu" id="gear-menu" style="display: none;">
+                <a href="#" onclick="hideGearMenu(); requestReboot(); return false;">
+                    <i class="fas fa-sync-alt"></i>
+                    Reboot
+                </a>
+                <a href="/logout">
+                    <i class="fas fa-sign-out-alt"></i>
+                    Logout
+                </a>
+            </div>
         </div>
     </nav>
     {% endif %}
 </header>
+
+<!-- Sudo password modal (used for privileged actions like reboot/systemctl) -->
+<div id="sudo-modal" class="sudo-modal" aria-hidden="true" style="display: none;">
+    <div class="sudo-modal-backdrop" onclick="hideSudoModal()"></div>
+    <div class="sudo-modal-card" role="dialog" aria-modal="true" aria-labelledby="sudo-modal-title">
+        <div class="sudo-modal-header">
+            <div class="sudo-modal-title" id="sudo-modal-title">
+                <i class="fas fa-lock"></i>
+                Sudo Password Required
+            </div>
+            <button class="sudo-modal-close" type="button" onclick="hideSudoModal()" aria-label="Close">&times;</button>
+        </div>
+
+        <div class="sudo-modal-body">
+            <div id="sudo-modal-message" class="sudo-modal-message">
+                Enter the sudo password for the server user running this app.
+            </div>
+
+            <form id="sudo-modal-form">
+                <label for="sudo-modal-password" class="sudo-modal-label">Sudo password</label>
+                <input id="sudo-modal-password" class="sudo-modal-input" type="password" autocomplete="current-password" required />
+
+                <div id="sudo-modal-error" class="sudo-modal-error" style="display: none;"></div>
+
+                <div class="sudo-modal-actions">
+                    <button type="button" class="sudo-modal-btn secondary" onclick="hideSudoModal()">Cancel</button>
+                    <button type="submit" class="sudo-modal-btn primary">Unlock</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
 
 <script>
 function toggleConsole() {
