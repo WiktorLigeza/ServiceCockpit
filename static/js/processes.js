@@ -647,7 +647,7 @@ function initCharts() {
         options: {
             ...darkThemeOptions,
             scales: { ...darkThemeOptions.scales, y: { ...darkThemeOptions.scales.y, beginAtZero: true, max: 100 } },
-            plugins: { ...darkThemeOptions.plugins, title: { ...darkThemeOptions.plugins.title, display: true, text: 'CPU Usage (Min: 0%, Max: 0%)' } }
+            plugins: { ...darkThemeOptions.plugins, title: { ...darkThemeOptions.plugins.title, display: true, text: 'CPU Usage | Min: 0% | Max: 0% | Now: 0%' } }
         }
     });
 
@@ -657,7 +657,7 @@ function initCharts() {
         options: {
             ...darkThemeOptions,
             scales: { ...darkThemeOptions.scales, y: { ...darkThemeOptions.scales.y, beginAtZero: true } },
-            plugins: { ...darkThemeOptions.plugins, title: { ...darkThemeOptions.plugins.title, display: true, text: 'Memory Usage (Min: 0MB, Max: 0MB)' } }
+            plugins: { ...darkThemeOptions.plugins, title: { ...darkThemeOptions.plugins.title, display: true, text: 'Memory Usage | Min: 0MB | Max: 0MB | Now: 0MB' } }
         }
     });
 
@@ -667,7 +667,7 @@ function initCharts() {
         options: {
             ...darkThemeOptions,
             scales: { ...darkThemeOptions.scales, y: { ...darkThemeOptions.scales.y, beginAtZero: true } },
-            plugins: { ...darkThemeOptions.plugins, title: { ...darkThemeOptions.plugins.title, display: true, text: 'Threads (Min: 0, Max: 0)' } }
+            plugins: { ...darkThemeOptions.plugins, title: { ...darkThemeOptions.plugins.title, display: true, text: 'Threads | Min: 0 | Max: 0 | Now: 0' } }
         }
     });
 
@@ -677,7 +677,7 @@ function initCharts() {
         options: {
             ...darkThemeOptions,
             scales: { ...darkThemeOptions.scales, y: { ...darkThemeOptions.scales.y, beginAtZero: true } },
-            plugins: { ...darkThemeOptions.plugins, title: { ...darkThemeOptions.plugins.title, display: true, text: 'Network Connections (Min: 0, Max: 0)' } }
+            plugins: { ...darkThemeOptions.plugins, title: { ...darkThemeOptions.plugins.title, display: true, text: 'Network Connections | Min: 0 | Max: 0 | Now: 0' } }
         }
     });
 
@@ -687,7 +687,7 @@ function initCharts() {
         options: {
             ...darkThemeOptions,
             scales: { ...darkThemeOptions.scales, y: { ...darkThemeOptions.scales.y, beginAtZero: true } },
-            plugins: { ...darkThemeOptions.plugins, title: { ...darkThemeOptions.plugins.title, display: true, text: 'Network Traffic (Min: 0KB/s, Max: 0KB/s)' } }
+            plugins: { ...darkThemeOptions.plugins, title: { ...darkThemeOptions.plugins.title, display: true, text: 'Network Traffic | Min: 0KB/s | Max: 0KB/s | Now: 0KB/s' } }
         }
     });
 
@@ -770,31 +770,32 @@ function updateCharts(data) {
 
     cpuChart.data.labels = indexLabels;
     cpuChart.data.datasets[0].data = cpuData;
-    cpuChart.options.plugins.title.text = `CPU Usage (Min: ${cpuMin.toFixed(1)}%, Max: ${cpuMax.toFixed(1)}%)`;
+    cpuChart.options.plugins.title.text = `CPU Usage | Min: ${cpuMin.toFixed(1)}% | Max: ${cpuMax.toFixed(1)}% | Now: ${Number(data.cpu_percent).toFixed(1)}%`;
+    cpuChart.options.scales.y.max = Math.max(100, Math.ceil(cpuMax / 10) * 10);
     cpuChart.options.scales.x.ticks.display = false;
     cpuChart.update('none');
 
     memoryChart.data.labels = indexLabels;
     memoryChart.data.datasets[0].data = memoryData;
-    memoryChart.options.plugins.title.text = `Memory Usage (Min: ${memoryMin.toFixed(1)}MB, Max: ${memoryMax.toFixed(1)}MB)`;
+    memoryChart.options.plugins.title.text = `Memory Usage | Min: ${memoryMin.toFixed(1)}MB | Max: ${memoryMax.toFixed(1)}MB | Now: ${memoryMB.toFixed(1)}MB`;
     memoryChart.options.scales.x.ticks.display = false;
     memoryChart.update('none');
 
     threadsChart.data.labels = indexLabels;
     threadsChart.data.datasets[0].data = threadsData;
-    threadsChart.options.plugins.title.text = `Threads (Min: ${threadsMin === Number.MAX_VALUE ? 0 : threadsMin}, Max: ${threadsMax})`;
+    threadsChart.options.plugins.title.text = `Threads | Min: ${threadsMin === Number.MAX_VALUE ? 0 : threadsMin} | Max: ${threadsMax} | Now: ${threads}`;
     threadsChart.options.scales.x.ticks.display = false;
     threadsChart.update('none');
 
     networkConnChart.data.labels = indexLabels;
     networkConnChart.data.datasets[0].data = networkConnData;
-    networkConnChart.options.plugins.title.text = `Network Connections (Min: ${networkConnMin}, Max: ${networkConnMax})`;
+    networkConnChart.options.plugins.title.text = `Network Connections | Min: ${networkConnMin} | Max: ${networkConnMax} | Now: ${data.network_connections}`;
     networkConnChart.options.scales.x.ticks.display = false;
     networkConnChart.update('none');
 
     networkTrafficChart.data.labels = indexLabels;
     networkTrafficChart.data.datasets[0].data = networkTrafficData;
-    networkTrafficChart.options.plugins.title.text = `Network Traffic (Min: ${networkTrafficMin.toFixed(1)}KB/s, Max: ${networkTrafficMax.toFixed(1)}KB/s)`;
+    networkTrafficChart.options.plugins.title.text = `Network Traffic | Min: ${networkTrafficMin.toFixed(1)}KB/s | Max: ${networkTrafficMax.toFixed(1)}KB/s | Now: ${Number(networkRate).toFixed(1)}KB/s`;
     networkTrafficChart.options.scales.x.ticks.display = false;
     networkTrafficChart.update('none');
 

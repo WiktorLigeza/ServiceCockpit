@@ -129,7 +129,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             title: {
                                 ...darkThemeOptions.plugins.title,
                                 display: true,
-                                text: 'CPU Usage (Min: 0%, Max: 0%)'
+                                text: 'CPU Usage | Min: 0% | Max: 0% | Now: 0%'
                             }
                         }
                     }
@@ -162,7 +162,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             title: {
                                 ...darkThemeOptions.plugins.title,
                                 display: true,
-                                text: 'Memory Usage (Min: 0MB, Max: 0MB)'
+                                text: 'Memory Usage | Min: 0MB | Max: 0MB | Now: 0MB'
                             }
                         }
                     }
@@ -197,7 +197,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             title: {
                                 ...darkThemeOptions.plugins.title,
                                 display: true,
-                                text: 'Network Connections (Min: 0, Max: 0)'
+                                text: 'Network Connections | Min: 0 | Max: 0 | Now: 0'
                             }
                         }
                     }
@@ -232,7 +232,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             title: {
                                 ...darkThemeOptions.plugins.title,
                                 display: true,
-                                text: 'Network Traffic (Min: 0KB/s, Max: 0KB/s)'
+                                text: 'Network Traffic | Min: 0KB/s | Max: 0KB/s | Now: 0KB/s'
                             }
                         }
                     }
@@ -348,25 +348,26 @@ document.addEventListener('DOMContentLoaded', () => {
             // Update CPU chart
             cpuChart.data.labels = timestamps;
             cpuChart.data.datasets[0].data = cpuData;
-            cpuChart.options.plugins.title.text = `CPU Usage (Min: ${cpuMin.toFixed(1)}%, Max: ${cpuMax.toFixed(1)}%)`;
+            cpuChart.options.plugins.title.text = `CPU Usage | Min: ${cpuMin.toFixed(1)}% | Max: ${cpuMax.toFixed(1)}% | Now: ${Number(data.cpu_percent).toFixed(1)}%`;
+            cpuChart.options.scales.y.max = Math.max(100, Math.ceil(cpuMax / 10) * 10);
             cpuChart.update('none');
             
             // Update memory chart
             memoryChart.data.labels = timestamps;
             memoryChart.data.datasets[0].data = memoryData;
-            memoryChart.options.plugins.title.text = `Memory Usage (Min: ${memoryMin.toFixed(1)}MB, Max: ${memoryMax.toFixed(1)}MB)`;
+            memoryChart.options.plugins.title.text = `Memory Usage | Min: ${memoryMin.toFixed(1)}MB | Max: ${memoryMax.toFixed(1)}MB | Now: ${memoryMB.toFixed(1)}MB`;
             memoryChart.update('none');
             
             // Update network connections chart
             networkConnChart.data.labels = timestamps;
             networkConnChart.data.datasets[0].data = networkConnData;
-            networkConnChart.options.plugins.title.text = `Network Connections (Min: ${networkConnMin}, Max: ${networkConnMax})`;
+            networkConnChart.options.plugins.title.text = `Network Connections | Min: ${networkConnMin} | Max: ${networkConnMax} | Now: ${data.network_connections}`;
             networkConnChart.update('none');
             
             // Update network traffic chart
             networkTrafficChart.data.labels = timestamps;
             networkTrafficChart.data.datasets[0].data = networkTrafficData;
-            networkTrafficChart.options.plugins.title.text = `Network Traffic (Min: ${networkTrafficMin.toFixed(1)}KB/s, Max: ${networkTrafficMax.toFixed(1)}KB/s)`;
+            networkTrafficChart.options.plugins.title.text = `Network Traffic | Min: ${networkTrafficMin.toFixed(1)}KB/s | Max: ${networkTrafficMax.toFixed(1)}KB/s | Now: ${Number(networkRate).toFixed(1)}KB/s`;
             networkTrafficChart.update('none');
             
             // Update card title with process name and more info
