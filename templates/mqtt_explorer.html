@@ -32,6 +32,14 @@
                         </div>
                     </div>
                     <div class="form-row">
+                        <div class="form-group" style="grid-column: 1 / -1;">
+                            <label for="mqtt-recent">Recent Connections:</label>
+                            <select id="mqtt-recent" class="form-control">
+                                <option value="">(loading…)</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-row">
                         <div class="form-group">
                             <label for="mqtt-username">Username:</label>
                             <input type="text" id="mqtt-username" class="form-control" placeholder="Optional">
@@ -135,6 +143,9 @@
                     <button id="pause-messages-btn" class="tab-button control-button">
                         <i class="fas fa-pause"></i> Pause
                     </button>
+                    <button id="copy-current-btn" class="tab-button control-button">
+                        <i class="fas fa-copy"></i> Copy current
+                    </button>
                     <button id="clear-messages-btn" class="tab-button control-button">
                         <i class="fas fa-trash"></i> Clear
                     </button>
@@ -142,7 +153,7 @@
             </div>
             
             <!-- Tab Content -->
-            <div class="tab-content" style="max-height: 100%;">
+            <div class="tab-content">
                 <div id="history-tab" class="tab-pane" style="background-color: transparent;">
                     <div id="messages-container">
                         <div class="select-topic-message">

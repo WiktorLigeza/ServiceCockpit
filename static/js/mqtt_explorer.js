@@ -5,10 +5,14 @@ let isPaused = false;
 let topicFrequencies = {};
 let selectedTopic = null;
 let messageCount = 0;
-let knownTopics = new Set(); // Track known topics to prevent recreating list
-let currentMessage = null; // Store current message for diff
-let messageHistory = []; // Store message history (max 50)
+let knownTopics = new Set(); // Track known topics
 let activeTab = 'history'; // Track active tab
+
+const MAX_TOPIC_HISTORY = 50;
+const topicCache = new Map(); // topic -> { history: [], current: null }
+
+let topicTreeRoot = null;
+const expandedNodes = new Set(); // folder path strings
 
 // Initialize when page loads
 document.addEventListener('DOMContentLoaded', function() {
@@ -65,6 +69,16 @@ function setupEventListeners() {
     // Message controls
     document.getElementById('clear-messages-btn').addEventListener('click', clearMessages);
     document.getElementById('pause-messages-btn').addEventListener('click', togglePauseMessages);
+    document.getElementById('copy-current-btn').addEventListener('click', copyCurrentMessage);
+
+    // Recent connections
+    document.getElementById('mqtt-recent').addEventListener('change', function() {
+        const value = (this.value || '').trim();
+        if (!value) return;
+        const [host, port] = value.split(':');
+        if (host) document.getElementById('mqtt-host').value = host;
+        if (port) document.getElementById('mqtt-port').value = port;
+    });
 
     // Topics search
     document.getElementById('topics-search').addEventListener('input', filterTopics);
@@ -77,21 +91,75 @@ function setupEventListeners() {
     });
 }
 
-function loadConnectionSettings() {
-    // Load saved connection settings from localStorage
+async function loadConnectionSettings() {
+    // Username is kept locally; host/port history comes from server-side config.json
+    try {
+        const resp = await fetch('/api/mqtt/connection_settings', { cache: 'no-store' });
+        if (resp.ok) {
+            const data = await resp.json();
+            const connections = (data || {}).connections || {};
+            const last = connections.last || { host: 'localhost', port: 1883 };
+            const history = Array.isArray(connections.history) ? connections.history : [];
+
+            document.getElementById('mqtt-host').value = last.host || 'localhost';
+            document.getElementById('mqtt-port').value = last.port || 1883;
+            populateRecentConnections(history, last);
+        } else {
+            populateRecentConnections([], { host: 'localhost', port: 1883 });
+        }
+    } catch (e) {
+        populateRecentConnections([], { host: 'localhost', port: 1883 });
+    }
+
     const settings = JSON.parse(localStorage.getItem('mqttSettings') || '{}');
-    if (settings.host) document.getElementById('mqtt-host').value = settings.host;
-    if (settings.port) document.getElementById('mqtt-port').value = settings.port;
     if (settings.username) document.getElementById('mqtt-username').value = settings.username;
 }
 
 function saveConnectionSettings() {
     const settings = {
-        host: document.getElementById('mqtt-host').value,
-        port: document.getElementById('mqtt-port').value,
         username: document.getElementById('mqtt-username').value
     };
     localStorage.setItem('mqttSettings', JSON.stringify(settings));
+}
+
+function populateRecentConnections(history, last) {
+    const select = document.getElementById('mqtt-recent');
+    select.innerHTML = '';
+
+    const placeholder = document.createElement('option');
+    placeholder.value = '';
+    placeholder.textContent = 'Select recent…';
+    select.appendChild(placeholder);
+
+    const normalized = [];
+    history.forEach(h => {
+        if (!h || !h.host) return;
+        const host = String(h.host);
+        const port = parseInt(h.port) || 1883;
+        normalized.push({ host, port });
+    });
+
+    // Ensure last is present
+    if (last && last.host) {
+        const lh = String(last.host);
+        const lp = parseInt(last.port) || 1883;
+        if (!normalized.some(x => x.host === lh && x.port === lp)) {
+            normalized.push({ host: lh, port: lp });
+        }
+    }
+
+    // Most recent last
+    normalized.reverse().forEach(entry => {
+        const opt = document.createElement('option');
+        opt.value = `${entry.host}:${entry.port}`;
+        opt.textContent = `${entry.host}:${entry.port}`;
+        select.appendChild(opt);
+    });
+
+    // Select last
+    if (last && last.host) {
+        select.value = `${last.host}:${parseInt(last.port) || 1883}`;
+    }
 }
 
 function connectToMQTT() {
@@ -101,6 +169,21 @@ function connectToMQTT() {
     const password = document.getElementById('mqtt-password').value || '';
 
     saveConnectionSettings();
+
+    // Update UI immediately (server also persists this)
+    try {
+        const recent = document.getElementById('mqtt-recent');
+        const val = `${host}:${port}`;
+        if (![...recent.options].some(o => o.value === val)) {
+            const opt = document.createElement('option');
+            opt.value = val;
+            opt.textContent = val;
+            recent.appendChild(opt);
+        }
+        recent.value = val;
+    } catch (e) {
+        // ignore
+    }
 
     socket.emit('mqtt_connect', {
         host: host,
@@ -188,91 +271,185 @@ function publishMessage() {
 }
 
 function updateTopicsList(topics) {
+    // Backward compatibility: previous name
+    updateTopicsTree(topics);
+}
+
+function getTopicState(topic) {
+    if (!topicCache.has(topic)) {
+        topicCache.set(topic, { history: [], current: null });
+    }
+    return topicCache.get(topic);
+}
+
+function updateTopicsTree(topics) {
     const container = document.getElementById('topics-container');
-    
-    // Remove "no topics" message if it exists
-    const noTopics = container.querySelector('.no-topics');
-    if (noTopics && topics.length > 0) {
-        noTopics.remove();
+    const list = Array.isArray(topics) ? topics : [];
+
+    if (list.length === 0) {
+        container.innerHTML = '<div class="no-topics">No topics discovered yet</div>';
+        knownTopics.clear();
+        topicTreeRoot = null;
+        return;
     }
 
-    // Add only new topics to prevent flickering
-    topics.forEach(topic => {
-        if (!knownTopics.has(topic)) {
-            knownTopics.add(topic);
-            const topicElement = createTopicElement(topic);
-            container.appendChild(topicElement);
+    let changed = false;
+    list.forEach(t => {
+        if (!knownTopics.has(t)) {
+            knownTopics.add(t);
+            changed = true;
         }
     });
 
-    // Show "no topics" message if no topics exist
-    if (topics.length === 0 && !noTopics) {
-        container.innerHTML = '<div class="no-topics">No topics discovered yet</div>';
-        knownTopics.clear();
+    if (!changed && topicTreeRoot) {
+        // Still update frequencies in-place (DOM updates happen elsewhere)
+        return;
+    }
+
+    topicTreeRoot = buildTopicTree([...knownTopics]);
+    renderTopicTree(container, topicTreeRoot);
+    applyTopicFilter();
+}
+
+function buildTopicTree(topics) {
+    const root = { children: new Map(), topic: null };
+    topics.forEach(fullTopic => {
+        const parts = String(fullTopic).split('/').filter(p => p.length > 0);
+        let node = root;
+        let path = '';
+        parts.forEach((part, idx) => {
+            path = path ? `${path}/${part}` : part;
+            if (!node.children.has(part)) {
+                node.children.set(part, { children: new Map(), topic: null, path });
+            }
+            node = node.children.get(part);
+            if (idx === parts.length - 1) {
+                node.topic = fullTopic;
+            }
+        });
+    });
+    return root;
+}
+
+function renderTopicTree(container, root) {
+    container.innerHTML = '';
+    const tree = document.createElement('div');
+    tree.className = 'topics-tree';
+    container.appendChild(tree);
+
+    const children = [...root.children.entries()].sort((a, b) => a[0].localeCompare(b[0]));
+    children.forEach(([name, node]) => {
+        renderTopicNode(tree, name, node, 0);
+    });
+}
+
+function renderTopicNode(parent, name, node, depth) {
+    const hasChildren = node.children && node.children.size > 0;
+    const hasLeaf = !!node.topic;
+
+    // Render folder row when it has children (even if it is also a leaf)
+    if (hasChildren) {
+        const folderRow = document.createElement('div');
+        folderRow.className = 'topic-node folder';
+        folderRow.dataset.nodePath = node.path;
+        folderRow.style.paddingLeft = `${15 + depth * 16}px`;
+        const expanded = expandedNodes.has(node.path) || depth === 0;
+        if (expanded) expandedNodes.add(node.path);
+        folderRow.innerHTML = `
+            <span class="node-caret"><i class="fas ${expanded ? 'fa-caret-down' : 'fa-caret-right'}"></i></span>
+            <span class="node-label">${escapeHtml(name)}</span>
+        `;
+        folderRow.addEventListener('click', (e) => {
+            e.stopPropagation();
+            toggleNodeExpanded(node.path);
+        });
+        parent.appendChild(folderRow);
+
+        if (hasLeaf) {
+            parent.appendChild(createLeafRow(node.topic, depth + 1, name));
+        }
+
+        if (expanded) {
+            const sortedChildren = [...node.children.entries()].sort((a, b) => a[0].localeCompare(b[0]));
+            sortedChildren.forEach(([childName, childNode]) => {
+                renderTopicNode(parent, childName, childNode, depth + 1);
+            });
+        }
+        return;
+    }
+
+    // Leaf only
+    if (hasLeaf) {
+        parent.appendChild(createLeafRow(node.topic, depth, name));
     }
 }
 
-function createTopicElement(topic) {
-    const div = document.createElement('div');
-    div.className = 'topic-item';
-    div.dataset.topic = topic;
+function toggleNodeExpanded(path) {
+    if (expandedNodes.has(path)) {
+        expandedNodes.delete(path);
+    } else {
+        expandedNodes.add(path);
+    }
+    const container = document.getElementById('topics-container');
+    if (topicTreeRoot) {
+        renderTopicTree(container, topicTreeRoot);
+        applyTopicFilter();
+    }
+}
+
+function createLeafRow(topic, depth, labelFallback) {
+    const row = document.createElement('div');
+    row.className = 'topic-node leaf';
+    row.dataset.topic = topic;
+    row.style.paddingLeft = `${15 + depth * 16}px`;
 
     const frequency = topicFrequencies[topic] || { count: 0, rate: 0 };
-    
-    div.innerHTML = `
-        <span class="topic-name">${topic}</span>
-        <span class="topic-frequency" id="freq-${topic.replace(/[^a-zA-Z0-9]/g, '_')}">
-            ${frequency.rate.toFixed(1)} msg/s
-        </span>
-    `;
+    const idSafe = topic.replace(/[^a-zA-Z0-9]/g, '_');
 
-    div.addEventListener('click', () => selectTopic(topic));
-    return div;
+    row.innerHTML = `
+        <span class="node-caret"></span>
+        <span class="node-label">${escapeHtml(topic)}</span>
+        <span class="topic-frequency" id="freq-${idSafe}">${frequency.rate.toFixed(1)} msg/s</span>
+    `;
+    if (selectedTopic === topic) {
+        row.classList.add('active');
+    }
+    row.addEventListener('click', () => selectTopic(topic));
+    return row;
 }
 
 function selectTopic(topic) {
-    // Remove active class from all topics
-    document.querySelectorAll('.topic-item').forEach(item => {
+    // Update active highlights
+    document.querySelectorAll('[data-topic]').forEach(item => {
         item.classList.remove('active');
     });
-
-    // Add active class to selected topic
-    const topicElement = document.querySelector(`[data-topic="${topic}"]`);
-    if (topicElement) {
-        topicElement.classList.add('active');
-    }
+    const topicElement = document.querySelector(`[data-topic="${cssEscape(topic)}"]`);
+    if (topicElement) topicElement.classList.add('active');
 
     selectedTopic = topic;
     document.getElementById('selected-topic-name').textContent = `- ${topic}`;
     
     // Auto-fill publish topic
     document.getElementById('publish-topic').value = topic;
-    
-    // Clear existing messages and reset state
-    clearMessages();
-    currentMessage = null;
-    messageHistory = [];
-    showSelectedTopicInfo();
+
+    renderSelectedTopicFromCache();
 }
 
 function handleNewMessage(data) {
-    // Only show messages from selected topic
-    if (selectedTopic && data.topic !== selectedTopic) {
-        return;
-    }
-    
-    // If no topic is selected, don't show any messages
-    if (!selectedTopic) {
-        return;
-    }
+    if (!data || !data.topic) return;
 
-    if (!isPaused) {
-        // Add to history
-        addToHistory(data);
-        
-        // Update current message view
-        updateCurrentMessage(data);
-    }
+    // Always cache messages (pause only affects live UI updates)
+    const state = getTopicState(data.topic);
+    state.history.push(data);
+    if (state.history.length > MAX_TOPIC_HISTORY) state.history.shift();
+    state.current = data;
+
+    // Update UI only for selected topic
+    if (!selectedTopic || data.topic !== selectedTopic) return;
+    if (isPaused) return;
+
+    addToHistory(data);
+    updateCurrentMessage(data);
 }
 
 function addToHistory(data) {
@@ -286,17 +463,19 @@ function addToHistory(data) {
         initializeHistoryContainer(container);
     }
 
-    // Add message to history array
-    messageHistory.push(data);
-    
-    // Limit to 50 messages
-    if (messageHistory.length > 50) {
-        messageHistory.shift();
-        // Remove first message element
-        const firstMessage = container.querySelector('.message-item');
-        if (firstMessage) {
-            firstMessage.remove();
+    // Enforce limit based on cache (source of truth)
+    if (selectedTopic) {
+        const state = getTopicState(selectedTopic);
+        if (state.history.length > MAX_TOPIC_HISTORY) {
+            state.history = state.history.slice(-MAX_TOPIC_HISTORY);
         }
+    }
+
+    // If DOM exceeds limit, drop oldest nodes
+    while (container.querySelectorAll('.message-item').length >= MAX_TOPIC_HISTORY) {
+        const firstMessage = container.querySelector('.message-item');
+        if (!firstMessage) break;
+        firstMessage.remove();
     }
 
     const messageElement = createHistoryMessageElement(data);
@@ -310,10 +489,7 @@ function addToHistory(data) {
 }
 
 function initializeHistoryContainer(container) {
-    // Pre-allocate space for smoother scrolling
-    container.style.minHeight = '400px';
-    container.style.maxHeight = '600px';
-    container.style.overflowY = 'auto';
+    // No-op: keep full-height layout managed by CSS
 }
 
 function createHistoryMessageElement(data) {
@@ -353,8 +529,9 @@ function updateCurrentMessage(data) {
         noMessages.remove();
     }
 
-    const previousMessage = currentMessage;
-    currentMessage = data;
+    const state = selectedTopic ? getTopicState(selectedTopic) : null;
+    const previousMessage = state ? state.current : null;
+    if (state) state.current = data;
 
     const messageElement = createCurrentMessageElement(data, previousMessage);
     container.innerHTML = '';
@@ -559,11 +736,18 @@ function switchTab(tabName) {
         pane.classList.remove('active');
     });
     document.getElementById(`${tabName}-tab`).classList.add('active');
+
+    // Re-render from cache so switching tabs never looks empty
+    renderSelectedTopicFromCache();
 }
 
 function clearMessages() {
     const historyContainer = document.getElementById('messages-container');
     const currentContainer = document.getElementById('current-message-container');
+
+    if (selectedTopic) {
+        topicCache.set(selectedTopic, { history: [], current: null });
+    }
     
     if (selectedTopic) {
         historyContainer.innerHTML = `<div class="no-messages">Waiting for messages from: ${selectedTopic}</div>`;
@@ -574,8 +758,6 @@ function clearMessages() {
     }
     
     messageCount = 0;
-    messageHistory = [];
-    currentMessage = null;
 }
 
 function clearTopics() {
@@ -584,18 +766,44 @@ function clearTopics() {
     topicFrequencies = {};
     knownTopics.clear();
     selectedTopic = null;
+    topicCache.clear();
+    topicTreeRoot = null;
+    expandedNodes.clear();
     document.getElementById('selected-topic-name').textContent = '';
     clearMessages();
 }
 
-function showSelectedTopicInfo() {
+function renderSelectedTopicFromCache() {
     const historyContainer = document.getElementById('messages-container');
     const currentContainer = document.getElementById('current-message-container');
-    historyContainer.innerHTML = `<div class="no-messages">Waiting for messages from: ${selectedTopic}</div>`;
-    currentContainer.innerHTML = `<div class="no-messages">Waiting for messages from: ${selectedTopic}</div>`;
-    messageCount = 0;
-    messageHistory = [];
-    currentMessage = null;
+
+    if (!selectedTopic) {
+        historyContainer.innerHTML = '<div class="select-topic-message">Select a topic from the list to view messages</div>';
+        currentContainer.innerHTML = '<div class="select-topic-message">Select a topic from the list to view current message</div>';
+        return;
+    }
+
+    const state = getTopicState(selectedTopic);
+
+    // History
+    if (!state.history.length) {
+        historyContainer.innerHTML = `<div class="no-messages">Waiting for messages from: ${selectedTopic}</div>`;
+    } else {
+        historyContainer.innerHTML = '';
+        state.history.forEach(msg => {
+            historyContainer.appendChild(createHistoryMessageElement(msg));
+        });
+        historyContainer.scrollTop = historyContainer.scrollHeight;
+    }
+
+    // Current
+    if (!state.current) {
+        currentContainer.innerHTML = `<div class="no-messages">Waiting for messages from: ${selectedTopic}</div>`;
+    } else {
+        const previous = state.history.length > 1 ? state.history[state.history.length - 2] : null;
+        currentContainer.innerHTML = '';
+        currentContainer.appendChild(createCurrentMessageElement(state.current, previous));
+    }
 }
 
 // Clean up frequency calculations every 30 seconds
@@ -658,17 +866,125 @@ function togglePauseMessages() {
 }
 
 function filterTopics() {
-    const searchTerm = document.getElementById('topics-search').value.toLowerCase();
-    const topicItems = document.querySelectorAll('.topic-item');
+    applyTopicFilter();
+}
 
-    topicItems.forEach(item => {
-        const topicName = item.dataset.topic.toLowerCase();
-        if (topicName.includes(searchTerm)) {
-            item.style.display = 'flex';
-        } else {
-            item.style.display = 'none';
+function applyTopicFilter() {
+    const searchTerm = (document.getElementById('topics-search').value || '').toLowerCase().trim();
+    const leafNodes = document.querySelectorAll('.topic-node.leaf');
+    const folderNodes = document.querySelectorAll('.topic-node.folder');
+
+    if (!searchTerm) {
+        leafNodes.forEach(n => n.classList.remove('hidden'));
+        folderNodes.forEach(n => n.classList.remove('hidden'));
+        return;
+    }
+
+    const visibleFolderPaths = new Set();
+    leafNodes.forEach(leaf => {
+        const topic = (leaf.dataset.topic || '').toLowerCase();
+        const visible = topic.includes(searchTerm);
+        leaf.classList.toggle('hidden', !visible);
+        if (visible) {
+            // Mark ancestor folders visible
+            const parts = (leaf.dataset.topic || '').split('/').filter(Boolean);
+            let path = '';
+            for (let i = 0; i < parts.length - 1; i++) {
+                path = path ? `${path}/${parts[i]}` : parts[i];
+                visibleFolderPaths.add(path);
+                expandedNodes.add(path); // auto-expand matching paths
+            }
         }
     });
+
+    folderNodes.forEach(folder => {
+        const path = folder.dataset.nodePath || '';
+        const visible = visibleFolderPaths.has(path);
+        folder.classList.toggle('hidden', !visible);
+    });
+
+    // Re-render to apply expansions for search
+    const container = document.getElementById('topics-container');
+    if (topicTreeRoot) {
+        renderTopicTree(container, topicTreeRoot);
+        // re-apply filter without recursion explosion
+        // (second pass only toggles visibility, expansions already applied)
+        const secondTerm = (document.getElementById('topics-search').value || '').toLowerCase().trim();
+        if (!secondTerm) return;
+        applyTopicFilterSecondPass(secondTerm);
+    }
+}
+
+function applyTopicFilterSecondPass(searchTerm) {
+    const leafNodes = document.querySelectorAll('.topic-node.leaf');
+    const folderNodes = document.querySelectorAll('.topic-node.folder');
+    const visibleFolderPaths = new Set();
+
+    leafNodes.forEach(leaf => {
+        const topic = (leaf.dataset.topic || '').toLowerCase();
+        const visible = topic.includes(searchTerm);
+        leaf.classList.toggle('hidden', !visible);
+        if (visible) {
+            const parts = (leaf.dataset.topic || '').split('/').filter(Boolean);
+            let path = '';
+            for (let i = 0; i < parts.length - 1; i++) {
+                path = path ? `${path}/${parts[i]}` : parts[i];
+                visibleFolderPaths.add(path);
+            }
+        }
+    });
+
+    folderNodes.forEach(folder => {
+        const path = folder.dataset.nodePath || '';
+        const visible = visibleFolderPaths.has(path);
+        folder.classList.toggle('hidden', !visible);
+    });
+}
+
+function copyCurrentMessage() {
+    if (!selectedTopic) {
+        showNotification('Select a topic first', 'error');
+        return;
+    }
+    const state = getTopicState(selectedTopic);
+    if (!state.current) {
+        showNotification('No current message to copy', 'error');
+        return;
+    }
+    const text = state.current.payload ?? '';
+    if (!text) {
+        showNotification('Current message payload is empty', 'error');
+        return;
+    }
+
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(String(text))
+            .then(() => showNotification('Copied current message', 'success'))
+            .catch(() => fallbackCopy(String(text)));
+    } else {
+        fallbackCopy(String(text));
+    }
+}
+
+function fallbackCopy(text) {
+    try {
+        const textarea = document.createElement('textarea');
+        textarea.value = text;
+        textarea.style.position = 'fixed';
+        textarea.style.left = '-9999px';
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textarea);
+        showNotification('Copied current message', 'success');
+    } catch (e) {
+        showNotification('Copy failed', 'error');
+    }
+}
+
+function cssEscape(value) {
+    // Minimal CSS.escape replacement for attribute selectors
+    return String(value).replace(/\\/g, '\\\\').replace(/"/g, '\\"');
 }
 
 function showNotification(message, type) {
