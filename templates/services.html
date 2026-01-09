@@ -23,7 +23,12 @@
     {% include 'devices_manager.html' %}
     <div class="main-container">
         <div class="services-side">
-            <h2 class="section-title">All Services</h2>
+            <div class="section-title-row">
+                <h2 class="section-title">All Services</h2>
+                <button type="button" class="filter-btn" id="add-service-btn" title="Add Service" aria-label="Add Service">
+                    <i class="fas fa-plus"></i>
+                </button>
+            </div>
             <div class="search-container">
                 <input type="text" class="form-control" id="servicesSearchInput" placeholder="Search all services...">
             </div>

@@ -139,14 +139,34 @@ function _getGearMenuEls() {
     };
 }
 
+function _getMoreMenuEls() {
+    return {
+        wrapper: document.getElementById('header-more'),
+        menu: document.getElementById('more-menu')
+    };
+}
+
 function hideGearMenu() {
     const { menu } = _getGearMenuEls();
+    if (menu) menu.style.display = 'none';
+}
+
+function hideMoreMenu() {
+    const { menu } = _getMoreMenuEls();
     if (menu) menu.style.display = 'none';
 }
 
 function toggleGearMenu(ev) {
     ev?.stopPropagation?.();
     const { menu } = _getGearMenuEls();
+    if (!menu) return;
+    const isOpen = menu.style.display !== 'none';
+    menu.style.display = isOpen ? 'none' : 'block';
+}
+
+function toggleMoreMenu(ev) {
+    ev?.stopPropagation?.();
+    const { menu } = _getMoreMenuEls();
     if (!menu) return;
     const isOpen = menu.style.display !== 'none';
     menu.style.display = isOpen ? 'none' : 'block';
@@ -235,6 +255,8 @@ window.hideSudoModal = hideSudoModal;
 window.requestReboot = requestReboot;
 window.toggleGearMenu = toggleGearMenu;
 window.hideGearMenu = hideGearMenu;
+window.toggleMoreMenu = toggleMoreMenu;
+window.hideMoreMenu = hideMoreMenu;
 
 // Socket.io connection with better error handling
 const headerSocket = io({
@@ -372,6 +394,16 @@ document.addEventListener('DOMContentLoaded', () => {
         if (menu.style.display === 'none') return;
         if (!wrapper.contains(e.target)) {
             hideGearMenu();
+        }
+    });
+
+    // Close more menu on outside click
+    document.addEventListener('click', (e) => {
+        const { wrapper, menu } = _getMoreMenuEls();
+        if (!menu || !wrapper) return;
+        if (menu.style.display === 'none') return;
+        if (!wrapper.contains(e.target)) {
+            hideMoreMenu();
         }
     });
 
