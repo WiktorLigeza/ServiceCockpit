@@ -58,17 +58,17 @@
     </div>
 
     <nav class="header-nav">
-        <div class="nav-item {% if request.endpoint == 'index' %}nav-active{% endif %}">
-            <a href="{{ url_for('index') }}">Services</a>
+        <div class="nav-item {% if request.endpoint == 'services.index' %}nav-active{% endif %}">
+            <a href="{{ url_for('services.index') }}">Services</a>
         </div>
-        <div class="nav-item {% if request.endpoint == 'processes_page' %}nav-active{% endif %}">
-            <a href="{{ url_for('processes_page') }}">Processes</a>
+        <div class="nav-item {% if request.endpoint == 'processes.processes_page' %}nav-active{% endif %}">
+            <a href="{{ url_for('processes.processes_page') }}">Processes</a>
         </div>
-        <div class="nav-item {% if request.endpoint == 'mqtt_explorer' %}nav-active{% endif %}">
-            <a href="{{ url_for('mqtt_explorer') }}">MQTT Explorer</a>
+        <div class="nav-item {% if request.endpoint == 'mqtt.mqtt_explorer' %}nav-active{% endif %}">
+            <a href="{{ url_for('mqtt.mqtt_explorer') }}">MQTT Explorer</a>
         </div>
-        <div class="nav-item {% if request.endpoint == 'file_explorer' %}nav-active{% endif %}">
-            <a href="{{ url_for('file_explorer') }}">File Explorer</a>
+        <div class="nav-item {% if request.endpoint == 'file_explorer.file_explorer' %}nav-active{% endif %}">
+            <a href="{{ url_for('file_explorer.file_explorer') }}">File Explorer</a>
         </div>
 
         <div class="nav-item header-gear" id="header-more">

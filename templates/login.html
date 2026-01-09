@@ -23,7 +23,7 @@
                 <div class="alert alert-danger" role="alert">{{ error }}</div>
                 {% endif %}
 
-                <form method="POST" action="{{ url_for('login') }}">
+                <form method="POST" action="{{ url_for('auth.login') }}">
                     <input type="hidden" name="next" value="{{ next }}" />
 
                     <div class="search-container" style="position: static; padding: 0;">
