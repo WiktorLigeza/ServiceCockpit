@@ -258,6 +258,27 @@ body {
 .star-btn:hover {
     transform: scale(1.2);
 }
+
+.info-btn {
+    position: absolute;
+    right: 48px;
+    top: 10px;
+    background: none;
+    border: none;
+    font-size: 1.35rem;
+    cursor: pointer;
+    padding: 5px;
+    transition: transform 0.2s;
+}
+
+.info-btn i {
+    color: #00ffff;
+    opacity: 0.85;
+}
+
+.info-btn:hover {
+    transform: scale(1.2);
+}
 .card {
     position: relative;
     width: 100%;         /* Add this line */

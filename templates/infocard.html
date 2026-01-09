@@ -19,22 +19,30 @@
                 </div>
             </div>
 
-            <div class="info-section" id="process-info-section" style="display: none;">
-                <h3>Process Details</h3>
-                <div id="process-details">
-                    <p><strong>Name: </strong><span id="proc-info-name"></span></p>
-                    <p><strong>PID: </strong><span id="proc-info-pid"></span></p>
-                    <p><strong>PPID: </strong><span id="proc-info-ppid"></span></p>
-                    <p><strong>User: </strong><span id="proc-info-user"></span></p>
-                    <p><strong>Status: </strong><span id="proc-info-status"></span></p>
-                    <p><strong>Path: </strong><span id="proc-info-exe"></span></p>
-                    <p><strong>CWD: </strong><span id="proc-info-cwd"></span></p>
-                    <p><strong>Cmdline: </strong><span id="proc-info-cmdline"></span></p>
-                    <p><strong>CPU (%): </strong><span id="proc-info-cpu"></span></p>
-                    <p><strong>Memory (RSS): </strong><span id="proc-info-mem"></span></p>
-                    <p><strong>Threads: </strong><span id="proc-info-threads"></span></p>
-                    <p><strong>Started: </strong><span id="proc-info-started"></span></p>
-                    <p><strong>Connections: </strong><span id="proc-info-connections"></span></p>
+            <div id="process-info-section" class="process-info-container" style="display: none;">
+                <div class="info-section">
+                    <h3>Process Details</h3>
+                    <div id="process-details">
+                        <p><strong>Name: </strong><span id="proc-info-name"></span></p>
+                        <p><strong>PID: </strong><span id="proc-info-pid"></span></p>
+                        <p><strong>PPID: </strong><span id="proc-info-ppid"></span></p>
+                        <p><strong>User: </strong><span id="proc-info-user"></span></p>
+                        <p><strong>Status: </strong><span id="proc-info-status"></span></p>
+                        <p><strong>Path: </strong><span id="proc-info-exe"></span></p>
+                        <p><strong>CWD: </strong><span id="proc-info-cwd"></span></p>
+                        <p><strong>Cmdline: </strong><span id="proc-info-cmdline"></span></p>
+                    </div>
+                </div>
+
+                <div class="file-section">
+                    <h3>Runtime</h3>
+                    <div>
+                        <p><strong>CPU (%): </strong><span id="proc-info-cpu"></span></p>
+                        <p><strong>Memory (RSS): </strong><span id="proc-info-mem"></span></p>
+                        <p><strong>Threads: </strong><span id="proc-info-threads"></span></p>
+                        <p><strong>Started: </strong><span id="proc-info-started"></span></p>
+                        <p><strong>Connections: </strong><span id="proc-info-connections"></span></p>
+                    </div>
                 </div>
             </div>
         </div>

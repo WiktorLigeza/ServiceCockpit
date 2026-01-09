@@ -18,12 +18,14 @@ const uiState = {
 // Chart instances
 let cpuChart = null;
 let memoryChart = null;
+let threadsChart = null;
 let networkConnChart = null;
 let networkTrafficChart = null;
 
 // Data arrays for charts
 const cpuData = [];
 const memoryData = [];
+const threadsData = [];
 const networkConnData = [];
 const networkTrafficData = [];
 const timestamps = [];
@@ -33,6 +35,8 @@ let cpuMax = 0;
 let cpuMin = Number.MAX_VALUE;
 let memoryMax = 0;
 let memoryMin = Number.MAX_VALUE;
+let threadsMax = 0;
+let threadsMin = Number.MAX_VALUE;
 let networkConnMax = 0;
 let networkConnMin = Number.MAX_VALUE;
 let networkTrafficMax = 0;
@@ -66,7 +70,7 @@ function statusGroup(status) {
     if (s === 'running') return 'running';
     // psutil can report: sleeping, disk-sleep
     if (s === 'sleeping' || s === 'disk-sleep') return 'sleeping';
-    return 'other';
+    return 'idle';
 }
 
 function statusDotClass(status) {
@@ -135,6 +139,9 @@ function createProcessCard(proc, container = 'all') {
                 <button class="star-btn" onclick='toggleProcessFavorite(event, ${JSON.stringify(name)})' title="${isFavorite ? 'Remove from favorites' : 'Add to favorites'}">
                     <i class="${isFavorite ? 'fas' : 'far'} fa-star"></i>
                 </button>
+                <button class="info-btn" onclick="showProcessInfo(event, ${pid})" title="More info">
+                    <i class="fas fa-info-circle"></i>
+                </button>
                 <div class="card-body" onclick="selectProcess(${pid})">
                     <h5 class="card-title">
                         <span class="status-dot ${dotClass}" title="${escapeHtml(statusText || 'unknown')}"></span>
@@ -145,18 +152,148 @@ function createProcessCard(proc, container = 'all') {
                         <div>CPU: ${(proc.cpu_percent ?? 0).toFixed(1)}% | Mem: ${fmtMB(proc.memory_rss || 0)} MB</div>
                         <div>Path: ${escapeHtml(exePath || 'N/A')}</div>
                     </div>
-                    <div class="btn-group w-100">
-                        <button class="btn btn-sm btn-info" onclick="showProcessInfo(event, ${pid})" title="Process Info">
-                            <i class="fas fa-info"></i>
-                        </button>
-                        <button class="btn btn-sm btn-danger" onclick="killProcess(event, ${pid})" title="Kill process">
-                            <i class="fas fa-skull-crossbones"></i>
-                        </button>
-                    </div>
+                    <button class="btn btn-sm btn-danger w-100" onclick="killProcess(event, ${pid})" title="Kill process">
+                        <i class="fas fa-skull-crossbones"></i>
+                    </button>
                 </div>
             </div>
         </div>
     `;
+}
+
+function _setInfocardText(id, value) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.textContent = value ?? '';
+}
+
+function _formatCmdlineForInfo(cmdline) {
+    if (!cmdline) return '';
+    if (Array.isArray(cmdline)) return cmdline.filter(Boolean).join(' ');
+    return cmdline.toString();
+}
+
+function hideInfocard() {
+    const infocard = document.getElementById('infocard');
+    if (!infocard) return;
+    infocard.classList.add('hidden');
+}
+
+function showInfocard() {
+    const infocard = document.getElementById('infocard');
+    if (!infocard) return;
+    infocard.classList.remove('hidden');
+
+    // If never positioned, place it near center.
+    if (!infocard.dataset.positioned) {
+        const vw = window.innerWidth || 1200;
+        const vh = window.innerHeight || 800;
+        const rect = infocard.getBoundingClientRect();
+        const left = Math.max(20, Math.round((vw - rect.width) / 2));
+        const top = Math.max(80, Math.round((vh - rect.height) / 4));
+        infocard.style.left = `${left}px`;
+        infocard.style.top = `${top}px`;
+        infocard.dataset.positioned = '1';
+    }
+}
+
+async function showProcessInfo(event, pid) {
+    event?.stopPropagation?.();
+
+    const title = document.getElementById('infocard-title');
+    if (title) title.textContent = 'Process Info';
+
+    const serviceSection = document.getElementById('service-info-section');
+    const processSection = document.getElementById('process-info-section');
+    if (serviceSection) serviceSection.style.display = 'none';
+    if (processSection) processSection.style.display = 'flex';
+
+    // Clear placeholders quickly
+    _setInfocardText('proc-info-name', 'Loading...');
+    _setInfocardText('proc-info-pid', String(pid));
+    _setInfocardText('proc-info-ppid', '');
+    _setInfocardText('proc-info-user', '');
+    _setInfocardText('proc-info-status', '');
+    _setInfocardText('proc-info-exe', '');
+    _setInfocardText('proc-info-cwd', '');
+    _setInfocardText('proc-info-cmdline', '');
+    _setInfocardText('proc-info-cpu', '');
+    _setInfocardText('proc-info-mem', '');
+    _setInfocardText('proc-info-threads', '');
+    _setInfocardText('proc-info-started', '');
+    _setInfocardText('proc-info-connections', '');
+
+    showInfocard();
+
+    try {
+        const resp = await fetch(`/api/process_info/${pid}`);
+        const data = await resp.json().catch(() => ({}));
+        if (!resp.ok || !data.success) {
+            _setInfocardText('proc-info-name', 'Failed to load');
+            return;
+        }
+
+        _setInfocardText('proc-info-name', data.name || 'unknown');
+        _setInfocardText('proc-info-pid', data.pid ?? pid);
+        _setInfocardText('proc-info-ppid', data.ppid ?? 'N/A');
+        _setInfocardText('proc-info-user', data.username || 'N/A');
+        _setInfocardText('proc-info-status', data.status || 'N/A');
+        _setInfocardText('proc-info-exe', data.exe || 'N/A');
+        _setInfocardText('proc-info-cwd', data.cwd || 'N/A');
+        _setInfocardText('proc-info-cmdline', _formatCmdlineForInfo(data.cmdline) || 'N/A');
+        _setInfocardText('proc-info-cpu', Number(data.cpu_percent ?? 0).toFixed(1));
+        _setInfocardText('proc-info-mem', `${fmtMB(data.memory_rss || 0)} MB`);
+        _setInfocardText('proc-info-threads', data.threads ?? 'N/A');
+        _setInfocardText('proc-info-started', _formatStarted(data.create_time));
+        _setInfocardText('proc-info-connections', data.network_connections ?? 'N/A');
+    } catch (e) {
+        console.error('Failed to load process info:', e);
+        _setInfocardText('proc-info-name', 'Failed to load');
+    }
+}
+
+function initInfocardBehavior() {
+    const infocard = document.getElementById('infocard');
+    if (!infocard) return;
+
+    const closeBtn = infocard.querySelector('.btn-close');
+    closeBtn?.addEventListener('click', (e) => {
+        e.preventDefault();
+        hideInfocard();
+    });
+
+    const header = infocard.querySelector('.infocard-header');
+    if (!header) return;
+
+    let dragging = false;
+    let offsetX = 0;
+    let offsetY = 0;
+
+    const onMove = (clientX, clientY) => {
+        if (!dragging) return;
+        infocard.style.left = `${Math.max(0, clientX - offsetX)}px`;
+        infocard.style.top = `${Math.max(0, clientY - offsetY)}px`;
+        infocard.dataset.positioned = '1';
+    };
+
+    header.addEventListener('mousedown', (e) => {
+        // Only left click
+        if (e.button !== 0) return;
+        dragging = true;
+        const rect = infocard.getBoundingClientRect();
+        offsetX = e.clientX - rect.left;
+        offsetY = e.clientY - rect.top;
+        document.addEventListener('mousemove', onMouseMove);
+        document.addEventListener('mouseup', onMouseUp);
+        e.preventDefault();
+    });
+
+    const onMouseMove = (e) => onMove(e.clientX, e.clientY);
+    const onMouseUp = () => {
+        dragging = false;
+        document.removeEventListener('mousemove', onMouseMove);
+        document.removeEventListener('mouseup', onMouseUp);
+    };
 }
 
 function _bytesToHuman(bytes) {
@@ -178,48 +315,54 @@ function _formatStarted(ts) {
     return d.toLocaleString();
 }
 
-function _showInfocardProcessSection() {
-    const title = document.getElementById('infocard-title');
-    const svc = document.getElementById('service-info-section');
-    const proc = document.getElementById('process-info-section');
-    if (title) title.textContent = 'Process Info';
-    if (svc) svc.style.display = 'none';
-    if (proc) proc.style.display = 'block';
+function _setText(id, value) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.textContent = value ?? '-';
 }
 
-async function showProcessInfo(event, pid) {
-    event?.stopPropagation?.();
+function _setStatusDot(status) {
+    const dot = document.getElementById('process-meta-status-dot');
+    if (!dot) return;
+    dot.classList.remove('active', 'sleeping', 'inactive');
+    dot.classList.add(statusDotClass(status));
+    dot.title = (status || 'unknown').toString();
+}
 
-    const infocard = document.getElementById('infocard');
-    if (!infocard) return;
+function _formatCmdline(cmdline) {
+    if (!cmdline) return '-';
+    if (Array.isArray(cmdline)) return cmdline.filter(Boolean).join(' ') || '-';
+    return cmdline.toString();
+}
 
-    infocard.classList.remove('hidden');
-    _showInfocardProcessSection();
+function updateProcessMeta(proc, opts = {}) {
+    if (!proc) return;
+    _setStatusDot(proc.status);
+    _setText('process-meta-name', proc.name || 'unknown');
+    _setText('process-meta-pid', proc.pid ?? '-');
+    _setText('process-meta-user', proc.username || 'N/A');
+    _setText('process-meta-status', proc.status || 'N/A');
+    _setText('process-meta-exe', proc.exe || 'N/A');
+    _setText('process-meta-cwd', proc.cwd || 'N/A');
+    _setText('process-meta-cmdline', _formatCmdline(proc.cmdline));
 
+    if (opts.started !== undefined) _setText('process-meta-started', opts.started);
+    if (opts.threads !== undefined) _setText('process-meta-threads', opts.threads);
+    if (opts.conns !== undefined) _setText('process-meta-conns', opts.conns);
+}
+
+async function hydrateProcessMetaFromInfo(pid) {
     try {
         const resp = await fetch(`/api/process_info/${pid}`);
         const data = await resp.json().catch(() => ({}));
-        if (!resp.ok || !data.success) {
-            alert(data.error || 'Failed to load process info');
-            return;
-        }
+        if (!resp.ok || !data.success) return;
 
-        document.getElementById('proc-info-name').textContent = data.name || 'N/A';
-        document.getElementById('proc-info-pid').textContent = data.pid ?? 'N/A';
-        document.getElementById('proc-info-ppid').textContent = data.ppid ?? 'N/A';
-        document.getElementById('proc-info-user').textContent = data.username || 'N/A';
-        document.getElementById('proc-info-status').textContent = data.status || 'N/A';
-        document.getElementById('proc-info-exe').textContent = data.exe || 'N/A';
-        document.getElementById('proc-info-cwd').textContent = data.cwd || 'N/A';
-        document.getElementById('proc-info-cmdline').textContent = (data.cmdline || []).join(' ') || 'N/A';
-        document.getElementById('proc-info-cpu').textContent = `${Number(data.cpu_percent || 0).toFixed(1)}`;
-        document.getElementById('proc-info-mem').textContent = _bytesToHuman(data.memory_rss || 0);
-        document.getElementById('proc-info-threads').textContent = data.threads ?? 'N/A';
-        document.getElementById('proc-info-started').textContent = _formatStarted(data.create_time);
-        document.getElementById('proc-info-connections').textContent = data.network_connections ?? '0';
+        _setText('process-meta-started', _formatStarted(data.create_time));
+        if (data.cwd) _setText('process-meta-cwd', data.cwd);
+        if (data.exe) _setText('process-meta-exe', data.exe);
+        if (data.cmdline) _setText('process-meta-cmdline', _formatCmdline(data.cmdline));
     } catch (e) {
-        console.error('Process info failed:', e);
-        alert('Failed to load process info');
+        console.error('Failed to hydrate process meta:', e);
     }
 }
 
@@ -239,7 +382,19 @@ function applyFiltersAndSort(items, searchValue, statusFilterValue, sortKey, sor
         const name = (p.name || '').toLowerCase();
         const username = (p.username || '').toLowerCase();
         const pid = String(p.pid || '');
-        return name.includes(q) || username.includes(q) || pid.includes(q);
+        const exe = (p.exe || '').toLowerCase();
+        const cwd = (p.cwd || '').toLowerCase();
+        const cmdline = Array.isArray(p.cmdline)
+            ? p.cmdline.join(' ').toLowerCase()
+            : (p.cmdline || '').toString().toLowerCase();
+        return (
+            name.includes(q) ||
+            username.includes(q) ||
+            pid.includes(q) ||
+            exe.includes(q) ||
+            cwd.includes(q) ||
+            cmdline.includes(q)
+        );
     });
 
     const key = (sortKey || 'cpu').toLowerCase();
@@ -366,13 +521,27 @@ async function fetchProcesses() {
 
 function updateDetailsEmptyState() {
     const empty = document.getElementById('process-details-empty');
+    const meta = document.getElementById('process-meta');
     const graphs = document.getElementById('process-graphs');
     if (!selectedPid) {
         empty.style.display = 'block';
+        if (meta) meta.style.display = 'none';
         graphs.style.display = 'none';
         document.getElementById('process-title').textContent = 'Process Metrics';
+
+        _setText('process-meta-name', '-');
+        _setText('process-meta-pid', '-');
+        _setText('process-meta-user', '-');
+        _setText('process-meta-status', '-');
+        _setText('process-meta-started', '-');
+        _setText('process-meta-exe', '-');
+        _setText('process-meta-cwd', '-');
+        _setText('process-meta-cmdline', '-');
+        _setText('process-meta-threads', '-');
+        _setText('process-meta-conns', '-');
     } else {
         empty.style.display = 'none';
+        if (meta) meta.style.display = 'block';
         graphs.style.display = 'flex';
     }
 }
@@ -390,6 +559,9 @@ async function selectProcess(pid) {
     }
 
     document.getElementById('process-title').textContent = `Process Metrics: ${proc.name || 'unknown'} (PID: ${pid})`;
+
+    updateProcessMeta(proc, { started: '-', threads: '-', conns: '-' });
+    hydrateProcessMetaFromInfo(pid);
 
     stopMonitoring();
     startMonitoring(pid);
@@ -438,16 +610,18 @@ async function killProcess(event, pid) {
 function initCharts() {
     const cpuCtx = document.getElementById('cpu-usage-chart')?.getContext('2d');
     const memoryCtx = document.getElementById('memory-usage-chart')?.getContext('2d');
+    const threadsCtx = document.getElementById('threads-chart')?.getContext('2d');
     const networkConnCtx = document.getElementById('network-conn-chart')?.getContext('2d');
     const networkTrafficCtx = document.getElementById('network-traffic-chart')?.getContext('2d');
 
-    if (!cpuCtx || !memoryCtx || !networkConnCtx || !networkTrafficCtx) {
+    if (!cpuCtx || !memoryCtx || !threadsCtx || !networkConnCtx || !networkTrafficCtx) {
         console.error('Chart canvases not found');
         return;
     }
 
     if (cpuChart) cpuChart.destroy();
     if (memoryChart) memoryChart.destroy();
+    if (threadsChart) threadsChart.destroy();
     if (networkConnChart) networkConnChart.destroy();
     if (networkTrafficChart) networkTrafficChart.destroy();
 
@@ -491,6 +665,16 @@ function initCharts() {
         }
     });
 
+    threadsChart = new Chart(threadsCtx, {
+        type: 'line',
+        data: { labels: [], datasets: [{ label: 'Threads', data: [], borderColor: 'rgb(153, 102, 255)', tension: 0.1, fill: false }] },
+        options: {
+            ...darkThemeOptions,
+            scales: { ...darkThemeOptions.scales, y: { ...darkThemeOptions.scales.y, beginAtZero: true } },
+            plugins: { ...darkThemeOptions.plugins, title: { ...darkThemeOptions.plugins.title, display: true, text: 'Threads (Min: 0, Max: 0)' } }
+        }
+    });
+
     networkConnChart = new Chart(networkConnCtx, {
         type: 'line',
         data: { labels: [], datasets: [{ label: 'Network Connections', data: [], borderColor: 'rgb(54, 162, 235)', tension: 0.1, fill: false }] },
@@ -513,6 +697,7 @@ function initCharts() {
 
     cpuData.length = 0;
     memoryData.length = 0;
+    threadsData.length = 0;
     networkConnData.length = 0;
     networkTrafficData.length = 0;
     timestamps.length = 0;
@@ -521,6 +706,8 @@ function initCharts() {
     cpuMin = Number.MAX_VALUE;
     memoryMax = 0;
     memoryMin = Number.MAX_VALUE;
+    threadsMax = 0;
+    threadsMin = Number.MAX_VALUE;
     networkConnMax = 0;
     networkConnMin = Number.MAX_VALUE;
     networkTrafficMax = 0;
@@ -542,19 +729,23 @@ async function fetchProcessMetrics(pid) {
 }
 
 function updateCharts(data) {
-    if (!data || !cpuChart || !memoryChart || !networkConnChart || !networkTrafficChart) return;
+    if (!data || !cpuChart || !memoryChart || !threadsChart || !networkConnChart || !networkTrafficChart) return;
 
     const date = new Date(data.timestamp * 1000);
     const timeString = date.toLocaleTimeString();
 
     const memoryMB = data.memory_rss / (1024 * 1024);
     const networkRate = data.network_traffic;
+    const threads = Number.isFinite(Number(data.threads)) ? Number(data.threads) : 0;
 
     cpuMax = Math.max(cpuMax, data.cpu_percent);
     cpuMin = data.cpu_percent < cpuMin ? data.cpu_percent : cpuMin;
 
     memoryMax = Math.max(memoryMax, memoryMB);
     memoryMin = memoryMB < memoryMin ? memoryMB : memoryMin;
+
+    threadsMax = Math.max(threadsMax, threads);
+    threadsMin = threads < threadsMin ? threads : threadsMin;
 
     networkConnMax = Math.max(networkConnMax, data.network_connections);
     networkConnMin = data.network_connections < networkConnMin ? data.network_connections : networkConnMin;
@@ -565,6 +756,7 @@ function updateCharts(data) {
     timestamps.push(timeString);
     cpuData.push(data.cpu_percent);
     memoryData.push(memoryMB);
+    threadsData.push(threads);
     networkConnData.push(data.network_connections);
     networkTrafficData.push(Number(networkRate).toFixed(2));
 
@@ -572,6 +764,7 @@ function updateCharts(data) {
         timestamps.shift();
         cpuData.shift();
         memoryData.shift();
+        threadsData.shift();
         networkConnData.shift();
         networkTrafficData.shift();
     }
@@ -586,6 +779,11 @@ function updateCharts(data) {
     memoryChart.options.plugins.title.text = `Memory Usage (Min: ${memoryMin.toFixed(1)}MB, Max: ${memoryMax.toFixed(1)}MB)`;
     memoryChart.update('none');
 
+    threadsChart.data.labels = timestamps;
+    threadsChart.data.datasets[0].data = threadsData;
+    threadsChart.options.plugins.title.text = `Threads (Min: ${threadsMin === Number.MAX_VALUE ? 0 : threadsMin}, Max: ${threadsMax})`;
+    threadsChart.update('none');
+
     networkConnChart.data.labels = timestamps;
     networkConnChart.data.datasets[0].data = networkConnData;
     networkConnChart.options.plugins.title.text = `Network Connections (Min: ${networkConnMin}, Max: ${networkConnMax})`;
@@ -595,6 +793,12 @@ function updateCharts(data) {
     networkTrafficChart.data.datasets[0].data = networkTrafficData;
     networkTrafficChart.options.plugins.title.text = `Network Traffic (Min: ${networkTrafficMin.toFixed(1)}KB/s, Max: ${networkTrafficMax.toFixed(1)}KB/s)`;
     networkTrafficChart.update('none');
+
+    // Update live meta (threads + conn count)
+    if (selectedPid && currentPid && selectedPid === currentPid) {
+        _setText('process-meta-threads', threads);
+        _setText('process-meta-conns', data.network_connections ?? '-');
+    }
 }
 
 function startMonitoring(pid) {
@@ -631,6 +835,7 @@ function stopMonitoring() {
 
     if (cpuChart) { cpuChart.destroy(); cpuChart = null; }
     if (memoryChart) { memoryChart.destroy(); memoryChart = null; }
+    if (threadsChart) { threadsChart.destroy(); threadsChart = null; }
     if (networkConnChart) { networkConnChart.destroy(); networkConnChart = null; }
     if (networkTrafficChart) { networkTrafficChart.destroy(); networkTrafficChart = null; }
 
@@ -643,6 +848,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     window.selectProcess = selectProcess;
     window.killProcess = killProcess;
     window.showProcessInfo = showProcessInfo;
+
+    initInfocardBehavior();
 
     await loadProcessFavorites();
 
@@ -661,9 +868,4 @@ document.addEventListener('DOMContentLoaded', async () => {
     updateDetailsEmptyState();
 
     setInterval(fetchProcesses, 3000);
-
-    // Info card close button (Processes page also uses it)
-    const infocard = document.getElementById('infocard');
-    const closeBtn = infocard?.querySelector('.btn-close');
-    closeBtn?.addEventListener('click', () => infocard.classList.add('hidden'));
 });

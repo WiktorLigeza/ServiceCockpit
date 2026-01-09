@@ -64,6 +64,13 @@
     height: 100%;
 }
 
+.process-info-container {
+    flex: 1;
+    display: flex;
+    width: 100%;
+    height: 100%;
+}
+
 .info-section {
     flex: 1;
     padding: 15px;

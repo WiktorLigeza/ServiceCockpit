@@ -520,6 +520,13 @@ def process_metrics(pid):
         # Get process name and status
         process_name = process.name()
         status = process.status()
+
+        try:
+            threads = process.num_threads()
+        except (psutil.AccessDenied, psutil.ZombieProcess):
+            threads = 0
+        except Exception:
+            threads = 0
         
         return jsonify({
             'success': True,
@@ -530,6 +537,7 @@ def process_metrics(pid):
             'memory_rss': memory_info.rss,  # RSS in bytes
             'memory_vms': memory_info.vms,  # VMS in bytes
             'memory_percent': memory_percent,
+            'threads': threads,
             'network_connections': num_connections,
             'network_traffic': network_traffic,
             'timestamp': time.time()
@@ -760,6 +768,24 @@ def api_processes():
             except Exception:
                 exe = ''
 
+            try:
+                cwd = proc.cwd()
+            except (psutil.AccessDenied, psutil.ZombieProcess):
+                cwd = ''
+            except Exception:
+                cwd = ''
+
+            try:
+                cmdline = proc.cmdline() or []
+            except (psutil.AccessDenied, psutil.ZombieProcess):
+                cmdline = []
+            except Exception:
+                cmdline = []
+
+            # Keep cmdline payload bounded
+            if isinstance(cmdline, list) and len(cmdline) > 40:
+                cmdline = cmdline[:40] + ['...']
+
             # cpu_percent is a sampled metric; it may be 0 for the first call.
             cpu_percent = proc.cpu_percent(interval=None)
             memory_rss = proc.memory_info().rss
@@ -778,6 +804,8 @@ def api_processes():
                 'username': username,
                 'status': status,
                 'exe': exe,
+                'cwd': cwd,
+                'cmdline': cmdline,
                 'cpu_percent': cpu_percent,
                 'memory_rss': memory_rss,
                 'network_connections': network_connections,
