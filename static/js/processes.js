@@ -765,29 +765,37 @@ function updateCharts(data) {
         networkTrafficData.shift();
     }
 
-    cpuChart.data.labels = timestamps;
+    // Use numeric index labels instead of timestamps
+    const indexLabels = Array.from({ length: timestamps.length }, (_, i) => i);
+
+    cpuChart.data.labels = indexLabels;
     cpuChart.data.datasets[0].data = cpuData;
     cpuChart.options.plugins.title.text = `CPU Usage (Min: ${cpuMin.toFixed(1)}%, Max: ${cpuMax.toFixed(1)}%)`;
+    cpuChart.options.scales.x.ticks.display = false;
     cpuChart.update('none');
 
-    memoryChart.data.labels = timestamps;
+    memoryChart.data.labels = indexLabels;
     memoryChart.data.datasets[0].data = memoryData;
     memoryChart.options.plugins.title.text = `Memory Usage (Min: ${memoryMin.toFixed(1)}MB, Max: ${memoryMax.toFixed(1)}MB)`;
+    memoryChart.options.scales.x.ticks.display = false;
     memoryChart.update('none');
 
-    threadsChart.data.labels = timestamps;
+    threadsChart.data.labels = indexLabels;
     threadsChart.data.datasets[0].data = threadsData;
     threadsChart.options.plugins.title.text = `Threads (Min: ${threadsMin === Number.MAX_VALUE ? 0 : threadsMin}, Max: ${threadsMax})`;
+    threadsChart.options.scales.x.ticks.display = false;
     threadsChart.update('none');
 
-    networkConnChart.data.labels = timestamps;
+    networkConnChart.data.labels = indexLabels;
     networkConnChart.data.datasets[0].data = networkConnData;
     networkConnChart.options.plugins.title.text = `Network Connections (Min: ${networkConnMin}, Max: ${networkConnMax})`;
+    networkConnChart.options.scales.x.ticks.display = false;
     networkConnChart.update('none');
 
-    networkTrafficChart.data.labels = timestamps;
+    networkTrafficChart.data.labels = indexLabels;
     networkTrafficChart.data.datasets[0].data = networkTrafficData;
     networkTrafficChart.options.plugins.title.text = `Network Traffic (Min: ${networkTrafficMin.toFixed(1)}KB/s, Max: ${networkTrafficMax.toFixed(1)}KB/s)`;
+    networkTrafficChart.options.scales.x.ticks.display = false;
     networkTrafficChart.update('none');
 
     // Update live meta (threads + conn count)
