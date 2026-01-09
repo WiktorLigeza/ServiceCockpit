@@ -56,108 +56,21 @@
         </div>
 
     </div>
-    
-    {% if request.endpoint == 'mqtt_explorer' %}
+
     <nav class="header-nav">
-        <div class="nav-item">
-            <a href="{{ url_for('index') }}">
-                Services
-            </a>
-        </div>
-        <div class="nav-item">
-            <a href="/processes">Processes</a>
-        </div>
-        <div class="nav-item">
-            <a href="/file_explorer">File Explorer</a>
-        </div>
-        <div class="nav-item header-gear" id="header-more">
-            <a href="#" onclick="toggleMoreMenu(event); return false;" aria-label="More">
-                More
-                <i class="fas fa-ellipsis-v"></i>
-            </a>
-            <div class="gear-menu" id="more-menu" style="display: none;">
-                <a href="#" onclick="hideMoreMenu(); toggleDevicesManager(); return false;">
-                    <i class="fas fa-network-wired"></i>
-                    Devices
-                </a>
-                <a href="#" onclick="hideMoreMenu(); toggleConsole(); return false;">
-                    <i class="fas fa-terminal"></i>
-                    Console
-                </a>
-            </div>
-        </div>
-        <div class="nav-item header-gear" id="header-gear">
-            <a href="#" onclick="toggleGearMenu(event); return false;" aria-label="Menu">
-                <i class="fas fa-cog"></i>
-            </a>
-            <div class="gear-menu" id="gear-menu" style="display: none;">
-                <a href="#" onclick="hideGearMenu(); requestReboot(); return false;">
-                    <i class="fas fa-sync-alt"></i>
-                    Reboot
-                </a>
-                <a href="/logout">
-                    <i class="fas fa-sign-out-alt"></i>
-                    Logout
-                </a>
-            </div>
-        </div>
-    </nav>
-    {% elif request.endpoint == 'file_explorer' %}
-    <nav class="header-nav">
-        <div class="nav-item">
-            <a href="{{ url_for('index') }}">
-               Services
-            </a>
-        </div>
-        <div class="nav-item">
-            <a href="/processes">Processes</a>
-        </div>
-        <div class="nav-item">
-            <a href="/mqtt_explorer">MQTT Explorer</a>
-        </div>
-        <div class="nav-item header-gear" id="header-more">
-            <a href="#" onclick="toggleMoreMenu(event); return false;" aria-label="More">
-                More
-                <i class="fas fa-ellipsis-v"></i>
-            </a>
-            <div class="gear-menu" id="more-menu" style="display: none;">
-                <a href="#" onclick="hideMoreMenu(); toggleDevicesManager(); return false;">
-                    <i class="fas fa-network-wired"></i>
-                    Devices
-                </a>
-                <a href="#" onclick="hideMoreMenu(); toggleConsole(); return false;">
-                    <i class="fas fa-terminal"></i>
-                    Console
-                </a>
-            </div>
-        </div>
-        <div class="nav-item header-gear" id="header-gear">
-            <a href="#" onclick="toggleGearMenu(event); return false;" aria-label="Menu">
-                <i class="fas fa-cog"></i>
-            </a>
-            <div class="gear-menu" id="gear-menu" style="display: none;">
-                <a href="#" onclick="hideGearMenu(); requestReboot(); return false;">
-                    <i class="fas fa-sync-alt"></i>
-                    Reboot
-                </a>
-                <a href="/logout">
-                    <i class="fas fa-sign-out-alt"></i>
-                    Logout
-                </a>
-            </div>
-        </div>
-    </nav>
-    {% elif request.endpoint == 'processes_page' %}
-    <nav class="header-nav">
-        <div class="nav-item">
+        <div class="nav-item {% if request.endpoint == 'index' %}nav-active{% endif %}">
             <a href="{{ url_for('index') }}">Services</a>
         </div>
-        <div class="nav-item">
-            <a href="/mqtt_explorer">MQTT Explorer</a>
+        <div class="nav-item {% if request.endpoint == 'processes_page' %}nav-active{% endif %}">
+            <a href="{{ url_for('processes_page') }}">Processes</a>
         </div>
-        <div class="nav-item">
-            <a href="/file_explorer">File Explorer</a>
+        <div class="nav-item {% if request.endpoint == 'mqtt_explorer' %}nav-active{% endif %}">
+            <a href="{{ url_for('mqtt_explorer') }}">MQTT Explorer</a>
         </div>
+        <div class="nav-item {% if request.endpoint == 'file_explorer' %}nav-active{% endif %}">
+            <a href="{{ url_for('file_explorer') }}">File Explorer</a>
+        </div>
+
         <div class="nav-item header-gear" id="header-more">
             <a href="#" onclick="toggleMoreMenu(event); return false;" aria-label="More">
                 More
@@ -174,6 +87,7 @@
                 </a>
             </div>
         </div>
+
         <div class="nav-item header-gear" id="header-gear">
             <a href="#" onclick="toggleGearMenu(event); return false;" aria-label="Menu">
                 <i class="fas fa-cog"></i>
@@ -190,50 +104,6 @@
             </div>
         </div>
     </nav>
-    {% else %}
-    <nav class="header-nav">
-        <div class="nav-item">
-            <a href="/processes">Processes</a>
-        </div>
-        <div class="nav-item">
-            <a href="/mqtt_explorer">MQTT Explorer</a>
-        </div>
-        <div class="nav-item">
-            <a href="/file_explorer">File Explorer</a>
-        </div>
-        <div class="nav-item header-gear" id="header-more">
-            <a href="#" onclick="toggleMoreMenu(event); return false;" aria-label="More">
-                More
-                <i class="fas fa-ellipsis-v"></i>
-            </a>
-            <div class="gear-menu" id="more-menu" style="display: none;">
-                <a href="#" onclick="hideMoreMenu(); toggleDevicesManager(); return false;">
-                    <i class="fas fa-network-wired"></i>
-                    Devices
-                </a>
-                <a href="#" onclick="hideMoreMenu(); toggleConsole(); return false;">
-                    <i class="fas fa-terminal"></i>
-                    Console
-                </a>
-            </div>
-        </div>
-        <div class="nav-item header-gear" id="header-gear">
-            <a href="#" onclick="toggleGearMenu(event); return false;" aria-label="Menu">
-                <i class="fas fa-cog"></i>
-            </a>
-            <div class="gear-menu" id="gear-menu" style="display: none;">
-                <a href="#" onclick="hideGearMenu(); requestReboot(); return false;">
-                    <i class="fas fa-sync-alt"></i>
-                    Reboot
-                </a>
-                <a href="/logout">
-                    <i class="fas fa-sign-out-alt"></i>
-                    Logout
-                </a>
-            </div>
-        </div>
-    </nav>
-    {% endif %}
 </header>
 
 {% include 'console.html' %}
