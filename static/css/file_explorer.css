@@ -1,7 +1,7 @@
 /* File Explorer Styles */
 body {
     background: linear-gradient(135deg, #2a0845 0%, #191970 100%);
-    height: 100vh;
+    height: calc(100vh / var(--page-zoom));
     margin: 0;
     overflow: hidden;
 }
@@ -9,7 +9,7 @@ body {
 .main-container {
     display: flex;
     width: 100%;
-    height: calc(100vh - 60px);
+    height: calc((100vh - 60px) / var(--page-zoom));
     overflow: hidden;
     gap: 1rem;
     padding: 1rem;
