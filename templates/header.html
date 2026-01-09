@@ -2,6 +2,8 @@
 <link rel="stylesheet" href="{{ url_for('static', filename='css/header.css') }}">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/console.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/infocard.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/devices_manager.css') }}">
 
 <header class="main-header">
     <div class="header-nav">
@@ -233,6 +235,9 @@
     </nav>
     {% endif %}
 </header>
+
+{% include 'console.html' %}
+{% include 'devices_manager.html' %}
 
 <!-- Sudo password modal (used for privileged actions like reboot/systemctl) -->
 <div id="sudo-modal" class="sudo-modal" aria-hidden="true" style="display: none;">
