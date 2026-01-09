@@ -139,27 +139,32 @@
 
 /* CPU per-core dropdown */
 #cpu-usage {
-    cursor: pointer;
+    cursor: default;
 }
 
 .cpu-menu {
+    display: none;
     position: absolute;
-    top: 100%;
+    top: calc(100% + 10px);
     left: 0;
-    width: 260px;
-    margin-top: 10px;
     background: rgba(35, 0, 63, 1);
     border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 8px;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
-    padding: 10px;
-    z-index: 10001;
+    border-radius: 10px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+    min-width: 220px;
+    padding: 8px;
+    z-index: 10000000 !important;
+}
+
+/* Open like the gear menu, but on hover */
+#cpu-usage:hover .cpu-menu {
+    display: block;
 }
 
 .cpu-menu-title {
     font-weight: 600;
     font-size: 0.95rem;
-    margin-bottom: 8px;
+    margin: 4px 6px 8px;
     color: rgba(255, 255, 255, 0.9);
 }
 
@@ -173,11 +178,15 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 6px 8px;
+    padding: 10px 12px;
     border-radius: 6px;
-    background: rgba(0, 0, 0, 0.18);
-    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: transparent;
+    border: none;
     font-size: 0.9rem;
+}
+
+.cpu-core-row:hover {
+    background: rgba(0, 0, 0, 0.25);
 }
 
 .cpu-core-label {
@@ -379,4 +388,32 @@
 .gear-menu i {
     width: 18px;
     text-align: center;
+}
+
+/* Metric hover menus (gear-menu style) */
+.metric-menu {
+    display: none;
+    position: absolute;
+    top: calc(100% + 10px);
+    left: 0;
+    background: rgba(35, 0, 63, 1);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+    min-width: 220px;
+    padding: 8px;
+    z-index: 10000000 !important;
+}
+
+.nav-item:hover .metric-menu {
+    display: block;
+}
+
+.metric-menu-content {
+    padding: 10px 12px;
+    border-radius: 8px;
+    background: rgba(0, 0, 0, 0.12);
+    color: white;
+    white-space: pre-line;
+    text-align: left;
 }

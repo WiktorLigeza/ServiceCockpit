@@ -8,14 +8,15 @@
         <div class="nav-item " id="cpu-temp">
             <i class="fas fa-thermometer-half"></i>
             <span class="metric-value">0°C</span>
-            <div class="tooltip"><span>CPU Temperature</span></div>
+            <div class="metric-menu">
+                <div class="metric-menu-content">CPU Temperature</div>
+            </div>
         </div>
         <div class="nav-item " id="cpu-usage">
             <i class="fas fa-microchip"></i>
             <span class="metric-value">0%</span>
-            <div class="tooltip"><span>CPU Usage (click for cores)</span></div>
 
-            <div class="cpu-menu" id="cpu-menu" style="display: none;">
+            <div class="cpu-menu" id="cpu-menu">
                 <div class="cpu-menu-title">Per-core usage</div>
                 <div class="cpu-menu-list" id="cpu-menu-list"></div>
             </div>
@@ -23,12 +24,16 @@
         <div class="nav-item " id="memory-usage">
             <i class="fas fa-memory"></i>
             <span class="metric-value">0%</span>
-            <div class="tooltip"><span>Memory: Loading...</span></div>
+            <div class="metric-menu">
+                <div class="metric-menu-content">Memory: Loading...</div>
+            </div>
         </div>
         <div class="nav-item " id="storage-usage">
             <i class="fas fa-hdd"></i>
             <span class="metric-value">0%</span>
-            <div class="tooltip"><span>Storage: Loading...</span></div>
+            <div class="metric-menu">
+                <div class="metric-menu-content">Storage: Loading...</div>
+            </div>
         </div>
         <div class="nav-item " id="internet-connection" style="width: 50px !important;">
             <i class='fas fa-globe' style="color: lightgreen; animation: pulse 2s infinite;"></i>
@@ -36,12 +41,16 @@
         <div class="nav-item " id="my-ip">
             <i class='fas fa-network-wired'></i>
             <span class="metric-value">Loading...</span>
-            <div class="tooltip"><span></span></div>
+            <div class="metric-menu">
+                <div class="metric-menu-content">IP: Loading...</div>
+            </div>
         </div>
         <div class="nav-item " id="my-mac">
             <i class='fas fa-robot'></i>
             <span class="metric-value">Loading...</span>
-            <div class="tooltip"><span></span></div>
+            <div class="metric-menu">
+                <div class="metric-menu-content">MAC: Loading...</div>
+            </div>
         </div>
 
     </div>

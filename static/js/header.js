@@ -52,19 +52,6 @@ function _getCpuMenuEls() {
     };
 }
 
-function hideCpuMenu() {
-    const { menu } = _getCpuMenuEls();
-    if (menu) menu.style.display = 'none';
-}
-
-function toggleCpuMenu(ev) {
-    ev?.stopPropagation?.();
-    const { menu } = _getCpuMenuEls();
-    if (!menu) return;
-    const isOpen = menu.style.display !== 'none';
-    menu.style.display = isOpen ? 'none' : 'block';
-}
-
 function renderCpuMenu(perCore) {
     const { list } = _getCpuMenuEls();
     if (!list) return;
@@ -105,7 +92,8 @@ function updateMetrics(data) {
     const cpuTemp = document.querySelector('#cpu-temp');
     cpuTemp.querySelector('.metric-value').textContent = `${data.cpu_temp}°C`;
     cpuTemp.querySelector('i').style.color = getColorForValue(data.cpu_temp, 'cpu');
-    cpuTemp.querySelector('.tooltip').textContent = `CPU Temperature: ${data.cpu_temp}°C`;
+    const cpuTempMenu = cpuTemp.querySelector('.metric-menu-content');
+    if (cpuTempMenu) cpuTempMenu.textContent = `CPU Temperature: ${data.cpu_temp}°C`;
 
     // CPU Usage (summed across cores)
     const cpuUsage = document.querySelector('#cpu-usage');
@@ -116,24 +104,29 @@ function updateMetrics(data) {
 
         const perCore = Array.isArray(data.cpu_percent_per_core) ? data.cpu_percent_per_core : [];
         renderCpuMenu(perCore);
-        cpuUsage.querySelector('.tooltip').textContent = 'CPU Usage (click for cores)';
     }
 
     // Memory Usage
     const memoryUsage = document.querySelector('#memory-usage');
     memoryUsage.querySelector('.metric-value').textContent = `${data.memory_percent}%`;
     memoryUsage.querySelector('i').style.color = getColorForValue(data.memory_percent, 'memory');
-    memoryUsage.querySelector('.tooltip').textContent = 
-        `Memory: ${data.memory_used}GB used / ${data.memory_total}GB total\n` +
-        `(${data.memory_free}GB free)`;
+    const memoryMenu = memoryUsage.querySelector('.metric-menu-content');
+    if (memoryMenu) {
+        memoryMenu.textContent =
+            `Memory: ${data.memory_used}GB used / ${data.memory_total}GB total\n` +
+            `(${data.memory_free}GB free)`;
+    }
 
     // Storage Usage
     const storageUsage = document.querySelector('#storage-usage');
     storageUsage.querySelector('.metric-value').textContent = `${data.storage_percent}%`;
     storageUsage.querySelector('i').style.color = getColorForValue(data.storage_percent, 'storage');
-    storageUsage.querySelector('.tooltip').textContent = 
-        `Storage: ${data.storage_used}GB used / ${data.storage_total}GB total\n` +
-        `(${data.storage_free}GB free)`;
+    const storageMenu = storageUsage.querySelector('.metric-menu-content');
+    if (storageMenu) {
+        storageMenu.textContent =
+            `Storage: ${data.storage_used}GB used / ${data.storage_total}GB total\n` +
+            `(${data.storage_free}GB free)`;
+    }
 }
 
 // --- Sudo modal + privileged actions (shared across pages) ---
@@ -319,6 +312,11 @@ document.addEventListener('DOMContentLoaded', () => {
         .then(data => {
             document.querySelector('#my-ip .metric-value').textContent = data.ip_address;
             document.querySelector('#my-mac .metric-value').textContent = data.mac_address;
+
+            const ipMenu = document.querySelector('#my-ip .metric-menu-content');
+            if (ipMenu) ipMenu.textContent = `IP: ${data.ip_address}`;
+            const macMenu = document.querySelector('#my-mac .metric-menu-content');
+            if (macMenu) macMenu.textContent = `MAC: ${data.mac_address}`;
             
             // Change icon colors
             document.querySelector('#my-ip i').style.color = 'magenta';
@@ -328,6 +326,11 @@ document.addEventListener('DOMContentLoaded', () => {
             console.error('Error fetching network info:', error);
             document.querySelector('#my-ip .metric-value').textContent = 'N/A';
             document.querySelector('#my-mac .metric-value').textContent = 'N/A';
+
+            const ipMenu = document.querySelector('#my-ip .metric-menu-content');
+            if (ipMenu) ipMenu.textContent = 'IP: N/A';
+            const macMenu = document.querySelector('#my-mac .metric-menu-content');
+            if (macMenu) macMenu.textContent = 'MAC: N/A';
         });
     
     // Initial update
@@ -372,23 +375,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // CPU usage dropdown
-    const cpuWrapper = document.getElementById('cpu-usage');
-    if (cpuWrapper) {
-        cpuWrapper.addEventListener('click', (ev) => {
-            toggleCpuMenu(ev);
-        });
-    }
-
-    // Close CPU menu on outside click
-    document.addEventListener('click', (e) => {
-        const { wrapper, menu } = _getCpuMenuEls();
-        if (!menu || !wrapper) return;
-        if (menu.style.display === 'none') return;
-        if (!wrapper.contains(e.target)) {
-            hideCpuMenu();
-        }
-    });
 });
 
 // Global fetch interceptor: if an API returns sudo_required, show the modal.
