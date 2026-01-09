@@ -13,6 +13,11 @@ function getColorForValue(value, type) {
             endColor = [231, 76, 60];     // Red
             value = value / 100;
             break;
+        case 'cpu_usage':
+            startColor = [46, 204, 113];  // Green
+            endColor = [231, 76, 60];     // Red
+            value = value / 100;
+            break;
     }
     
     value = Math.max(0, Math.min(1, value));
@@ -33,6 +38,18 @@ function updateMetrics(data) {
     cpuTemp.querySelector('.metric-value').textContent = `${data.cpu_temp}°C`;
     cpuTemp.querySelector('i').style.color = getColorForValue(data.cpu_temp, 'cpu');
     cpuTemp.querySelector('.tooltip').textContent = `CPU Temperature: ${data.cpu_temp}°C`;
+
+    // CPU Usage (summed across cores)
+    const cpuUsage = document.querySelector('#cpu-usage');
+    if (cpuUsage && data && typeof data.cpu_percent_sum !== 'undefined') {
+        cpuUsage.querySelector('.metric-value').textContent = `${data.cpu_percent_sum}%`;
+        const avg = typeof data.cpu_percent_avg !== 'undefined' ? data.cpu_percent_avg : 0;
+        cpuUsage.querySelector('i').style.color = getColorForValue(avg, 'cpu_usage');
+
+        const perCore = Array.isArray(data.cpu_percent_per_core) ? data.cpu_percent_per_core : [];
+        const perCoreText = perCore.length ? `Per-core: ${perCore.map(v => `${v}%`).join(', ')}` : 'Per-core: N/A';
+        cpuUsage.querySelector('.tooltip').textContent = `CPU Usage (sum): ${data.cpu_percent_sum}%\nCPU Usage (avg): ${avg}%\n${perCoreText}`;
+    }
 
     // Memory Usage
     const memoryUsage = document.querySelector('#memory-usage');
@@ -170,8 +187,9 @@ headerSocket.on('update_metrics', updateMetrics);
 
 headerSocket.on('connect', () => {
     // Show loading state for system stats
-    ['cpu-temp', 'memory-usage', 'storage-usage'].forEach(id => {
+    ['cpu-temp', 'cpu-usage', 'memory-usage', 'storage-usage'].forEach(id => {
         const element = document.querySelector(`#${id}`);
+        if (!element) return;
         element.querySelector('.metric-value').textContent = 'Loading...';
         element.querySelector('i').style.color = '#808080'; // Gray color for loading state
     });
@@ -179,8 +197,9 @@ headerSocket.on('connect', () => {
 
 headerSocket.on('connect_error', (error) => {
     console.error('-:', error);
-    ['cpu-temp', 'memory-usage', 'storage-usage'].forEach(id => {
+    ['cpu-temp', 'cpu-usage', 'memory-usage', 'storage-usage'].forEach(id => {
         const element = document.querySelector(`#${id}`);
+        if (!element) return;
         element.querySelector('.metric-value').textContent = '-';
         element.querySelector('i').style.color = '#ff0000';
     });
@@ -211,6 +230,10 @@ document.addEventListener('DOMContentLoaded', () => {
             .then(response => response.json())
             .then(data => {
                 document.getElementById('cpu-temp').querySelector('.metric-value').textContent = `${data.cpu_temp}°C`;
+                const cpuEl = document.getElementById('cpu-usage');
+                if (cpuEl && typeof data.cpu_percent_sum !== 'undefined') {
+                    cpuEl.querySelector('.metric-value').textContent = `${data.cpu_percent_sum}%`;
+                }
                 document.getElementById('memory-usage').querySelector('.metric-value').textContent = `${data.memory_percent}%`;
                 document.getElementById('storage-usage').querySelector('.metric-value').textContent = `${data.storage_percent}%`;
 

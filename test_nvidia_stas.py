@@ -1,7 +1,7 @@
-from pynvml import *
+import psutil
 
-nvmlInit()
-h = nvmlDeviceGetHandleByIndex(0)
+# Returns a list of usage percentages per core
+per_core = psutil.cpu_percent(interval=1, percpu=True)
 
-mem = nvmlDeviceGetMemoryInfo(h)
-print(f"VRAM used: {mem.used / 1024**2:.0f} MB")
+for i, usage in enumerate(per_core):
+    print(f"Core {i}: {usage}%")

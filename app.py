@@ -46,6 +46,26 @@ SUDO_SESSION_KEY = 'sudo_password'
 AUTH_SESSION_KEY = 'sudo_authenticated'
 
 
+def normalize_process_cpu_percent(cpu_percent) -> float:
+    """Normalize psutil per-process CPU% to 0..100 across multi-core systems."""
+    try:
+        value = float(cpu_percent or 0.0)
+        cores = psutil.cpu_count() or 1
+        if not isinstance(cores, int) or cores < 1:
+            cores = 1
+        value = value / float(cores)
+        if value < 0.0:
+            return 0.0
+        if value > 100.0:
+            return 100.0
+        return value
+    except Exception:
+        try:
+            return float(cpu_percent or 0.0)
+        except Exception:
+            return 0.0
+
+
 def is_authenticated() -> bool:
     return bool(session.get(AUTH_SESSION_KEY))
 
@@ -369,12 +389,19 @@ def check_internet_connection():
 
 def get_system_metrics():
     cpu_temp = get_cpu_temp()
+    # CPU percent: per-core sampling then sum to get a "total" (can exceed 100% on multi-core).
+    cpu_per_core = psutil.cpu_percent(interval=0.1, percpu=True) or []
+    cpu_percent_avg = round(float(sum(cpu_per_core)) / float(len(cpu_per_core)), 1) if cpu_per_core else 0.0
+    cpu_percent_sum = round(float(sum(cpu_per_core)), 1) if cpu_per_core else 0.0
     memory = psutil.virtual_memory()
     disk = psutil.disk_usage('/')
     has_internet = check_internet_connection()
     
     return {
         'cpu_temp': cpu_temp,
+        'cpu_percent_sum': cpu_percent_sum,
+        'cpu_percent_avg': cpu_percent_avg,
+        'cpu_percent_per_core': cpu_per_core,
         'memory_percent': memory.percent,
         'memory_used': round(memory.used / (1024 * 1024 * 1024), 2),  # GB
         'memory_free': round(memory.available / (1024 * 1024 * 1024), 2),  # GB
@@ -504,7 +531,7 @@ def process_metrics(pid):
         process = psutil.Process(pid)
         
         # Get CPU usage (as a percentage)
-        cpu_percent = process.cpu_percent(interval=0.1)
+        cpu_percent = normalize_process_cpu_percent(process.cpu_percent(interval=0.1))
         
         # Get memory info
         memory_info = process.memory_info()
@@ -787,7 +814,7 @@ def api_processes():
                 cmdline = cmdline[:40] + ['...']
 
             # cpu_percent is a sampled metric; it may be 0 for the first call.
-            cpu_percent = proc.cpu_percent(interval=None)
+            cpu_percent = normalize_process_cpu_percent(proc.cpu_percent(interval=None))
             memory_rss = proc.memory_info().rss
 
             # Lightweight proxy for "network usage" (connection count).
@@ -846,7 +873,7 @@ def api_process_info(pid: int):
         threads = safe(p.num_threads, None)
 
         # Light metrics (avoid long sampling here)
-        cpu_percent = safe(lambda: p.cpu_percent(interval=0.0), 0.0)
+        cpu_percent = normalize_process_cpu_percent(safe(lambda: p.cpu_percent(interval=0.0), 0.0))
         mem_rss = safe(lambda: p.memory_info().rss, 0)
 
         connections = safe(lambda: len(p.net_connections()), 0)
