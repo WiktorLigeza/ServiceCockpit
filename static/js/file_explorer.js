@@ -133,6 +133,38 @@ function setupEventListeners() {
                 showContainerContextMenu(e.clientX, e.clientY);
             }
         });
+
+        // Enable OS drag-and-drop upload into the current folder.
+        // If the user is currently hovering a folder (tree or list), externalFileDropTargetPath
+        // will be set by the drag handlers and used as the destination.
+        filesContainer.addEventListener('dragover', (e) => {
+            if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+                e.preventDefault();
+                e.dataTransfer.dropEffect = 'copy';
+                filesContainer.classList.add('drag-over');
+            }
+        });
+
+        filesContainer.addEventListener('dragleave', (e) => {
+            // Only clear when leaving the container (avoid flicker on child transitions)
+            if (!filesContainer.contains(e.relatedTarget)) {
+                filesContainer.classList.remove('drag-over');
+            }
+        });
+
+        filesContainer.addEventListener('drop', async (e) => {
+            if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+                e.preventDefault();
+                e.stopPropagation();
+                filesContainer.classList.remove('drag-over');
+
+                const destinationPath = (typeof externalFileDropTargetPath === 'string' && externalFileDropTargetPath)
+                    ? externalFileDropTargetPath
+                    : currentPath;
+
+                await uploadFiles(Array.from(e.dataTransfer.files), destinationPath);
+            }
+        });
     }
     
     // Setup file upload functionality
@@ -1132,20 +1164,22 @@ function setupFileUpload() {
     fileInput.multiple = true;
     fileInput.style.display = 'none';
     document.body.appendChild(fileInput);
+
+    // Wire upload button
+    const uploadBtn = document.getElementById('upload-btn');
+    if (uploadBtn) {
+        uploadBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            triggerFileUpload();
+        });
+    }
     
     // Handle file selection
     fileInput.addEventListener('change', async (e) => {
         const files = Array.from(e.target.files);
         if (files.length === 0) return;
-        
-        showNotification(`Uploading ${files.length} file(s)...`, 'info');
-        
-        for (const file of files) {
-            await uploadFile(file);
-        }
-        
-        // Reload directory to show uploaded files
-        loadDirectory(currentPath);
+
+        await uploadFiles(files, currentPath);
         
         // Reset file input
         fileInput.value = '';
@@ -1159,11 +1193,32 @@ function triggerFileUpload() {
     }
 }
 
-async function uploadFile(file) {
+async function uploadFiles(files, destinationPath) {
+    if (!Array.isArray(files) || files.length === 0) return;
+    showNotification(`Uploading ${files.length} file(s)...`, 'info');
+
+    for (const file of files) {
+        await uploadFile(file, destinationPath);
+    }
+
+    // Reload current directory view if it was the target.
+    if (destinationPath === currentPath) {
+        loadDirectory(currentPath);
+    } else {
+        // Best-effort refresh in the tree.
+        try {
+            reloadDirectoryInTree(destinationPath);
+        } catch (e) {
+            // ignore
+        }
+    }
+}
+
+async function uploadFile(file, destinationPath = currentPath) {
     try {
         const formData = new FormData();
         formData.append('file', file);
-        formData.append('path', currentPath);
+        formData.append('path', destinationPath);
         
         const response = await fetch('/api/upload', {
             method: 'POST',
