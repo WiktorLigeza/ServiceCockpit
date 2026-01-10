@@ -241,9 +241,32 @@ async function displayFileDetails(file) {
                         <button class="btn btn-sm btn-primary" onclick="downloadFile()">
                             <i class="fas fa-download"></i> Download
                         </button>
-                        <button class="btn btn-sm btn-info" onclick="openFileInEditor(selectedFile)">
-                            <i class="fas fa-edit"></i> Edit
-                        </button>
+                        ${(() => {
+                            const ext = file.name.split('.').pop().toLowerCase();
+                            const buttons = [];
+                            if (typeof isVideoFile === 'function' && isVideoFile(ext) && typeof openVideoViewer === 'function') {
+                                buttons.push(`
+                                    <button class="btn btn-sm btn-info" onclick="openVideoViewer(selectedFile)">
+                                        <i class="fas fa-play"></i> Play
+                                    </button>
+                                `);
+                            }
+                            if (file.is_executable && typeof openExecutableRunner === 'function') {
+                                buttons.push(`
+                                    <button class="btn btn-sm btn-info" onclick="openExecutableRunner(selectedFile)">
+                                        <i class="fas fa-terminal"></i> Run
+                                    </button>
+                                `);
+                            }
+                            if (typeof isTextFile === 'function' && isTextFile(ext)) {
+                                buttons.push(`
+                                    <button class="btn btn-sm btn-info" onclick="openFileInEditor(selectedFile)">
+                                        <i class="fas fa-edit"></i> Edit
+                                    </button>
+                                `);
+                            }
+                            return buttons.join('');
+                        })()}
                     ` : ''}
                     <button class="btn btn-sm btn-warning" onclick="renameFile()">
                         <i class="fas fa-edit"></i> Rename

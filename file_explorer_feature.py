@@ -1,10 +1,145 @@
+import os
+import shlex
 import shutil
+import signal
 import stat
+import subprocess
+import threading
+import time
+import uuid
+from collections import deque
 from pathlib import Path
 
-from flask import Blueprint, jsonify, render_template, request
+from flask import Blueprint, current_app, jsonify, render_template, request
+from flask_socketio import join_room, leave_room
 
 from config_store import get_folder_preferences, save_folder_preferences
+
+from auth import is_authenticated
+
+
+class _ExecSession:
+    def __init__(self, process: subprocess.Popen, path: str, params: str):
+        self.process = process
+        self.path = path
+        self.params = params
+        self.created_at = time.time()
+        self.output = deque(maxlen=5000)
+        self.return_code: int | None = None
+        self.lock = threading.Lock()
+
+    def append(self, line: str) -> None:
+        with self.lock:
+            self.output.append(line)
+
+    def snapshot(self) -> list[str]:
+        with self.lock:
+            return list(self.output)
+
+
+_EXEC_SESSIONS: dict[str, _ExecSession] = {}
+_EXEC_SESSIONS_LOCK = threading.Lock()
+
+
+def _get_socketio():
+    sock = current_app.extensions.get('socketio')
+    if sock is None:
+        raise RuntimeError('SocketIO not initialized')
+    return sock
+
+
+def _is_executable_file(path_obj: Path) -> bool:
+    try:
+        return path_obj.is_file() and os.access(str(path_obj), os.X_OK)
+    except Exception:
+        return False
+
+
+def _start_exec_process(path_obj: Path, params: str) -> tuple[str, _ExecSession]:
+    args = [str(path_obj)]
+    if params:
+        args.extend(shlex.split(params))
+
+    process = subprocess.Popen(
+        args,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        stdin=subprocess.DEVNULL,
+        text=True,
+        bufsize=1,
+        universal_newlines=True,
+        cwd=str(path_obj.parent),
+        preexec_fn=os.setsid,
+    )
+
+    exec_id = uuid.uuid4().hex
+    session = _ExecSession(process=process, path=str(path_obj), params=params)
+
+    with _EXEC_SESSIONS_LOCK:
+        _EXEC_SESSIONS[exec_id] = session
+
+    socketio = _get_socketio()
+
+    def _reader():
+        try:
+            if process.stdout is not None:
+                for line in iter(process.stdout.readline, ''):
+                    if line == '':
+                        break
+                    clean = line.rstrip('\n')
+                    session.append(clean)
+                    socketio.emit('exec_output', {'process_id': exec_id, 'line': clean}, room=exec_id)
+
+            rc = process.wait(timeout=None)
+            session.return_code = int(rc)
+            socketio.emit('exec_exit', {'process_id': exec_id, 'return_code': int(rc)}, room=exec_id)
+        except Exception as e:
+            session.append(f"[runner-error] {e}")
+            socketio.emit('exec_output', {'process_id': exec_id, 'line': f"[runner-error] {e}"}, room=exec_id)
+
+    thread = threading.Thread(target=_reader, daemon=True)
+    thread.start()
+
+    return exec_id, session
+
+
+def register_file_exec_socket_handlers(socketio):
+    @socketio.on('join_exec')
+    def on_join_exec(data):
+        if not is_authenticated():
+            return
+        process_id = (data or {}).get('process_id')
+        if not process_id:
+            return
+
+        with _EXEC_SESSIONS_LOCK:
+            session_obj = _EXEC_SESSIONS.get(process_id)
+
+        if session_obj is None:
+            socketio.emit('exec_error', {'process_id': process_id, 'error': 'process_not_found'})
+            return
+
+        join_room(process_id)
+        history = session_obj.snapshot()
+        socketio.emit(
+            'exec_history',
+            {
+                'process_id': process_id,
+                'lines': history,
+                'running': session_obj.process.poll() is None,
+                'return_code': session_obj.return_code,
+            },
+            room=request.sid,
+        )
+
+    @socketio.on('leave_exec')
+    def on_leave_exec(data):
+        if not is_authenticated():
+            return
+        process_id = (data or {}).get('process_id')
+        if not process_id:
+            return
+        leave_room(process_id)
 
 
 def format_size(bytes_size: float) -> str:
@@ -39,11 +174,15 @@ def build_file_explorer_blueprint() -> Blueprint:
                 try:
                     stat_info = item.stat()
 
+                    is_dir = item.is_dir()
+                    is_exec = (not is_dir) and _is_executable_file(item)
+
                     files.append(
                         {
                             'name': item.name,
                             'path': str(item),
-                            'is_directory': item.is_dir(),
+                            'is_directory': is_dir,
+                            'is_executable': is_exec,
                             'size': stat_info.st_size if item.is_file() else 0,
                             'permissions': stat.filemode(stat_info.st_mode),
                             'modified': stat_info.st_mtime,
@@ -426,6 +565,99 @@ def build_file_explorer_blueprint() -> Blueprint:
         except Exception as e:
             return jsonify({'success': False, 'error': str(e)})
 
+    @bp.route('/api/execute', methods=['POST'])
+    def execute_executable():
+        try:
+            data = request.get_json(silent=True) or {}
+            path = (data.get('path') or '').strip()
+            params = (data.get('params') or '').strip()
+
+            if not path:
+                return jsonify({'success': False, 'error': 'Path required'}), 400
+
+            path_obj = Path(path)
+            if not path_obj.exists() or not path_obj.is_file():
+                return jsonify({'success': False, 'error': 'File does not exist'}), 404
+
+            if not _is_executable_file(path_obj):
+                return jsonify({'success': False, 'error': 'File is not executable'}), 400
+
+            exec_id, _ = _start_exec_process(path_obj, params)
+            return jsonify({'success': True, 'process_id': exec_id})
+
+        except ValueError as e:
+            return jsonify({'success': False, 'error': str(e)}), 400
+        except Exception as e:
+            return jsonify({'success': False, 'error': str(e)}), 500
+
+    @bp.route('/api/execute/kill', methods=['POST'])
+    def kill_executable():
+        try:
+            data = request.get_json(silent=True) or {}
+            process_id = (data.get('process_id') or '').strip()
+            if not process_id:
+                return jsonify({'success': False, 'error': 'process_id required'}), 400
+
+            with _EXEC_SESSIONS_LOCK:
+                session_obj = _EXEC_SESSIONS.get(process_id)
+
+            if session_obj is None:
+                return jsonify({'success': False, 'error': 'process_not_found'}), 404
+
+            proc = session_obj.process
+            if proc.poll() is not None:
+                return jsonify({'success': True, 'already_exited': True, 'return_code': proc.returncode})
+
+            try:
+                os.killpg(os.getpgid(proc.pid), signal.SIGTERM)
+            except Exception:
+                try:
+                    proc.terminate()
+                except Exception:
+                    pass
+
+            try:
+                proc.wait(timeout=2.0)
+            except Exception:
+                try:
+                    os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
+                except Exception:
+                    try:
+                        proc.kill()
+                    except Exception:
+                        pass
+
+            return jsonify({'success': True})
+
+        except Exception as e:
+            return jsonify({'success': False, 'error': str(e)}), 500
+
+    @bp.route('/api/execute/status', methods=['GET'])
+    def exec_status():
+        try:
+            process_id = (request.args.get('process_id') or '').strip()
+            if not process_id:
+                return jsonify({'success': False, 'error': 'process_id required'}), 400
+
+            with _EXEC_SESSIONS_LOCK:
+                session_obj = _EXEC_SESSIONS.get(process_id)
+
+            if session_obj is None:
+                return jsonify({'success': False, 'error': 'process_not_found'}), 404
+
+            running = session_obj.process.poll() is None
+            return jsonify(
+                {
+                    'success': True,
+                    'running': running,
+                    'return_code': session_obj.return_code,
+                    'path': session_obj.path,
+                    'params': session_obj.params,
+                }
+            )
+        except Exception as e:
+            return jsonify({'success': False, 'error': str(e)}), 500
+
     @bp.route('/api/folder-preferences', methods=['GET'])
     def get_folder_preferences_route():
         try:
@@ -447,4 +679,4 @@ def build_file_explorer_blueprint() -> Blueprint:
     return bp
 
 
-__all__ = ['build_file_explorer_blueprint']
+__all__ = ['build_file_explorer_blueprint', 'register_file_exec_socket_handlers']

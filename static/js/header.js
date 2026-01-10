@@ -283,7 +283,7 @@ headerSocket.on('connect_error', (error) => {
     ['cpu-temp', 'cpu-usage', 'memory-usage', 'storage-usage'].forEach(id => {
         const element = document.querySelector(`#${id}`);
         if (!element) return;
-        element.querySelector('.metric-value').textContent = '-';
+        element.querySelector('.metric-value').textContent = 'N/A';
         element.querySelector('i').style.color = '#ff0000';
     });
 });

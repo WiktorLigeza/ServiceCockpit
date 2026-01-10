@@ -18,7 +18,7 @@ from metrics import build_metrics_blueprint
 from mqtt_feature import build_mqtt_blueprint, mqtt_cleanup_on_shutdown, register_mqtt_socket_handlers
 from processes_feature import build_processes_blueprint
 from services_feature import build_services_blueprint, init_services_socketio, register_services_socket_handlers
-from file_explorer_feature import build_file_explorer_blueprint
+from file_explorer_feature import build_file_explorer_blueprint, register_file_exec_socket_handlers
 from systemd_manager import SystemdManager
 from metrics import get_system_metrics
 
@@ -79,6 +79,7 @@ def create_app() -> tuple[Flask, SocketIO]:
     register_services_socket_handlers(socketio)
     register_console_socket_handlers(socketio)
     register_mqtt_socket_handlers(socketio)
+    register_file_exec_socket_handlers(socketio)
 
     return app, socketio
 

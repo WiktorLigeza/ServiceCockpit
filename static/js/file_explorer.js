@@ -19,6 +19,12 @@ document.addEventListener('DOMContentLoaded', function() {
     setupEventListeners();
     setupCodeEditor();
     setupImageViewer();
+    if (typeof setupVideoViewer === 'function') {
+        setupVideoViewer();
+    }
+    if (typeof setupExecutableRunner === 'function') {
+        setupExecutableRunner();
+    }
     setupKeyboardShortcuts();
 });
 
@@ -164,6 +170,7 @@ function setupFilterButtons() {
         { value: 'folders', icon: 'fa-folder', title: 'Folders Only' },
         { value: 'files', icon: 'fa-file', title: 'Files Only' },
         { value: 'images', icon: 'fa-image', title: 'Images' },
+        { value: 'executables', icon: 'fa-terminal', title: 'Executables' },
         { value: 'code', icon: 'fa-code', title: 'Code Files' },
         { value: 'documents', icon: 'fa-file-alt', title: 'Documents' }
     ];
@@ -204,8 +211,11 @@ function formatFileSize(bytes) {
 
 function getFileIcon(file) {
     if (file.is_directory) return 'fa-folder';
+
+    if (file.is_executable) return 'fa-terminal';
     
     const ext = file.name.split('.').pop().toLowerCase();
+    if (isVideoFile(ext)) return 'fa-file-video';
     const iconMap = {
         'js': 'fa-file-code',
         'py': 'fa-file-code',
@@ -256,6 +266,10 @@ function isTextFile(ext) {
                            'cpp', 'c', 'h', 'sh', 'bash', 'java', 'php', 'sql', 
                            'yml', 'yaml', 'conf', 'cfg', 'ini', 'log'];
     return textExtensions.includes(ext);
+}
+
+function isVideoFile(ext) {
+    return ['mp4', 'webm', 'ogv', 'mov', 'm4v'].includes(ext);
 }
 
 function getLanguageFromExtension(filename) {
@@ -379,6 +393,9 @@ function applyFilters() {
                 const ext = f.name.split('.').pop().toLowerCase();
                 return ['png', 'jpg', 'jpeg', 'gif', 'bmp', 'svg', 'webp'].includes(ext);
             });
+            break;
+        case 'executables':
+            filteredFiles = filteredFiles.filter(f => !f.is_directory && !!f.is_executable);
             break;
         case 'code':
             filteredFiles = filteredFiles.filter(f => {
@@ -843,6 +860,8 @@ function createFileItem(file) {
             const ext = file.name.split('.').pop().toLowerCase();
             if (isImageFile(ext)) {
                 openImageViewer(file);
+            } else if (isVideoFile(ext) && typeof openVideoViewer === 'function') {
+                openVideoViewer(file);
             } else if (isTextFile(ext)) {
                 openFileInEditor(file);
             } else {
@@ -930,6 +949,20 @@ function showFileContextMenu(x, y, file) {
                 icon: 'fa-eye', 
                 text: 'View', 
                 action: () => openImageViewer(file) 
+            });
+        }
+        if (isVideoFile(ext) && typeof openVideoViewer === 'function') {
+            menuItems.push({
+                icon: 'fa-play',
+                text: 'Play',
+                action: () => openVideoViewer(file)
+            });
+        }
+        if (file.is_executable && typeof openExecutableRunner === 'function') {
+            menuItems.push({
+                icon: 'fa-terminal',
+                text: 'Run',
+                action: () => openExecutableRunner(file)
             });
         }
         menuItems.push({ 

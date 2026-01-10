@@ -8,8 +8,11 @@ function formatFileSize(bytes) {
 
 function getFileIcon(file) {
     if (file.is_directory) return 'fa-folder';
+
+    if (file.is_executable) return 'fa-terminal';
     
     const ext = file.name.split('.').pop().toLowerCase();
+    if (isVideoFile(ext)) return 'fa-file-video';
     const iconMap = {
         'js': 'fa-file-code',
         'py': 'fa-file-code',
@@ -60,6 +63,10 @@ function isTextFile(ext) {
                            'cpp', 'c', 'h', 'sh', 'bash', 'java', 'php', 'sql', 
                            'yml', 'yaml', 'conf', 'cfg', 'ini', 'log'];
     return textExtensions.includes(ext);
+}
+
+function isVideoFile(ext) {
+    return ['mp4', 'webm', 'ogv', 'mov', 'm4v'].includes(ext);
 }
 
 function getLanguageFromExtension(filename) {

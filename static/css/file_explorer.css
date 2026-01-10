@@ -751,6 +751,207 @@ body {
     min-height: 300px;
 }
 
+/* Video Viewer Window */
+.video-viewer-window {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 80%;
+    max-width: 1100px;
+    height: 80%;
+    max-height: 820px;
+    background: #1a1a2e;
+    border: 2px solid #00ffcc;
+    border-radius: 8px;
+    display: none;
+    flex-direction: column;
+    z-index: 1001;
+    box-shadow: 0 10px 40px rgba(0, 255, 65, 0.3);
+    min-width: 420px;
+    min-height: 320px;
+}
+
+.video-viewer-header {
+    background: #16213e;
+    padding: 12px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 2px solid #00ffcc;
+    cursor: move;
+    flex-shrink: 0;
+}
+
+.video-viewer-header span {
+    color: #00ffcc;
+    font-weight: bold;
+    font-size: 16px;
+}
+
+.video-viewer-controls button {
+    background: none;
+    border: none;
+    color: #00ffcc;
+    cursor: pointer;
+    padding: 5px 10px;
+    margin-left: 5px;
+    transition: all 0.3s;
+}
+
+.video-viewer-controls button:hover {
+    color: #fff;
+    background: rgba(0, 255, 65, 0.2);
+    border-radius: 4px;
+}
+
+.video-viewer-body {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    overflow: hidden;
+    background: #0f0f1e;
+}
+
+#video-viewer-video {
+    width: 100%;
+    height: 100%;
+    border: 1px solid #00ffcc;
+    border-radius: 4px;
+    background: #000;
+}
+
+.video-viewer-footer {
+    background: #16213e;
+    padding: 10px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-top: 2px solid #00ffcc;
+    flex-shrink: 0;
+}
+
+.video-info {
+    color: #00ffcc;
+    font-size: 13px;
+    font-family: 'Courier New', monospace;
+}
+
+/* Executable Runner Window */
+.exec-runner-window {
+    position: fixed;
+    top: 55%;
+    left: 55%;
+    transform: translate(-50%, -50%);
+    width: 70%;
+    max-width: 1000px;
+    height: 65%;
+    max-height: 700px;
+    background: #1a1a2e;
+    border: 2px solid #00ffcc;
+    border-radius: 8px;
+    display: none;
+    flex-direction: column;
+    z-index: 1002;
+    box-shadow: 0 10px 40px rgba(0, 255, 65, 0.3);
+    min-width: 520px;
+    min-height: 320px;
+}
+
+.exec-runner-header {
+    background: #16213e;
+    padding: 12px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 2px solid #00ffcc;
+    cursor: move;
+    user-select: none;
+    flex-shrink: 0;
+}
+
+.exec-runner-header span {
+    color: #00ffcc;
+    font-weight: bold;
+    font-size: 16px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.exec-runner-controls button {
+    background: none;
+    border: none;
+    color: #00ffcc;
+    cursor: pointer;
+    padding: 5px 10px;
+    margin-left: 5px;
+    transition: all 0.3s;
+    font-size: 16px;
+}
+
+.exec-runner-controls button:hover {
+    color: #fff;
+    background: rgba(0, 255, 65, 0.2);
+    border-radius: 4px;
+    transform: scale(1.05);
+}
+
+.exec-runner-body {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    background: #0f0f1e;
+}
+
+.exec-runner-form {
+    display: grid;
+    grid-template-columns: 1fr 2fr auto;
+    gap: 10px;
+    padding: 12px;
+    border-bottom: 1px solid rgba(0, 255, 204, 0.3);
+    align-items: center;
+}
+
+.exec-runner-path {
+    color: #bdbdbd;
+    font-family: 'Courier New', monospace;
+    font-size: 12px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.exec-runner-output {
+    flex: 1;
+    margin: 0;
+    padding: 12px;
+    color: #e6e6e6;
+    overflow: auto;
+    font-family: 'Courier New', monospace;
+    font-size: 12px;
+    background: #0b0b16;
+}
+
+.exec-runner-footer {
+    background: #16213e;
+    padding: 10px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-top: 2px solid #00ffcc;
+    flex-shrink: 0;
+}
+
+.exec-runner-status {
+    color: #00ffcc;
+    font-size: 13px;
+    font-family: 'Courier New', monospace;
+}
+
 .image-viewer-header {
     background: #16213e;
     padding: 12px 20px;
