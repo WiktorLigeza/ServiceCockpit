@@ -131,6 +131,11 @@ function createRunnerWindow(file) {
     runnerWindow.classList.remove('exec-runner-template');
     runnerWindow.style.display = 'flex';
     runnerWindow.style.zIndex = `${2000 + execRunnerCounter}`;
+    const offsetX = Math.floor(Math.random() * 120) - 60;
+    const offsetY = Math.floor(Math.random() * 120) - 60;
+    runnerWindow.style.left = `calc(50% + ${offsetX}px)`;
+    runnerWindow.style.top = `calc(50% + ${offsetY}px)`;
+    runnerWindow.style.transform = 'translate(-50%, -50%)';
 
     const header = runnerWindow.querySelector('[data-role="header"]');
     const titleEl = runnerWindow.querySelector('[data-role="title"]');
@@ -173,8 +178,11 @@ function createRunnerWindow(file) {
     header.addEventListener('mousedown', (e) => {
         const target = e.target;
         if (target.closest('.exec-runner-controls')) return;
-        initialX = e.clientX - runnerWindow.offsetLeft;
-        initialY = e.clientY - runnerWindow.offsetTop;
+        const pos = typeof getPointerPosition === 'function'
+            ? getPointerPosition(e)
+            : { x: e.clientX, y: e.clientY };
+        initialX = pos.x - runnerWindow.offsetLeft;
+        initialY = pos.y - runnerWindow.offsetTop;
         isDragging = true;
     });
 
@@ -185,8 +193,11 @@ function createRunnerWindow(file) {
     document.addEventListener('mousemove', (e) => {
         if (!isDragging) return;
         e.preventDefault();
-        const currentX = e.clientX - initialX;
-        const currentY = e.clientY - initialY;
+        const pos = typeof getPointerPosition === 'function'
+            ? getPointerPosition(e)
+            : { x: e.clientX, y: e.clientY };
+        const currentX = pos.x - initialX;
+        const currentY = pos.y - initialY;
         runnerWindow.style.left = currentX + 'px';
         runnerWindow.style.top = currentY + 'px';
         runnerWindow.style.transform = 'none';

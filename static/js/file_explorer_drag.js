@@ -7,10 +7,25 @@ function _hasExternalFiles(e) {
 }
 
 function handleDragStart(e) {
-    draggedItem = {
-        path: e.currentTarget.dataset.path,
-        isDirectory: e.currentTarget.dataset.isDirectory === 'true'
-    };
+    const currentPath = e.currentTarget.dataset.path;
+    const isDirectory = e.currentTarget.dataset.isDirectory === 'true';
+
+    if (Array.isArray(selectedFiles) && selectedFiles.length > 1) {
+        const isSelected = selectedFiles.some(item => item.path === currentPath);
+        if (isSelected) {
+            draggedItems = selectedFiles.map(item => ({
+                path: item.path,
+                isDirectory: !!item.is_directory,
+            }));
+            draggedItem = null;
+        } else {
+            draggedItems = [];
+            draggedItem = { path: currentPath, isDirectory };
+        }
+    } else {
+        draggedItems = [];
+        draggedItem = { path: currentPath, isDirectory };
+    }
     
     e.currentTarget.style.opacity = '0.5';
     e.dataTransfer.effectAllowed = 'move';
@@ -23,6 +38,8 @@ function handleDragEnd(e) {
     document.querySelectorAll('.file-item').forEach(item => {
         item.classList.remove('drag-over');
     });
+
+    draggedItems = [];
 }
 
 function handleDragOver(e) {
@@ -91,35 +108,42 @@ async function handleDrop(e) {
         return false;
     }
     
-    if (!isTargetDirectory || !draggedItem) {
+    if (!isTargetDirectory || (!draggedItem && (!draggedItems || draggedItems.length === 0))) {
         return false;
     }
     
-    if (draggedItem.path === targetPath) {
+    if (draggedItem && draggedItem.path === targetPath) {
         showNotification('Cannot move a folder into itself', 'error');
         return false;
     }
     
     try {
-        const response = await fetch('/api/move', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                source_path: draggedItem.path,
-                destination_path: targetPath
-            })
-        });
-        
-        const data = await response.json();
-        if (data.success) {
-            showNotification('Moved successfully', 'success');
-            loadDirectory(currentPath);
-            reloadDirectoryInTree(currentPath);
-        } else {
-            showNotification('Failed to move: ' + data.error, 'error');
+        const itemsToMove = (draggedItems && draggedItems.length)
+            ? draggedItems
+            : [draggedItem];
+
+        for (const item of itemsToMove) {
+            const response = await fetch('/api/move', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    source_path: item.path,
+                    destination_path: targetPath
+                })
+            });
+            
+            const data = await response.json();
+            if (!data.success) {
+                showNotification('Failed to move: ' + data.error, 'error');
+                return false;
+            }
         }
+
+        showNotification('Moved successfully', 'success');
+        loadDirectory(currentPath);
+        reloadDirectoryInTree(currentPath);
     } catch (error) {
         showNotification('Failed to move: ' + error, 'error');
     }
@@ -180,30 +204,37 @@ async function handleDirectoryDrop(e) {
         return false;
     }
     
-    if (!draggedItem || draggedItem.path === targetPath) {
+    if ((!draggedItem && (!draggedItems || draggedItems.length === 0)) || (draggedItem && draggedItem.path === targetPath)) {
         return false;
     }
     
     try {
-        const response = await fetch('/api/move', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                source_path: draggedItem.path,
-                destination_path: targetPath
-            })
-        });
-        
-        const data = await response.json();
-        if (data.success) {
-            showNotification('Moved successfully', 'success');
-            loadDirectory(currentPath);
-            reloadDirectoryInTree(currentPath);
-        } else {
-            showNotification('Failed to move: ' + data.error, 'error');
+        const itemsToMove = (draggedItems && draggedItems.length)
+            ? draggedItems
+            : [draggedItem];
+
+        for (const item of itemsToMove) {
+            const response = await fetch('/api/move', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    source_path: item.path,
+                    destination_path: targetPath
+                })
+            });
+            
+            const data = await response.json();
+            if (!data.success) {
+                showNotification('Failed to move: ' + data.error, 'error');
+                return false;
+            }
         }
+
+        showNotification('Moved successfully', 'success');
+        loadDirectory(currentPath);
+        reloadDirectoryInTree(currentPath);
     } catch (error) {
         showNotification('Failed to move: ' + error, 'error');
     }

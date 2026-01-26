@@ -34,6 +34,49 @@ body {
     max-width: 300px;
 }
 
+.saved-folders-section {
+    padding: 6px 6px 10px;
+    border-bottom: 1px solid rgba(0, 255, 255, 0.2);
+    margin-bottom: 6px;
+}
+
+.saved-folders-header {
+    color: #00ffcc;
+    font-size: 12px;
+    font-weight: 600;
+    margin: 4px 8px 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+}
+
+.saved-folders-list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.saved-folder-item {
+    padding: 6px 10px;
+    gap: 8px;
+}
+
+.saved-folder-item .saved-folder-path {
+    margin-left: auto;
+    color: rgba(255, 255, 255, 0.55);
+    font-size: 10px;
+    font-family: 'Courier New', monospace;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 140px;
+}
+
+.saved-folders-empty {
+    color: rgba(255, 255, 255, 0.6);
+    font-size: 12px;
+    padding: 6px 10px;
+}
+
 .files-panel {
     flex: 2;
 }

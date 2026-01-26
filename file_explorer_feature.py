@@ -614,6 +614,86 @@ def build_file_explorer_blueprint() -> Blueprint:
         except Exception as e:
             return jsonify({'success': False, 'error': str(e)}), 500
 
+    @bp.route('/api/archive/create-multi', methods=['POST'])
+    def create_archive_multi():
+        try:
+            _cleanup_archives()
+
+            data = request.get_json(silent=True) or {}
+            paths = data.get('paths') or []
+            fmt = (data.get('format') or 'zip').lower()
+            destination_path = (data.get('destination_path') or '').strip()
+
+            if not isinstance(paths, list) or not paths:
+                return jsonify({'success': False, 'error': 'paths required'}), 400
+
+            if fmt in ('targz', 'tar.gz', 'tgz'):
+                archive_format = 'gztar'
+                extension = 'tar.gz'
+            elif fmt == 'zip':
+                archive_format = 'zip'
+                extension = 'zip'
+            else:
+                return jsonify({'success': False, 'error': 'Invalid format'}), 400
+
+            dest_dir = Path(destination_path) if destination_path else Path(paths[0]).parent
+            if not dest_dir.exists() or not dest_dir.is_dir():
+                return jsonify({'success': False, 'error': 'Invalid destination'}), 400
+
+            tmp_dir = Path(tempfile.mkdtemp(prefix='archive_multi_'))
+            root_dir = tmp_dir / 'selection'
+            root_dir.mkdir(parents=True, exist_ok=True)
+
+            for raw_path in paths:
+                path_obj = Path(str(raw_path))
+                if not path_obj.exists():
+                    continue
+
+                name = path_obj.name
+                target = root_dir / name
+                if target.exists():
+                    counter = 1
+                    stem = path_obj.stem
+                    suffix = path_obj.suffix
+                    while target.exists():
+                        target = root_dir / f"{stem}_{counter}{suffix}"
+                        counter += 1
+
+                if path_obj.is_dir():
+                    shutil.copytree(str(path_obj), str(target))
+                else:
+                    shutil.copy2(str(path_obj), str(target))
+
+            base_name = tmp_dir / 'selection'
+            tmp_archive = shutil.make_archive(str(base_name), archive_format, root_dir=str(tmp_dir), base_dir='selection')
+
+            final_name = f"selection.{extension}"
+            final_path = dest_dir / final_name
+            if final_path.exists():
+                counter = 1
+                while final_path.exists():
+                    final_name = f"selection_{counter}.{extension}"
+                    final_path = dest_dir / final_name
+                    counter += 1
+
+            shutil.move(tmp_archive, final_path)
+            shutil.rmtree(tmp_dir, ignore_errors=True)
+
+            return jsonify(
+                {
+                    'success': True,
+                    'archive': {
+                        'path': str(final_path),
+                        'filename': final_name,
+                        'format': fmt,
+                        'destination': str(dest_dir),
+                        'source': 'selection',
+                    },
+                }
+            )
+        except Exception as e:
+            return jsonify({'success': False, 'error': str(e)}), 500
+
     @bp.route('/api/archive/download')
     def download_archive():
         try:

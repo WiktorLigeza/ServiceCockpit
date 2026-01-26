@@ -117,8 +117,11 @@ function setupCodeEditor() {
     
     function dragStart(e) {
         if (e.target.classList.contains('editor-close')) return;
-        initialX = e.clientX - editorWindow.offsetLeft;
-        initialY = e.clientY - editorWindow.offsetTop;
+        const pos = typeof getPointerPosition === 'function'
+            ? getPointerPosition(e)
+            : { x: e.clientX, y: e.clientY };
+        initialX = pos.x - editorWindow.offsetLeft;
+        initialY = pos.y - editorWindow.offsetTop;
         isDragging = true;
         editorWindow.style.cursor = 'move';
     }
@@ -126,8 +129,11 @@ function setupCodeEditor() {
     function drag(e) {
         if (isDragging) {
             e.preventDefault();
-            currentX = e.clientX - initialX;
-            currentY = e.clientY - initialY;
+            const pos = typeof getPointerPosition === 'function'
+                ? getPointerPosition(e)
+                : { x: e.clientX, y: e.clientY };
+            currentX = pos.x - initialX;
+            currentY = pos.y - initialY;
             editorWindow.style.left = currentX + 'px';
             editorWindow.style.top = currentY + 'px';
             editorWindow.style.transform = 'none';

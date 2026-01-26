@@ -332,8 +332,11 @@ function setupMultiSelection() {
         if (e.target.closest('.file-item')) return;
 
         isSelecting = true;
-        startX = e.clientX;
-        startY = e.clientY;
+        const pos = typeof getPointerPosition === 'function'
+            ? getPointerPosition(e)
+            : { x: e.clientX, y: e.clientY };
+        startX = pos.x;
+        startY = pos.y;
 
         const keepExisting = e.shiftKey || e.ctrlKey || e.metaKey;
         baseSelection = new Set(keepExisting ? selectedFiles.map(f => f.path) : []);
@@ -346,7 +349,10 @@ function setupMultiSelection() {
 
     document.addEventListener('mousemove', (e) => {
         if (!isSelecting) return;
-        updateSelectionBox(e.clientX, e.clientY);
+        const pos = typeof getPointerPosition === 'function'
+            ? getPointerPosition(e)
+            : { x: e.clientX, y: e.clientY };
+        updateSelectionBox(pos.x, pos.y);
     });
 
     document.addEventListener('mouseup', () => {

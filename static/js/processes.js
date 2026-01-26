@@ -285,14 +285,20 @@ function initInfocardBehavior() {
         if (e.button !== 0) return;
         dragging = true;
         const rect = infocard.getBoundingClientRect();
-        offsetX = e.clientX - rect.left;
-        offsetY = e.clientY - rect.top;
+        const zoom = typeof getPageZoom === 'function' ? getPageZoom() : 1;
+        offsetX = (e.clientX / zoom) - (rect.left / zoom);
+        offsetY = (e.clientY / zoom) - (rect.top / zoom);
         document.addEventListener('mousemove', onMouseMove);
         document.addEventListener('mouseup', onMouseUp);
         e.preventDefault();
     });
 
-    const onMouseMove = (e) => onMove(e.clientX, e.clientY);
+    const onMouseMove = (e) => {
+        const pos = typeof getPointerPosition === 'function'
+            ? getPointerPosition(e)
+            : { x: e.clientX, y: e.clientY };
+        onMove(pos.x, pos.y);
+    };
     const onMouseUp = () => {
         dragging = false;
         document.removeEventListener('mousemove', onMouseMove);

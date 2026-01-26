@@ -41,16 +41,22 @@ function setupImageViewer() {
     
     function dragStart(e) {
         if (e.target.classList.contains('image-viewer-close')) return;
-        initialX = e.clientX - viewerWindow.offsetLeft;
-        initialY = e.clientY - viewerWindow.offsetTop;
+        const pos = typeof getPointerPosition === 'function'
+            ? getPointerPosition(e)
+            : { x: e.clientX, y: e.clientY };
+        initialX = pos.x - viewerWindow.offsetLeft;
+        initialY = pos.y - viewerWindow.offsetTop;
         isDragging = true;
     }
     
     function drag(e) {
         if (isDragging) {
             e.preventDefault();
-            currentX = e.clientX - initialX;
-            currentY = e.clientY - initialY;
+            const pos = typeof getPointerPosition === 'function'
+                ? getPointerPosition(e)
+                : { x: e.clientX, y: e.clientY };
+            currentX = pos.x - initialX;
+            currentY = pos.y - initialY;
             viewerWindow.style.left = currentX + 'px';
             viewerWindow.style.top = currentY + 'px';
             viewerWindow.style.transform = 'none';
@@ -135,16 +141,22 @@ function setupVideoViewer() {
 
     function dragStart(e) {
         if (e.target.classList.contains('video-viewer-close')) return;
-        initialX = e.clientX - viewerWindow.offsetLeft;
-        initialY = e.clientY - viewerWindow.offsetTop;
+        const pos = typeof getPointerPosition === 'function'
+            ? getPointerPosition(e)
+            : { x: e.clientX, y: e.clientY };
+        initialX = pos.x - viewerWindow.offsetLeft;
+        initialY = pos.y - viewerWindow.offsetTop;
         isDragging = true;
     }
 
     function drag(e) {
         if (isDragging) {
             e.preventDefault();
-            currentX = e.clientX - initialX;
-            currentY = e.clientY - initialY;
+            const pos = typeof getPointerPosition === 'function'
+                ? getPointerPosition(e)
+                : { x: e.clientX, y: e.clientY };
+            currentX = pos.x - initialX;
+            currentY = pos.y - initialY;
             viewerWindow.style.left = currentX + 'px';
             viewerWindow.style.top = currentY + 'px';
             viewerWindow.style.transform = 'none';

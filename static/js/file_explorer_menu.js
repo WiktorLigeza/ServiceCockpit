@@ -8,12 +8,45 @@ function showContextMenu(x, y, file) {
     menu.className = 'context-menu';
     menu.style.visibility = 'hidden';
     
-    const menuItems = [
-        { icon: 'fa-copy', text: 'Copy', action: copyFile },
-        { icon: 'fa-cut', text: 'Cut', action: cutFile }
-    ];
+    const isMulti = Array.isArray(selectedFiles) && selectedFiles.length > 1;
+    const isInSelection = isMulti ? selectedFiles.some(item => item.path === file.path) : false;
+
+    const menuItems = [];
+
+    if (isMulti && isInSelection) {
+        const selectionPaths = selectedFiles.map(item => item.path);
+        menuItems.push(
+            { icon: 'fa-copy', text: `Copy (${selectedFiles.length})`, action: copyFile },
+            { icon: 'fa-cut', text: `Cut (${selectedFiles.length})`, action: cutFile }
+        );
+
+        menuItems.push({ type: 'separator' });
+        menuItems.push({
+            icon: 'fa-file-archive',
+            text: 'Download selection (zip)',
+            action: () => createArchiveMulti('zip', selectionPaths, currentPath, true),
+        });
+        menuItems.push({
+            icon: 'fa-file-archive',
+            text: 'Archive selection (zip)',
+            action: () => createArchiveMulti('zip', selectionPaths, currentPath, false),
+        });
+        menuItems.push({
+            icon: 'fa-file-archive',
+            text: 'Archive selection (tar.gz)',
+            action: () => createArchiveMulti('targz', selectionPaths, currentPath, false),
+        });
+
+        menuItems.push({ type: 'separator' });
+        menuItems.push({ icon: 'fa-trash', text: 'Delete selection', action: deleteSelectedFiles, className: 'danger' });
+    } else {
+        menuItems.push(
+            { icon: 'fa-copy', text: 'Copy', action: copyFile },
+            { icon: 'fa-cut', text: 'Cut', action: cutFile }
+        );
+    }
     
-    if (copiedFile && file.is_directory) {
+    if ((copiedFile || (copiedFiles && copiedFiles.length)) && file.is_directory) {
         menuItems.push({ 
             icon: 'fa-paste', 
             text: 'Paste Here', 
@@ -21,20 +54,28 @@ function showContextMenu(x, y, file) {
         });
     }
     
-    menuItems.push({ icon: 'fa-edit', text: 'Rename', action: renameFile });
-    
-    if (!file.is_directory) {
-        menuItems.push({ icon: 'fa-download', text: 'Download', action: downloadFile });
+    if (!(isMulti && isInSelection)) {
+        menuItems.push({ icon: 'fa-edit', text: 'Rename', action: renameFile });
         
-        const ext = file.name.split('.').pop().toLowerCase();
-        if (isTextFile(ext)) {
-            menuItems.push({ icon: 'fa-edit', text: 'Edit', action: () => openFileInEditor(selectedFile) });
+        if (!file.is_directory) {
+            menuItems.push({ icon: 'fa-download', text: 'Download', action: downloadFile });
+            
+            const ext = file.name.split('.').pop().toLowerCase();
+            if (isTextFile(ext)) {
+                menuItems.push({ icon: 'fa-edit', text: 'Edit', action: () => openFileInEditor(selectedFile) });
+            }
         }
+        
+        menuItems.push({ icon: 'fa-trash', text: 'Delete', action: deleteFile, className: 'danger' });
     }
     
-    menuItems.push({ icon: 'fa-trash', text: 'Delete', action: deleteFile, className: 'danger' });
-    
     menuItems.forEach(item => {
+        if (item.type === 'separator') {
+            const separator = document.createElement('div');
+            separator.className = 'context-menu-separator';
+            menu.appendChild(separator);
+            return;
+        }
         const menuItem = document.createElement('div');
         menuItem.className = 'context-menu-item' + (item.className ? ' ' + item.className : '');
         menuItem.innerHTML = `<i class="fas ${item.icon}"></i> ${item.text}`;
@@ -74,7 +115,7 @@ function showDirectoryContextMenu(x, y, dir) {
     
     const menuItems = [];
     
-    if (copiedFile) {
+    if (copiedFile || (copiedFiles && copiedFiles.length)) {
         menuItems.push({ 
             icon: 'fa-paste', 
             text: 'Paste Here', 

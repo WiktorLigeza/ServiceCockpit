@@ -25,6 +25,18 @@ function createDirectoryTreeItem(dir) {
     const item = document.createElement('div');
     item.className = 'directory-item';
     item.dataset.path = dir.path;
+
+    if (typeof folderPreferences === 'object' && folderPreferences) {
+        const prefs = folderPreferences[dir.path];
+        if (prefs?.favorite) {
+            item.classList.add('favorite-folder');
+        }
+        if (prefs?.color) {
+            item.classList.add('colored-folder');
+            item.style.setProperty('--folder-color', prefs.color);
+            item.dataset.color = prefs.color;
+        }
+    }
     
     item.addEventListener('dragover', handleDirectoryDragOver);
     item.addEventListener('drop', handleDirectoryDrop);

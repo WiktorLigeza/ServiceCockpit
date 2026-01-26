@@ -11,6 +11,7 @@ let copiedFile = null;
 let copiedFilePath = null;
 let isCutOperation = false;
 let draggedItem = null;
+let draggedItems = [];
 let folderPreferences = {}; // Store folder colors and favorites
 let uploadTargetPath = null;
 let selectedColorFilters = new Set();
@@ -19,6 +20,7 @@ let selectedFiles = [];
 let lastSelectedIndex = -1;
 let visibleFiles = [];
 let visibleFileMap = new Map();
+let copiedFiles = [];
 
 // Import modules
 document.addEventListener('DOMContentLoaded', function() {
@@ -449,6 +451,7 @@ function applyDirectoryColorFilter() {
         items.forEach(item => {
             item.style.display = 'flex';
         });
+        renderSavedFoldersByColor(false);
         return;
     }
 
@@ -460,6 +463,87 @@ function applyDirectoryColorFilter() {
             item.style.display = 'none';
         }
     });
+
+    renderSavedFoldersByColor(true);
+}
+
+function renderSavedFoldersByColor(enabled) {
+    const treeContainer = document.getElementById('directory-tree-container');
+    if (!treeContainer) return;
+
+    let section = document.getElementById('saved-folders-section');
+    if (!section) {
+        section = document.createElement('div');
+        section.id = 'saved-folders-section';
+        section.className = 'saved-folders-section';
+        treeContainer.prepend(section);
+    }
+
+    if (!enabled) {
+        section.style.display = 'none';
+        section.innerHTML = '';
+        return;
+    }
+
+    const entries = Object.entries(folderPreferences || {})
+        .filter(([, prefs]) => prefs && prefs.color && selectedColorFilters.has(prefs.color));
+
+    section.style.display = 'block';
+    section.innerHTML = '';
+
+    const header = document.createElement('div');
+    header.className = 'saved-folders-header';
+    header.textContent = 'Saved folders (filtered)';
+    section.appendChild(header);
+
+    const list = document.createElement('div');
+    list.className = 'saved-folders-list';
+
+    entries
+        .sort(([a], [b]) => a.localeCompare(b))
+        .forEach(([path, prefs]) => {
+            const item = document.createElement('div');
+            item.className = 'directory-item saved-folder-item';
+            item.dataset.path = path;
+            item.dataset.color = prefs.color;
+
+            const icon = document.createElement('i');
+            icon.className = 'fas fa-folder file-icon folder';
+            icon.style.color = prefs.color;
+
+            const name = document.createElement('span');
+            const parts = path.split('/').filter(Boolean);
+            name.textContent = parts.length ? parts[parts.length - 1] : path;
+
+            const pathLabel = document.createElement('span');
+            pathLabel.className = 'saved-folder-path';
+            pathLabel.textContent = path;
+
+            item.appendChild(icon);
+            item.appendChild(name);
+            item.appendChild(pathLabel);
+
+            item.addEventListener('click', (e) => {
+                e.stopPropagation();
+                loadDirectory(path);
+            });
+
+            item.addEventListener('contextmenu', (e) => {
+                e.preventDefault();
+                showDirectoryContextMenu(e.clientX, e.clientY, { path, name: name.textContent });
+            });
+
+            list.appendChild(item);
+        });
+
+    if (entries.length === 0) {
+        const empty = document.createElement('div');
+        empty.className = 'saved-folders-empty';
+        empty.textContent = 'No saved folders for selected colors';
+        list.appendChild(empty);
+    }
+
+    section.appendChild(list);
 }
 
 async function copyTextToClipboard(text) {
@@ -1433,6 +1517,53 @@ async function createArchive(format, path, destinationPath) {
     }
 }
 
+async function createArchiveMulti(format, paths, destinationPath, autoDownload = false) {
+    if (!Array.isArray(paths) || paths.length === 0) return;
+    const fmt = format === 'targz' ? 'targz' : 'zip';
+    const label = `Creating ${fmt} for selection (${paths.length})`;
+    const job = createArchiveJob(label);
+    showNotification('Preparing archive...', 'info');
+    try {
+        const resp = await fetch('/api/archive/create-multi', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ paths, format: fmt, destination_path: destinationPath || currentPath }),
+        });
+        const data = await resp.json();
+        if (!data.success) {
+            showNotification(`Archive failed: ${data.error || 'unknown'}`, 'error');
+            if (job) job.innerHTML = `<i class="fas fa-times"></i> <span>Archive failed</span>`;
+            return;
+        }
+        const archive = data.archive;
+        archiveCache.set(archive.path, archive);
+        showNotification('Archive created', 'success');
+        if (job) {
+            job.innerHTML = `
+                <i class="fas fa-check"></i>
+                <span>${archive.filename} ready</span>
+                <button class="archive-download" title="Download">
+                    <i class="fas fa-download"></i>
+                </button>
+            `;
+            const btn = job.querySelector('.archive-download');
+            btn?.addEventListener('click', (e) => {
+                e.stopPropagation();
+                window.location.href = `/api/download?path=${encodeURIComponent(archive.path)}`;
+            });
+            setTimeout(() => job.remove(), 15000);
+        }
+
+        loadDirectory(currentPath);
+        if (autoDownload && archive?.path) {
+            window.location.href = `/api/download?path=${encodeURIComponent(archive.path)}`;
+        }
+    } catch (e) {
+        showNotification(`Archive failed: ${e}`, 'error');
+        if (job) job.innerHTML = `<i class="fas fa-times"></i> <span>Archive failed</span>`;
+    }
+}
+
 function downloadLatestArchive(path) {
     const archive = archiveCache.get(path);
     if (!archive || !archive.path) {
@@ -1454,7 +1585,7 @@ function showContainerContextMenu(x, y) {
 
     const menuItems = [];
 
-    if (copiedFile) {
+    if (copiedFile || (copiedFiles && copiedFiles.length)) {
         menuItems.push({
             icon: 'fa-paste',
             text: 'Paste Here',

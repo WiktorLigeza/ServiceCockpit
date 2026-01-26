@@ -102,8 +102,14 @@ WantedBy=default.target`;
     document.addEventListener('mouseup', dragEnd);
 
     function dragStart(e) {
-        initialX = e.clientX - xOffset;
-        initialY = e.clientY - yOffset;
+        const pos = typeof getPointerPosition === 'function'
+            ? getPointerPosition(e)
+            : (() => {
+                const zoom = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--page-zoom')) || 1;
+                return { x: e.clientX / zoom, y: e.clientY / zoom };
+            })();
+        initialX = pos.x - xOffset;
+        initialY = pos.y - yOffset;
         if (e.target === infocardHeader || e.target.parentNode === infocardHeader) {
             isDragging = true;
         }
@@ -112,8 +118,14 @@ WantedBy=default.target`;
     function drag(e) {
         if (isDragging) {
             e.preventDefault();
-            currentX = e.clientX - initialX;
-            currentY = e.clientY - initialY;
+            const pos = typeof getPointerPosition === 'function'
+                ? getPointerPosition(e)
+                : (() => {
+                    const zoom = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--page-zoom')) || 1;
+                    return { x: e.clientX / zoom, y: e.clientY / zoom };
+                })();
+            currentX = pos.x - initialX;
+            currentY = pos.y - initialY;
             xOffset = currentX;
             yOffset = currentY;
             setTranslate(currentX, currentY, addServiceCard);
