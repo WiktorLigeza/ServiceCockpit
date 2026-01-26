@@ -1,27 +1,169 @@
-let execRunnerFile = null;
-let execRunnerProcessId = null;
 let execRunnerSocket = null;
-let execRunnerStreaming = false;
+const execRunners = new Map();
+let execRunnerCounter = 0;
 
 function setupExecutableRunner() {
-    const runnerWindow = document.getElementById('exec-runner-window');
-    if (!runnerWindow) return;
+    ensureExecSocket();
+}
 
-    const header = runnerWindow.querySelector('.exec-runner-header');
-    const title = document.getElementById('exec-runner-title');
-    const pathEl = document.getElementById('exec-runner-path');
-    const paramsEl = document.getElementById('exec-runner-params');
-    const outputEl = document.getElementById('exec-runner-output');
-    const statusEl = document.getElementById('exec-runner-status');
-    const startBtn = document.getElementById('exec-runner-start');
-    const killBtn = document.getElementById('exec-runner-kill');
-    const minimizeBtn = document.getElementById('exec-runner-minimize');
-    const closeBtn = document.getElementById('exec-runner-close');
-    const resumeBtn = document.getElementById('exec-runner-resume');
+function ensureExecSocket() {
+    if (execRunnerSocket) return;
+    execRunnerSocket = io({
+        reconnection: true,
+        reconnectionAttempts: 5,
+        reconnectionDelay: 1000,
+        timeout: 20000,
+    });
+
+    execRunnerSocket.on('exec_history', (data) => {
+        if (!data || !data.process_id) return;
+        const runner = execRunners.get(data.process_id);
+        if (!runner) return;
+        runner.outputEl.textContent = (data.lines || []).join('\n');
+        if (runner.outputEl.textContent.length > 0) runner.outputEl.textContent += '\n';
+        if (data.running) {
+            setRunnerStatus(runner, 'Running');
+        } else {
+            setRunnerStatus(runner, `Exited (${data.return_code ?? 'unknown'})`);
+        }
+    });
+
+    execRunnerSocket.on('exec_output', (data) => {
+        if (!data || !data.process_id) return;
+        const runner = execRunners.get(data.process_id);
+        if (!runner) return;
+        runner.outputEl.textContent += (data.line ?? '') + '\n';
+        runner.outputEl.scrollTop = runner.outputEl.scrollHeight;
+    });
+
+    execRunnerSocket.on('exec_exit', (data) => {
+        if (!data || !data.process_id) return;
+        const runner = execRunners.get(data.process_id);
+        if (!runner) return;
+        setRunnerStatus(runner, `Exited (${data.return_code ?? 'unknown'})`);
+    });
+
+    execRunnerSocket.on('exec_error', (data) => {
+        if (!data || !data.process_id) return;
+        const runner = execRunners.get(data.process_id);
+        if (!runner) return;
+        setRunnerStatus(runner, `Error: ${data.error ?? 'unknown'}`);
+    });
+}
+
+function setRunnerStatus(runner, text) {
+    runner.statusEl.textContent = text;
+    if (runner.dockItem) {
+        const label = runner.dockItem.querySelector('.dock-title');
+        if (label) label.textContent = `${runner.titleText} • ${text}`;
+    }
+}
+
+function createDockItem(runner) {
+    const dock = document.getElementById('exec-runner-dock');
+    if (!dock) return null;
+    const item = document.createElement('div');
+    item.className = 'exec-runner-dock-item';
+    item.innerHTML = `
+        <span class="dock-title">${runner.titleText} • ${runner.statusEl.textContent}</span>
+        <button class="dock-kill" title="Kill">&times;</button>
+    `;
+    item.addEventListener('click', () => {
+        restoreRunner(runner);
+    });
+    const killBtn = item.querySelector('.dock-kill');
+    killBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        killRunnerProcess(runner);
+    });
+    dock.appendChild(item);
+    return item;
+}
+
+function restoreRunner(runner) {
+    runner.windowEl.style.display = 'flex';
+    runner.windowEl.style.zIndex = `${2000 + execRunnerCounter}`;
+    if (runner.dockItem) {
+        runner.dockItem.remove();
+        runner.dockItem = null;
+    }
+}
+
+function minimizeRunner(runner) {
+    runner.windowEl.style.display = 'none';
+    if (!runner.dockItem) {
+        runner.dockItem = createDockItem(runner);
+    }
+}
+
+async function killRunnerProcess(runner) {
+    if (!runner.processId) return;
+    try {
+        setRunnerStatus(runner, 'Killing...');
+        const resp = await fetch('/api/execute/kill', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ process_id: runner.processId }),
+        });
+        const data = await resp.json();
+        if (!data.success) {
+            setRunnerStatus(runner, 'Kill failed');
+            alert('Failed to kill: ' + (data.error || 'unknown'));
+            return;
+        }
+        setRunnerStatus(runner, 'Kill sent');
+    } catch (e) {
+        setRunnerStatus(runner, 'Kill failed');
+        alert('Failed to kill: ' + e);
+    }
+}
+
+function createRunnerWindow(file) {
+    const template = document.getElementById('exec-runner-template');
+    if (!template) return null;
+
+    const runnerWindow = template.cloneNode(true);
+    runnerWindow.id = `exec-runner-${++execRunnerCounter}`;
+    runnerWindow.classList.remove('exec-runner-template');
+    runnerWindow.style.display = 'flex';
+    runnerWindow.style.zIndex = `${2000 + execRunnerCounter}`;
+
+    const header = runnerWindow.querySelector('[data-role="header"]');
+    const titleEl = runnerWindow.querySelector('[data-role="title"]');
+    const pathEl = runnerWindow.querySelector('[data-role="path"]');
+    const paramsEl = runnerWindow.querySelector('[data-role="params"]');
+    const outputEl = runnerWindow.querySelector('[data-role="output"]');
+    const statusEl = runnerWindow.querySelector('[data-role="status"]');
+    const startBtn = runnerWindow.querySelector('[data-role="start"]');
+    const killBtn = runnerWindow.querySelector('[data-role="kill"]');
+    const minimizeBtn = runnerWindow.querySelector('[data-role="minimize"]');
+    const closeBtn = runnerWindow.querySelector('[data-role="close"]');
+
+    const runner = {
+        windowEl: runnerWindow,
+        headerEl: header,
+        titleEl,
+        pathEl,
+        paramsEl,
+        outputEl,
+        statusEl,
+        startBtn,
+        killBtn,
+        minimizeBtn,
+        closeBtn,
+        file,
+        titleText: file.name,
+        processId: null,
+        dockItem: null,
+    };
+
+    titleEl.innerHTML = `<i class="fas fa-terminal"></i> ${file.name}`;
+    pathEl.textContent = file.path;
+    statusEl.textContent = 'Ready';
 
     // Dragging
     let isDragging = false;
-    let currentX, currentY, initialX, initialY;
+    let initialX, initialY;
 
     header.addEventListener('mousedown', (e) => {
         const target = e.target;
@@ -34,8 +176,8 @@ function setupExecutableRunner() {
     document.addEventListener('mousemove', (e) => {
         if (!isDragging) return;
         e.preventDefault();
-        currentX = e.clientX - initialX;
-        currentY = e.clientY - initialY;
+        const currentX = e.clientX - initialX;
+        const currentY = e.clientY - initialY;
         runnerWindow.style.left = currentX + 'px';
         runnerWindow.style.top = currentY + 'px';
         runnerWindow.style.transform = 'none';
@@ -45,164 +187,62 @@ function setupExecutableRunner() {
         isDragging = false;
     });
 
-    function ensureSocket() {
-        if (execRunnerSocket) return;
-        execRunnerSocket = io({
-            reconnection: true,
-            reconnectionAttempts: 5,
-            reconnectionDelay: 1000,
-            timeout: 20000,
-        });
-
-        execRunnerSocket.on('exec_history', (data) => {
-            if (!data || data.process_id !== execRunnerProcessId) return;
-            outputEl.textContent = (data.lines || []).join('\n');
-            if (outputEl.textContent.length > 0) outputEl.textContent += '\n';
-            if (data.running) {
-                statusEl.textContent = 'Running (streaming)';
-            } else {
-                statusEl.textContent = `Exited (${data.return_code ?? 'unknown'})`;
-            }
-        });
-
-        execRunnerSocket.on('exec_output', (data) => {
-            if (!data || data.process_id !== execRunnerProcessId) return;
-            outputEl.textContent += (data.line ?? '') + '\n';
-            outputEl.scrollTop = outputEl.scrollHeight;
-        });
-
-        execRunnerSocket.on('exec_exit', (data) => {
-            if (!data || data.process_id !== execRunnerProcessId) return;
-            execRunnerStreaming = false;
-            resumeBtn.style.display = 'none';
-            statusEl.textContent = `Exited (${data.return_code ?? 'unknown'})`;
-        });
-
-        execRunnerSocket.on('exec_error', (data) => {
-            if (!data || data.process_id !== execRunnerProcessId) return;
-            statusEl.textContent = `Error: ${data.error ?? 'unknown'}`;
-        });
-    }
-
-    function joinStream() {
-        if (!execRunnerProcessId) return;
-        ensureSocket();
-        execRunnerSocket.emit('join_exec', { process_id: execRunnerProcessId });
-        execRunnerStreaming = true;
-        resumeBtn.style.display = 'none';
-        statusEl.textContent = 'Running (streaming)';
-    }
-
-    function leaveStream() {
-        if (!execRunnerSocket || !execRunnerProcessId) return;
-        execRunnerSocket.emit('leave_exec', { process_id: execRunnerProcessId });
-        execRunnerStreaming = false;
-        resumeBtn.style.display = 'inline-block';
-        statusEl.textContent = 'Minimized (not streaming)';
-    }
-
     startBtn.addEventListener('click', async () => {
-        if (!execRunnerFile) return;
-
+        if (!file || runner.processId) return;
         outputEl.textContent = '';
-        statusEl.textContent = 'Starting...';
+        setRunnerStatus(runner, 'Starting...');
 
         const params = (paramsEl.value || '').trim();
-
         try {
             const resp = await fetch('/api/execute', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ path: execRunnerFile.path, params }),
+                body: JSON.stringify({ path: file.path, params, cwd: currentPath }),
             });
             const data = await resp.json();
             if (!data.success) {
-                statusEl.textContent = 'Start failed';
+                setRunnerStatus(runner, 'Start failed');
                 alert('Failed to start: ' + (data.error || 'unknown'));
                 return;
             }
 
-            execRunnerProcessId = data.process_id;
-            pathEl.textContent = execRunnerFile.path;
-            joinStream();
+            runner.processId = data.process_id;
+            execRunners.set(runner.processId, runner);
+            ensureExecSocket();
+            execRunnerSocket.emit('join_exec', { process_id: runner.processId });
+            setRunnerStatus(runner, 'Running');
         } catch (e) {
-            statusEl.textContent = 'Start failed';
+            setRunnerStatus(runner, 'Start failed');
             alert('Failed to start: ' + e);
         }
     });
 
     killBtn.addEventListener('click', async () => {
-        if (!execRunnerProcessId) return;
-        try {
-            statusEl.textContent = 'Killing...';
-            const resp = await fetch('/api/execute/kill', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ process_id: execRunnerProcessId }),
-            });
-            const data = await resp.json();
-            if (!data.success) {
-                statusEl.textContent = 'Kill failed';
-                alert('Failed to kill: ' + (data.error || 'unknown'));
-                return;
-            }
-            statusEl.textContent = 'Kill sent';
-        } catch (e) {
-            statusEl.textContent = 'Kill failed';
-            alert('Failed to kill: ' + e);
-        }
+        await killRunnerProcess(runner);
     });
 
     minimizeBtn.addEventListener('click', () => {
-        if (execRunnerProcessId && execRunnerStreaming) {
-            leaveStream();
-        } else if (execRunnerProcessId) {
-            joinStream();
-        }
-    });
-
-    resumeBtn.addEventListener('click', () => {
-        joinStream();
+        minimizeRunner(runner);
     });
 
     closeBtn.addEventListener('click', () => {
-        // Close means: stop streaming, but keep process running.
-        if (execRunnerProcessId && execRunnerStreaming) {
-            leaveStream();
+        if (runner.processId) {
+            execRunnerSocket?.emit('leave_exec', { process_id: runner.processId });
+            execRunners.delete(runner.processId);
         }
-        runnerWindow.style.display = 'none';
+        if (runner.dockItem) {
+            runner.dockItem.remove();
+        }
+        runner.windowEl.remove();
     });
 
-    // Initialize UI
-    title.innerHTML = '<i class="fas fa-terminal"></i> Runner';
-    pathEl.textContent = '';
-    statusEl.textContent = 'Idle';
-    resumeBtn.style.display = 'none';
+    document.body.appendChild(runnerWindow);
+    return runner;
 }
 
 function openExecutableRunner(file) {
-    execRunnerFile = file;
-    const runnerWindow = document.getElementById('exec-runner-window');
-    const title = document.getElementById('exec-runner-title');
-    const pathEl = document.getElementById('exec-runner-path');
-    const outputEl = document.getElementById('exec-runner-output');
-    const statusEl = document.getElementById('exec-runner-status');
-    const resumeBtn = document.getElementById('exec-runner-resume');
-
-    if (!runnerWindow || !title) return;
-
-    title.innerHTML = `<i class="fas fa-terminal"></i> ${file.name}`;
-    pathEl.textContent = file.path;
-
-    if (!execRunnerProcessId) {
-        outputEl.textContent = '';
-        statusEl.textContent = 'Ready';
-    }
-
-    // If we have a running process already but streaming is off, let user resume.
-    if (execRunnerProcessId && !execRunnerStreaming) {
-        resumeBtn.style.display = 'inline-block';
-    }
-
-    runnerWindow.style.display = 'flex';
+    if (!file) return;
+    const runner = createRunnerWindow(file);
+    if (!runner) return;
+    restoreRunner(runner);
 }

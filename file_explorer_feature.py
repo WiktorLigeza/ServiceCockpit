@@ -4,13 +4,14 @@ import shutil
 import signal
 import stat
 import subprocess
+import tempfile
 import threading
 import time
 import uuid
 from collections import deque
 from pathlib import Path
 
-from flask import Blueprint, current_app, jsonify, render_template, request
+from flask import Blueprint, after_this_request, current_app, jsonify, render_template, request, send_file
 from flask_socketio import join_room, leave_room
 
 from config_store import get_folder_preferences, save_folder_preferences
@@ -55,10 +56,19 @@ def _is_executable_file(path_obj: Path) -> bool:
         return False
 
 
-def _start_exec_process(path_obj: Path, params: str) -> tuple[str, _ExecSession]:
+def _start_exec_process(path_obj: Path, params: str, cwd_override: str | None = None) -> tuple[str, _ExecSession]:
     args = [str(path_obj)]
     if params:
         args.extend(shlex.split(params))
+
+    cwd = path_obj.parent
+    if cwd_override:
+        try:
+            cwd_candidate = Path(cwd_override)
+            if cwd_candidate.exists() and cwd_candidate.is_dir():
+                cwd = cwd_candidate
+        except Exception:
+            pass
 
     process = subprocess.Popen(
         args,
@@ -68,7 +78,7 @@ def _start_exec_process(path_obj: Path, params: str) -> tuple[str, _ExecSession]
         text=True,
         bufsize=1,
         universal_newlines=True,
-        cwd=str(path_obj.parent),
+        cwd=str(cwd),
         preexec_fn=os.setsid,
     )
 
@@ -150,6 +160,37 @@ def format_size(bytes_size: float) -> str:
     return f"{bytes_size:.2f} PB"
 
 
+def _summarize_folder(path_obj: Path) -> dict:
+    total_size = 0
+    file_count = 0
+    dir_count = 0
+    extension_counts: dict[str, int] = {}
+
+    for root, dirs, files in os.walk(path_obj):
+        dir_count += len(dirs)
+        for filename in files:
+            file_count += 1
+            ext = Path(filename).suffix.lower().lstrip('.') or 'no_ext'
+            extension_counts[ext] = extension_counts.get(ext, 0) + 1
+            try:
+                total_size += (Path(root) / filename).stat().st_size
+            except (PermissionError, OSError):
+                continue
+
+    total_items = file_count + dir_count
+    extensions_sorted = sorted(extension_counts.items(), key=lambda x: (-x[1], x[0]))
+
+    return {
+        'size': total_size,
+        'size_display': format_size(total_size),
+        'file_count': file_count,
+        'dir_count': dir_count,
+        'total_items': total_items,
+        'extension_counts': extension_counts,
+        'extensions_sorted': extensions_sorted,
+    }
+
+
 def build_file_explorer_blueprint() -> Blueprint:
     bp = Blueprint('file_explorer', __name__)
 
@@ -213,10 +254,20 @@ def build_file_explorer_blueprint() -> Blueprint:
                 return jsonify({'success': False, 'error': 'Path is not a directory'}), 400
 
             try:
-                total_size = sum(f.stat().st_size for f in path_obj.rglob('*') if f.is_file())
-                size_display = format_size(total_size)
+                summary = _summarize_folder(path_obj)
 
-                return jsonify({'success': True, 'size': total_size, 'size_display': size_display})
+                return jsonify(
+                    {
+                        'success': True,
+                        'size': summary['size'],
+                        'size_display': summary['size_display'],
+                        'file_count': summary['file_count'],
+                        'dir_count': summary['dir_count'],
+                        'total_items': summary['total_items'],
+                        'extension_counts': summary['extension_counts'],
+                        'extensions_sorted': summary['extensions_sorted'],
+                    }
+                )
             except (PermissionError, OSError):
                 return jsonify({'success': False, 'error': 'Permission denied or unable to calculate size'}), 403
 
@@ -451,13 +502,60 @@ def build_file_explorer_blueprint() -> Blueprint:
 
     @bp.route('/api/download')
     def download_file():
-        from flask import send_file
-
         try:
             path = request.args.get('path')
             return send_file(path, as_attachment=True)
         except Exception as e:
             return jsonify({'success': False, 'error': str(e)})
+
+    @bp.route('/api/archive')
+    def download_archive():
+        try:
+            path = request.args.get('path')
+            fmt = (request.args.get('format') or 'zip').lower()
+
+            if not path:
+                return jsonify({'success': False, 'error': 'Path parameter required'}), 400
+
+            path_obj = Path(path)
+            if not path_obj.exists():
+                return jsonify({'success': False, 'error': 'Path does not exist'}), 404
+
+            if not path_obj.is_dir():
+                return jsonify({'success': False, 'error': 'Path is not a directory'}), 400
+
+            if fmt in ('targz', 'tar.gz', 'tgz'):
+                archive_format = 'gztar'
+                extension = 'tar.gz'
+            elif fmt == 'zip':
+                archive_format = 'zip'
+                extension = 'zip'
+            else:
+                return jsonify({'success': False, 'error': 'Invalid format'}), 400
+
+            tmp_dir = Path(tempfile.mkdtemp(prefix='archive_'))
+            base_name = tmp_dir / path_obj.name
+            archive_path = shutil.make_archive(
+                str(base_name),
+                archive_format,
+                root_dir=str(path_obj.parent),
+                base_dir=path_obj.name,
+            )
+
+            @after_this_request
+            def _cleanup(response):
+                try:
+                    tmp_dir_path = Path(tmp_dir)
+                    if tmp_dir_path.exists():
+                        shutil.rmtree(tmp_dir_path, ignore_errors=True)
+                except Exception:
+                    pass
+                return response
+
+            download_name = f"{path_obj.name}.{extension}"
+            return send_file(archive_path, as_attachment=True, download_name=download_name)
+        except Exception as e:
+            return jsonify({'success': False, 'error': str(e)}), 500
 
     @bp.route('/api/read-file')
     def read_file_route():
@@ -571,6 +669,7 @@ def build_file_explorer_blueprint() -> Blueprint:
             data = request.get_json(silent=True) or {}
             path = (data.get('path') or '').strip()
             params = (data.get('params') or '').strip()
+            cwd = (data.get('cwd') or '').strip() or None
 
             if not path:
                 return jsonify({'success': False, 'error': 'Path required'}), 400
@@ -582,7 +681,7 @@ def build_file_explorer_blueprint() -> Blueprint:
             if not _is_executable_file(path_obj):
                 return jsonify({'success': False, 'error': 'File is not executable'}), 400
 
-            exec_id, _ = _start_exec_process(path_obj, params)
+            exec_id, _ = _start_exec_process(path_obj, params, cwd_override=cwd)
             return jsonify({'success': True, 'process_id': exec_id})
 
         except ValueError as e:

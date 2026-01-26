@@ -57,6 +57,26 @@ body {
     gap: 10px;
 }
 
+.path-display {
+    cursor: pointer;
+    max-width: 60%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.path-edit-btn {
+    padding: 4px 8px;
+    line-height: 1;
+}
+
+.path-input {
+    max-width: 60%;
+    min-width: 240px;
+    height: 32px;
+    font-size: 0.9rem;
+}
+
 .search-container {
     background: transparent;
     flex-shrink: 0;
@@ -293,6 +313,12 @@ body {
     box-shadow: 0 4px 12px rgba(0,255,255,0.4);
 }
 
+#files-container.drag-over {
+    outline: 2px dashed rgba(0, 255, 255, 0.6);
+    outline-offset: -8px;
+    background-color: rgba(0, 255, 255, 0.05);
+}
+
 .file-icon {
     font-size: 24px;
     width: 30px;
@@ -395,6 +421,21 @@ body {
 .folder-size {
     color: #00ffff;
     font-family: 'Courier New', monospace;
+}
+
+.folder-size-block {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.folder-summary {
+    font-size: 0.8rem;
+    color: #bdbdbd;
+}
+
+.folder-types {
+    opacity: 0.9;
 }
 
 /* Grid View */
@@ -1242,6 +1283,142 @@ body {
     gap: 5px;
     align-items: center;
     margin-right: 10px;
+}
+
+.exec-runner-template {
+    display: none !important;
+}
+
+.exec-runner-window {
+    position: fixed;
+    top: 120px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 520px;
+    max-width: 90vw;
+    max-height: 70vh;
+    background: rgba(10, 10, 20, 0.95);
+    border: 1px solid rgba(0, 255, 255, 0.25);
+    border-radius: 10px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+    display: flex;
+    flex-direction: column;
+    z-index: 2000;
+}
+
+.exec-runner-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 12px;
+    cursor: move;
+    background: rgba(0, 255, 255, 0.08);
+    border-bottom: 1px solid rgba(0, 255, 255, 0.15);
+}
+
+.exec-runner-title {
+    font-weight: 600;
+    color: #bdbdbd;
+}
+
+.exec-runner-controls button {
+    background: transparent;
+    border: none;
+    color: #bdbdbd;
+    margin-left: 6px;
+}
+
+.exec-runner-controls button:hover {
+    color: #00ffff;
+}
+
+.exec-runner-body {
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    flex: 1;
+    overflow: hidden;
+}
+
+.exec-runner-form {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.exec-runner-path {
+    flex: 1;
+    font-size: 0.85rem;
+    color: #8fd0ff;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.exec-runner-output {
+    flex: 1;
+    background: rgba(0, 0, 0, 0.4);
+    color: #9fffd8;
+    padding: 10px;
+    border-radius: 6px;
+    overflow: auto;
+    font-size: 0.85rem;
+}
+
+.exec-runner-footer {
+    padding: 8px 12px;
+    border-top: 1px solid rgba(0, 255, 255, 0.15);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.exec-runner-status {
+    color: #bdbdbd;
+    font-size: 0.85rem;
+}
+
+.exec-runner-dock {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    display: flex;
+    gap: 8px;
+    padding: 8px 12px;
+    background: rgba(0, 0, 0, 0.6);
+    border-top: 1px solid rgba(0, 255, 255, 0.2);
+    z-index: 1900;
+    overflow-x: auto;
+}
+
+.exec-runner-dock-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(0, 255, 255, 0.08);
+    border: 1px solid rgba(0, 255, 255, 0.2);
+    color: #bdbdbd;
+    padding: 4px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.exec-runner-dock-item:hover {
+    background: rgba(0, 255, 255, 0.15);
+}
+
+.exec-runner-dock-item .dock-kill {
+    background: transparent;
+    border: none;
+    color: #dc3545;
+    font-size: 0.9rem;
+}
+
+.exec-runner-dock-item .dock-kill:hover {
+    color: #ff6b6b;
 }
 
 .filter-btn {

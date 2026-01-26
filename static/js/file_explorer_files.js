@@ -267,7 +267,14 @@ async function displayFileDetails(file) {
                             }
                             return buttons.join('');
                         })()}
-                    ` : ''}
+                    ` : `
+                        <button class="btn btn-sm btn-primary" onclick="downloadArchive('zip', selectedFile.path)">
+                            <i class="fas fa-file-archive"></i> Download ZIP
+                        </button>
+                        <button class="btn btn-sm btn-primary" onclick="downloadArchive('targz', selectedFile.path)">
+                            <i class="fas fa-file-archive"></i> Download tar.gz
+                        </button>
+                    `}
                     <button class="btn btn-sm btn-warning" onclick="renameFile()">
                         <i class="fas fa-edit"></i> Rename
                     </button>
@@ -292,7 +299,12 @@ async function inspectFolder(path, buttonElement) {
         const data = await response.json();
         
         if (data.success) {
-            buttonElement.parentElement.innerHTML = `<span class="folder-size">${data.size_display}</span>`;
+            buttonElement.parentElement.innerHTML = `
+                <div class="folder-size-block">
+                    <span class="folder-size">${data.size_display}</span>
+                    ${renderFolderCounts(data)}
+                </div>
+            `;
         } else {
             buttonElement.innerHTML = `<span style="color: #dc3545;">Error</span>`;
             setTimeout(() => {
@@ -319,7 +331,12 @@ async function inspectFolderDetails(path) {
         const data = await response.json();
         
         if (data.success) {
-            sizeElement.innerHTML = `<span class="folder-size">${data.size_display}</span>`;
+            sizeElement.innerHTML = `
+                <div class="folder-size-block">
+                    <span class="folder-size">${data.size_display}</span>
+                    ${renderFolderCounts(data)}
+                </div>
+            `;
         } else {
             sizeElement.innerHTML = `<span style="color: #dc3545;">Error: ${data.error}</span>`;
         }
@@ -327,4 +344,25 @@ async function inspectFolderDetails(path) {
         console.error('Error inspecting folder:', error);
         sizeElement.innerHTML = `<span style="color: #dc3545;">Error calculating size</span>`;
     }
+}
+
+function renderFolderCounts(data) {
+    if (!data) return '';
+    const total = Number(data.total_items ?? 0);
+    const dirs = Number(data.dir_count ?? 0);
+    const files = Number(data.file_count ?? 0);
+    const parts = [];
+
+    if (total || dirs || files) {
+        parts.push(`<div class="folder-counts">Items: ${total} (Folders: ${dirs}, Files: ${files})</div>`);
+    }
+
+    const extList = Array.isArray(data.extensions_sorted) ? data.extensions_sorted : [];
+    if (extList.length > 0) {
+        const top = extList.slice(0, 8).map(([ext, count]) => `${count} ${ext}`);
+        const more = extList.length > 8 ? ` +${extList.length - 8} more` : '';
+        parts.push(`<div class="folder-types">Types: ${top.join(', ')}${more}</div>`);
+    }
+
+    return parts.length ? `<div class="folder-summary">${parts.join('')}</div>` : '';
 }

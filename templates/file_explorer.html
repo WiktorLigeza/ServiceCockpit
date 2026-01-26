@@ -75,28 +75,28 @@
     </div>
 
     <!-- Executable Runner Window -->
-    <div id="exec-runner-window" class="exec-runner-window">
-        <div class="exec-runner-header">
-            <span id="exec-runner-title"><i class="fas fa-terminal"></i> Runner</span>
+    <div id="exec-runner-template" class="exec-runner-window exec-runner-template" data-template="exec-runner">
+        <div class="exec-runner-header" data-role="header">
+            <span class="exec-runner-title" data-role="title"><i class="fas fa-terminal"></i> Runner</span>
             <div class="exec-runner-controls">
-                <button id="exec-runner-kill" title="Kill"><i class="fas fa-stop"></i></button>
-                <button id="exec-runner-minimize" title="Minimize"><i class="fas fa-minus"></i></button>
-                <button id="exec-runner-close" title="Close"><i class="fas fa-times"></i></button>
+                <button class="exec-runner-kill" data-role="kill" title="Kill"><i class="fas fa-stop"></i></button>
+                <button class="exec-runner-minimize" data-role="minimize" title="Minimize"><i class="fas fa-minus"></i></button>
+                <button class="exec-runner-close" data-role="close" title="Close"><i class="fas fa-times"></i></button>
             </div>
         </div>
         <div class="exec-runner-body">
             <div class="exec-runner-form">
-                <div class="exec-runner-path" id="exec-runner-path"></div>
-                <input id="exec-runner-params" class="form-control" type="text" placeholder="Params (string, optional)">
-                <button id="exec-runner-start" class="btn btn-sm btn-info">
+                <div class="exec-runner-path" data-role="path"></div>
+                <input class="form-control exec-runner-params" data-role="params" type="text" placeholder="Params (string, optional)">
+                <button class="btn btn-sm btn-info exec-runner-start" data-role="start">
                     <i class="fas fa-play"></i> Start
                 </button>
             </div>
-            <pre id="exec-runner-output" class="exec-runner-output"></pre>
+            <pre class="exec-runner-output" data-role="output"></pre>
         </div>
         <div class="exec-runner-footer">
-            <span class="exec-runner-status" id="exec-runner-status">Idle</span>
-            <button id="exec-runner-resume" class="btn btn-sm btn-secondary" style="display:none;">
+            <span class="exec-runner-status" data-role="status">Idle</span>
+            <button class="btn btn-sm btn-secondary exec-runner-resume" data-role="resume" style="display:none;">
                 <i class="fas fa-plug"></i> Resume Stream
             </button>
         </div>
@@ -116,7 +116,11 @@
         <div class="files-panel">
             <h2 class="section-title">
                 <i class="fas fa-folder-open"></i>
-                <span id="current-path">/home</span>
+                <span id="current-path" class="path-display" title="Click to copy">/home</span>
+                <button class="btn btn-sm btn-secondary path-edit-btn" id="edit-path-btn" title="Edit path">
+                    <i class="fas fa-pen"></i>
+                </button>
+                <input type="text" class="form-control path-input" id="path-input" value="/home" placeholder="Enter path and press Enter" style="display:none;">
             </h2>
             <div class="breadcrumb-container">
                 <nav id="breadcrumb-nav"></nav>
@@ -165,6 +169,8 @@
             </div>
         </div>
     </div>
+
+    <div id="exec-runner-dock" class="exec-runner-dock"></div>
 
     <!-- Load scripts in correct order -->
     <script src="{{ url_for('static', filename='js/file_explorer_utils.js') }}"></script>
