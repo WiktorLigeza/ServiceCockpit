@@ -72,6 +72,10 @@ function applyFilters() {
 function displayFiles(files) {
     const container = document.getElementById('files-container');
     container.innerHTML = '';
+
+    visibleFiles = files;
+    visibleFileMap = new Map(files.map(file => [file.path, file]));
+    resetSelection();
     
     if (files.length === 0) {
         container.innerHTML = '<div class="no-selection"><i class="fas fa-folder-open"></i><p>No files match the filter</p></div>';
@@ -85,26 +89,24 @@ function displayFiles(files) {
         return a.name.localeCompare(b.name);
     });
     
-    files.forEach(file => {
-        const fileItem = createFileItem(file);
+    files.forEach((file, index) => {
+        const fileItem = createFileItem(file, index);
         container.appendChild(fileItem);
     });
 }
 
 function selectFile(element, file) {
-    document.querySelectorAll('.file-item').forEach(item => {
-        item.classList.remove('selected');
-    });
-    element.classList.add('selected');
-    selectedFile = file;
-    displayFileDetails(file);
+    if (!element || !file) return;
+    const paths = new Set([file.path]);
+    setSelectionByPaths(paths, file.path);
 }
 
-function createFileItem(file) {
+function createFileItem(file, index) {
     const item = document.createElement('div');
     item.className = 'file-item';
     item.dataset.path = file.path;
     item.dataset.isDirectory = file.is_directory;
+    item.dataset.index = String(index);
     
     item.draggable = true;
     
@@ -148,12 +150,13 @@ function createFileItem(file) {
     item.addEventListener('drop', handleDrop);
     item.addEventListener('dragleave', handleDragLeave);
     
-    item.addEventListener('click', () => {
-        if (file.is_directory) {
+    item.addEventListener('click', (e) => {
+        const hasModifier = e.shiftKey || e.ctrlKey || e.metaKey;
+        if (file.is_directory && !hasModifier) {
             loadDirectory(file.path);
-        } else {
-            selectFile(item, file);
+            return;
         }
+        handleFileItemSelection(e, item, file);
     });
     
     item.addEventListener('dblclick', () => {
@@ -169,11 +172,191 @@ function createFileItem(file) {
     
     item.addEventListener('contextmenu', (e) => {
         e.preventDefault();
-        selectFile(item, file);
+        const currentPaths = new Set(selectedFiles.map(f => f.path));
+        currentPaths.add(file.path);
+        setSelectionByPaths(currentPaths, file.path);
         showContextMenu(e.clientX, e.clientY, file);
     });
     
     return item;
+}
+
+function resetSelection() {
+    selectedFiles = [];
+    selectedFile = null;
+    lastSelectedIndex = -1;
+    updateSelectionDetails();
+}
+
+function updateSelectionDetails() {
+    const container = document.getElementById('file-details-container');
+    if (!container) return;
+
+    if (selectedFiles.length === 1) {
+        displayFileDetails(selectedFiles[0]);
+        return;
+    }
+
+    if (selectedFiles.length > 1) {
+        const dirCount = selectedFiles.filter(f => f.is_directory).length;
+        const fileCount = selectedFiles.length - dirCount;
+        const totalSize = selectedFiles
+            .filter(f => !f.is_directory)
+            .reduce((acc, f) => acc + (f.size || 0), 0);
+
+        container.innerHTML = `
+            <div class="detail-section">
+                <h3><i class="fas fa-layer-group"></i> ${selectedFiles.length} items selected</h3>
+                <div class="detail-row">
+                    <span class="detail-label">Files:</span>
+                    <span class="detail-value">${fileCount}</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Folders:</span>
+                    <span class="detail-value">${dirCount}</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Total size:</span>
+                    <span class="detail-value">${formatFileSize(totalSize)}</span>
+                </div>
+            </div>
+        `;
+        return;
+    }
+
+    container.innerHTML = `
+        <div class="no-selection">
+            <i class="fas fa-file-alt"></i>
+            <p>Select a file or folder to view details</p>
+        </div>
+    `;
+}
+
+function setSelectionByPaths(paths, primaryPath) {
+    const items = Array.from(document.querySelectorAll('.file-item'));
+    items.forEach(item => {
+        const isSelected = paths.has(item.dataset.path);
+        item.classList.toggle('selected', isSelected);
+    });
+
+    selectedFiles = [];
+    items.forEach(item => {
+        if (paths.has(item.dataset.path)) {
+            const file = visibleFileMap.get(item.dataset.path);
+            if (file) selectedFiles.push(file);
+        }
+    });
+
+    const primary = primaryPath ? visibleFileMap.get(primaryPath) : null;
+    selectedFile = primary || selectedFiles[selectedFiles.length - 1] || null;
+
+    const primaryItem = selectedFile
+        ? document.querySelector(`.file-item[data-path="${CSS.escape(selectedFile.path)}"]`)
+        : null;
+    lastSelectedIndex = primaryItem ? Number(primaryItem.dataset.index || -1) : -1;
+
+    updateSelectionDetails();
+}
+
+function handleFileItemSelection(e, item, file) {
+    const index = Number(item.dataset.index || 0);
+    const isToggle = e.ctrlKey || e.metaKey;
+    const isRange = e.shiftKey;
+
+    if (isRange && lastSelectedIndex !== -1) {
+        const items = Array.from(document.querySelectorAll('.file-item'));
+        const start = Math.min(lastSelectedIndex, index);
+        const end = Math.max(lastSelectedIndex, index);
+        const paths = new Set(isToggle ? selectedFiles.map(f => f.path) : []);
+        for (let i = start; i <= end; i += 1) {
+            const path = items[i]?.dataset.path;
+            if (path) paths.add(path);
+        }
+        setSelectionByPaths(paths, file.path);
+        return;
+    }
+
+    if (isToggle) {
+        const paths = new Set(selectedFiles.map(f => f.path));
+        if (paths.has(file.path)) {
+            paths.delete(file.path);
+        } else {
+            paths.add(file.path);
+        }
+        setSelectionByPaths(paths, file.path);
+        return;
+    }
+
+    setSelectionByPaths(new Set([file.path]), file.path);
+}
+
+function setupMultiSelection() {
+    const container = document.getElementById('files-container');
+    if (!container) return;
+
+    let selectionBox = null;
+    let startX = 0;
+    let startY = 0;
+    let isSelecting = false;
+    let baseSelection = new Set();
+
+    function updateSelectionBox(currentX, currentY) {
+        const left = Math.min(startX, currentX);
+        const top = Math.min(startY, currentY);
+        const width = Math.abs(currentX - startX);
+        const height = Math.abs(currentY - startY);
+
+        if (selectionBox) {
+            selectionBox.style.left = `${left}px`;
+            selectionBox.style.top = `${top}px`;
+            selectionBox.style.width = `${width}px`;
+            selectionBox.style.height = `${height}px`;
+        }
+
+        const paths = new Set(baseSelection);
+        const items = Array.from(document.querySelectorAll('.file-item'));
+        items.forEach(item => {
+            const rect = item.getBoundingClientRect();
+            const intersects = rect.right >= left && rect.left <= left + width && rect.bottom >= top && rect.top <= top + height;
+            if (intersects) {
+                paths.add(item.dataset.path);
+            }
+        });
+
+        const primaryPath = paths.size ? Array.from(paths).pop() : null;
+        setSelectionByPaths(paths, primaryPath);
+    }
+
+    container.addEventListener('mousedown', (e) => {
+        if (e.button !== 0) return;
+        if (e.target.closest('.file-item')) return;
+
+        isSelecting = true;
+        startX = e.clientX;
+        startY = e.clientY;
+
+        const keepExisting = e.shiftKey || e.ctrlKey || e.metaKey;
+        baseSelection = new Set(keepExisting ? selectedFiles.map(f => f.path) : []);
+
+        selectionBox = document.createElement('div');
+        selectionBox.className = 'selection-box';
+        document.body.appendChild(selectionBox);
+        updateSelectionBox(startX, startY);
+    });
+
+    document.addEventListener('mousemove', (e) => {
+        if (!isSelecting) return;
+        updateSelectionBox(e.clientX, e.clientY);
+    });
+
+    document.addEventListener('mouseup', () => {
+        if (!isSelecting) return;
+        isSelecting = false;
+        if (selectionBox) {
+            selectionBox.remove();
+            selectionBox = null;
+        }
+    });
 }
 
 async function displayFileDetails(file) {

@@ -4,6 +4,7 @@ let execRunnerCounter = 0;
 
 function setupExecutableRunner() {
     ensureExecSocket();
+    restoreExecSessions();
 }
 
 function ensureExecSocket() {
@@ -53,6 +54,9 @@ function ensureExecSocket() {
 
 function setRunnerStatus(runner, text) {
     runner.statusEl.textContent = text;
+    if (runner.startBtn) {
+        runner.startBtn.disabled = !!runner.processId;
+    }
     if (runner.dockItem) {
         const label = runner.dockItem.querySelector('.dock-title');
         if (label) label.textContent = `${runner.titleText} • ${text}`;
@@ -160,6 +164,7 @@ function createRunnerWindow(file) {
     titleEl.innerHTML = `<i class="fas fa-terminal"></i> ${file.name}`;
     pathEl.textContent = file.path;
     statusEl.textContent = 'Ready';
+    startBtn.disabled = false;
 
     // Dragging
     let isDragging = false;
@@ -242,6 +247,42 @@ function createRunnerWindow(file) {
 
     document.body.appendChild(runnerWindow);
     return runner;
+}
+
+async function restoreExecSessions() {
+    try {
+        const resp = await fetch('/api/execute/sessions');
+        const data = await resp.json();
+        if (!data.success || !Array.isArray(data.sessions)) return;
+
+        data.sessions.forEach((session) => {
+            if (!session || !session.process_id || !session.path) return;
+            if (execRunners.has(session.process_id)) return;
+
+            const fileName = session.path.split('/').pop() || session.path;
+            const runner = createRunnerWindow({
+                name: fileName,
+                path: session.path,
+                is_directory: false,
+                is_executable: true,
+            });
+            if (!runner) return;
+
+            runner.processId = session.process_id;
+            runner.paramsEl.value = session.params || '';
+            execRunners.set(runner.processId, runner);
+            ensureExecSocket();
+            execRunnerSocket.emit('join_exec', { process_id: runner.processId });
+
+            if (session.running) {
+                setRunnerStatus(runner, 'Running');
+            } else {
+                setRunnerStatus(runner, `Exited (${session.return_code ?? 'unknown'})`);
+            }
+        });
+    } catch (e) {
+        console.error('Failed to restore exec sessions:', e);
+    }
 }
 
 function openExecutableRunner(file) {

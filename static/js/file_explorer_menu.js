@@ -6,8 +6,7 @@ function showContextMenu(x, y, file) {
     
     const menu = document.createElement('div');
     menu.className = 'context-menu';
-    menu.style.left = x + 'px';
-    menu.style.top = y + 'px';
+    menu.style.visibility = 'hidden';
     
     const menuItems = [
         { icon: 'fa-copy', text: 'Copy', action: copyFile },
@@ -47,6 +46,13 @@ function showContextMenu(x, y, file) {
     });
     
     document.body.appendChild(menu);
+    if (typeof positionContextMenu === 'function') {
+        positionContextMenu(menu, x, y);
+    } else {
+        menu.style.left = x + 'px';
+        menu.style.top = y + 'px';
+    }
+    menu.style.visibility = 'visible';
     
     setTimeout(() => {
         document.addEventListener('click', function closeMenu() {
@@ -64,8 +70,7 @@ function showDirectoryContextMenu(x, y, dir) {
     
     const menu = document.createElement('div');
     menu.className = 'context-menu';
-    menu.style.left = x + 'px';
-    menu.style.top = y + 'px';
+    menu.style.visibility = 'hidden';
     
     const menuItems = [];
     
@@ -95,6 +100,13 @@ function showDirectoryContextMenu(x, y, dir) {
     });
     
     document.body.appendChild(menu);
+    if (typeof positionContextMenu === 'function') {
+        positionContextMenu(menu, x, y);
+    } else {
+        menu.style.left = x + 'px';
+        menu.style.top = y + 'px';
+    }
+    menu.style.visibility = 'visible';
     
     setTimeout(() => {
         document.addEventListener('click', function closeMenu() {
@@ -112,8 +124,7 @@ function showBreadcrumbContextMenu(x, y, targetPath) {
     
     const menu = document.createElement('div');
     menu.className = 'context-menu';
-    menu.style.left = x + 'px';
-    menu.style.top = y + 'px';
+    menu.style.visibility = 'hidden';
     
     const menuItems = [];
     
@@ -143,6 +154,13 @@ function showBreadcrumbContextMenu(x, y, targetPath) {
     });
     
     document.body.appendChild(menu);
+    if (typeof positionContextMenu === 'function') {
+        positionContextMenu(menu, x, y);
+    } else {
+        menu.style.left = x + 'px';
+        menu.style.top = y + 'px';
+    }
+    menu.style.visibility = 'visible';
     
     setTimeout(() => {
         document.addEventListener('click', function closeMenu() {

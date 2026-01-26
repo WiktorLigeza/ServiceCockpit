@@ -176,6 +176,15 @@ async function createNewFile() {
             const data = await response.json();
             if (data.success) {
                 loadDirectory(currentPath);
+                if (typeof openFileInEditor === 'function') {
+                    openFileInEditor({
+                        name: fileName,
+                        path: `${currentPath}/${fileName}`.replace('//', '/'),
+                        is_directory: false,
+                        is_executable: false,
+                        size: 0
+                    });
+                }
             } else {
                 alert('Failed to create file: ' + data.error);
             }

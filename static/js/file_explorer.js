@@ -15,6 +15,10 @@ let folderPreferences = {}; // Store folder colors and favorites
 let uploadTargetPath = null;
 let selectedColorFilters = new Set();
 const archiveCache = new Map();
+let selectedFiles = [];
+let lastSelectedIndex = -1;
+let visibleFiles = [];
+let visibleFileMap = new Map();
 
 // Import modules
 document.addEventListener('DOMContentLoaded', function() {
@@ -217,6 +221,10 @@ function setupEventListeners() {
     
     // Setup file upload functionality
     setupFileUpload();
+
+    if (typeof setupMultiSelection === 'function') {
+        setupMultiSelection();
+    }
 }
 
 function setupFilterButtons() {
@@ -864,8 +872,7 @@ function showDirectoryContextMenu(x, y, dir) {
     
     const menu = document.createElement('div');
     menu.className = 'context-menu';
-    menu.style.left = x + 'px';
-    menu.style.top = y + 'px';
+    menu.style.visibility = 'hidden';
     
     const menuItems = [];
     
@@ -982,6 +989,13 @@ function showDirectoryContextMenu(x, y, dir) {
     });
     
     document.body.appendChild(menu);
+    if (typeof positionContextMenu === 'function') {
+        positionContextMenu(menu, x, y);
+    } else {
+        menu.style.left = x + 'px';
+        menu.style.top = y + 'px';
+    }
+    menu.style.visibility = 'visible';
     
     // Close menu on click outside
     setTimeout(() => {
@@ -1036,10 +1050,12 @@ function setFolderColor(path, color) {
     );
 }
 
-function createFileItem(file) {
+function createFileItem(file, index) {
     const fileItem = document.createElement('div');
     fileItem.className = 'file-item';
     fileItem.dataset.path = file.path;
+    fileItem.dataset.isDirectory = file.is_directory;
+    fileItem.dataset.index = String(index ?? 0);
     
     // Apply folder preferences if it's a directory
     const prefs = folderPreferences[file.path];
@@ -1055,23 +1071,11 @@ function createFileItem(file) {
     
     // Make items draggable
     fileItem.draggable = true;
-    fileItem.addEventListener('dragstart', (e) => {
-        draggedItem = file;
-        e.dataTransfer.effectAllowed = 'move';
-        fileItem.style.opacity = '0.5';
-    });
-    
-    fileItem.addEventListener('dragend', (e) => {
-        fileItem.style.opacity = '1';
-        draggedItem = null;
-    });
-    
-    // Make directory items drop targets
-    if (file.is_directory) {
-        fileItem.addEventListener('dragover', handleDirectoryDragOver);
-        fileItem.addEventListener('drop', handleDirectoryDrop);
-        fileItem.addEventListener('dragleave', handleDirectoryDragLeave);
-    }
+    fileItem.addEventListener('dragstart', handleDragStart);
+    fileItem.addEventListener('dragend', handleDragEnd);
+    fileItem.addEventListener('dragover', handleDragOver);
+    fileItem.addEventListener('drop', handleDrop);
+    fileItem.addEventListener('dragleave', handleDragLeave);
     
     const icon = document.createElement('i');
     icon.className = `fas ${getFileIcon(file)} file-icon ${getFileIconClass(file)}`;
@@ -1109,18 +1113,22 @@ function createFileItem(file) {
     fileItem.appendChild(fileInfo);
     
     // Click handler
-    fileItem.addEventListener('click', () => {
-        document.querySelectorAll('.file-item').forEach(item => item.classList.remove('selected'));
-        fileItem.classList.add('selected');
-        selectedFile = file;
-        displayFileDetails(file);
+    fileItem.addEventListener('click', (e) => {
+        const hasModifier = e.shiftKey || e.ctrlKey || e.metaKey;
+        if (file.is_directory && !hasModifier) {
+            loadDirectory(file.path);
+            return;
+        }
+        if (typeof handleFileItemSelection === 'function') {
+            handleFileItemSelection(e, fileItem, file);
+        } else {
+            selectFile(fileItem, file);
+        }
     });
     
     // Double-click handler
     fileItem.addEventListener('dblclick', () => {
-        if (file.is_directory) {
-            loadDirectory(file.path);
-        } else {
+        if (!file.is_directory) {
             const ext = file.name.split('.').pop().toLowerCase();
             if (isImageFile(ext)) {
                 openImageViewer(file);
@@ -1139,11 +1147,13 @@ function createFileItem(file) {
         e.preventDefault();
         e.stopPropagation();
         
-        // Select the item first
-        document.querySelectorAll('.file-item').forEach(item => item.classList.remove('selected'));
-        fileItem.classList.add('selected');
-        selectedFile = file;
-        displayFileDetails(file);
+        const currentPaths = new Set(selectedFiles.map(f => f.path));
+        currentPaths.add(file.path);
+        if (typeof setSelectionByPaths === 'function') {
+            setSelectionByPaths(currentPaths, file.path);
+        } else {
+            selectFile(fileItem, file);
+        }
         
         showFileContextMenu(e.clientX, e.clientY, file);
     });
@@ -1160,8 +1170,7 @@ function showFileContextMenu(x, y, file) {
     
     const menu = document.createElement('div');
     menu.className = 'context-menu';
-    menu.style.left = x + 'px';
-    menu.style.top = y + 'px';
+    menu.style.visibility = 'hidden';
     
     const menuItems = [];
     
@@ -1345,6 +1354,13 @@ function showFileContextMenu(x, y, file) {
     });
     
     document.body.appendChild(menu);
+    if (typeof positionContextMenu === 'function') {
+        positionContextMenu(menu, x, y);
+    } else {
+        menu.style.left = x + 'px';
+        menu.style.top = y + 'px';
+    }
+    menu.style.visibility = 'visible';
     
     // Close menu on click outside
     setTimeout(() => {
@@ -1434,8 +1450,7 @@ function showContainerContextMenu(x, y) {
 
     const menu = document.createElement('div');
     menu.className = 'context-menu';
-    menu.style.left = x + 'px';
-    menu.style.top = y + 'px';
+    menu.style.visibility = 'hidden';
 
     const menuItems = [];
 
@@ -1514,6 +1529,13 @@ function showContainerContextMenu(x, y) {
     });
 
     document.body.appendChild(menu);
+    if (typeof positionContextMenu === 'function') {
+        positionContextMenu(menu, x, y);
+    } else {
+        menu.style.left = x + 'px';
+        menu.style.top = y + 'px';
+    }
+    menu.style.visibility = 'visible';
 
     setTimeout(() => {
         document.addEventListener('click', function closeMenu() {

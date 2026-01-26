@@ -6,6 +6,7 @@ async function openFileInEditor(file) {
     const editorContent = document.getElementById('editor-content');
     const editorTitle = document.getElementById('editor-title');
     const editorInfo = document.getElementById('editor-info');
+    const editorExecutable = document.getElementById('editor-executable');
     
     try {
         const response = await fetch(`/api/read-file?path=${encodeURIComponent(file.path)}`);
@@ -15,6 +16,10 @@ async function openFileInEditor(file) {
             editorContent.value = data.content;
             editorTitle.innerHTML = `<i class="fas fa-code"></i> ${file.name} <span class="editor-language-badge">${getLanguageFromExtension(file.name)}</span>`;
             editorInfo.textContent = `Lines: ${data.content.split('\n').length} | Size: ${formatFileSize(file.size)}`;
+            if (editorExecutable) {
+                editorExecutable.checked = !!file.is_executable;
+                editorExecutable.disabled = false;
+            }
             editorWindow.style.display = 'flex';
             if (typeof bringToFront === 'function') {
                 bringToFront(editorWindow);
@@ -49,6 +54,7 @@ async function saveFile() {
     
     const editorContent = document.getElementById('editor-content');
     const editorInfo = document.getElementById('editor-info');
+    const editorExecutable = document.getElementById('editor-executable');
     const content = editorContent.value;
     
     editorInfo.textContent = 'Saving...';
@@ -61,7 +67,8 @@ async function saveFile() {
             },
             body: JSON.stringify({
                 path: editorFile.path,
-                content: content
+                content: content,
+                is_executable: editorExecutable ? !!editorExecutable.checked : undefined
             })
         });
         
@@ -85,8 +92,13 @@ async function saveFile() {
 
 function closeEditor() {
     const editorWindow = document.getElementById('code-editor-window');
+    const editorExecutable = document.getElementById('editor-executable');
     editorWindow.style.display = 'none';
     editorFile = null;
+    if (editorExecutable) {
+        editorExecutable.checked = false;
+        editorExecutable.disabled = true;
+    }
 }
 
 function setupCodeEditor() {
@@ -129,6 +141,11 @@ function setupCodeEditor() {
     
     document.querySelector('.editor-close').addEventListener('click', closeEditor);
     document.getElementById('save-file-btn').addEventListener('click', saveFile);
+
+    const editorExecutable = document.getElementById('editor-executable');
+    if (editorExecutable) {
+        editorExecutable.disabled = true;
+    }
     
     editorContent.addEventListener('keydown', (e) => {
         if (e.ctrlKey && e.key === 's') {

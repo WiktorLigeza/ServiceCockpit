@@ -361,12 +361,21 @@ def build_file_explorer_blueprint() -> Blueprint:
             data = request.json
             path = data.get('path')
             name = data.get('name')
+            is_executable = bool(data.get('is_executable', False))
 
             if not path or not name:
                 return jsonify({'success': False, 'error': 'Path and name required'})
 
             new_file = Path(path) / name
             new_file.touch(exist_ok=False)
+
+            if is_executable:
+                try:
+                    current_mode = new_file.stat().st_mode
+                    exec_bits = stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH
+                    os.chmod(new_file, current_mode | exec_bits)
+                except Exception:
+                    pass
 
             return jsonify({'success': True})
         except FileExistsError:
@@ -681,6 +690,7 @@ def build_file_explorer_blueprint() -> Blueprint:
             data = request.json
             path = data.get('path')
             content = data.get('content')
+            is_executable = data.get('is_executable')
 
             if not path:
                 return jsonify({'success': False, 'error': 'Path required'})
@@ -700,6 +710,17 @@ def build_file_explorer_blueprint() -> Blueprint:
             try:
                 with open(path_obj, 'w', encoding='utf-8') as f:
                     f.write(content)
+
+                if isinstance(is_executable, bool):
+                    try:
+                        current_mode = path_obj.stat().st_mode
+                        exec_bits = stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH
+                        if is_executable:
+                            os.chmod(path_obj, current_mode | exec_bits)
+                        else:
+                            os.chmod(path_obj, current_mode & ~exec_bits)
+                    except Exception:
+                        pass
 
                 if Path(backup_path).exists():
                     Path(backup_path).unlink()
@@ -845,6 +866,30 @@ def build_file_explorer_blueprint() -> Blueprint:
                     'params': session_obj.params,
                 }
             )
+        except Exception as e:
+            return jsonify({'success': False, 'error': str(e)}), 500
+
+    @bp.route('/api/execute/sessions', methods=['GET'])
+    def exec_sessions():
+        try:
+            sessions = []
+            with _EXEC_SESSIONS_LOCK:
+                items = list(_EXEC_SESSIONS.items())
+
+            for process_id, session_obj in items:
+                running = session_obj.process.poll() is None
+                sessions.append(
+                    {
+                        'process_id': process_id,
+                        'path': session_obj.path,
+                        'params': session_obj.params,
+                        'running': running,
+                        'return_code': session_obj.return_code,
+                        'created_at': session_obj.created_at,
+                    }
+                )
+
+            return jsonify({'success': True, 'sessions': sessions})
         except Exception as e:
             return jsonify({'success': False, 'error': str(e)}), 500
 

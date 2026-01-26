@@ -125,3 +125,33 @@ function showError(message) {
         </div>
     `;
 }
+
+function getPageZoom() {
+    const value = getComputedStyle(document.documentElement).getPropertyValue('--page-zoom');
+    const zoom = parseFloat(value);
+    return Number.isFinite(zoom) && zoom > 0 ? zoom : 1;
+}
+
+function positionContextMenu(menu, x, y) {
+    const zoom = getPageZoom();
+    const viewportWidth = window.innerWidth / zoom;
+    const viewportHeight = window.innerHeight / zoom;
+    const padding = 8;
+
+    const menuWidth = menu.offsetWidth || 0;
+    const menuHeight = menu.offsetHeight || 0;
+
+    let left = x / zoom;
+    let top = y / zoom;
+
+    if (left + menuWidth + padding > viewportWidth) {
+        left = Math.max(padding, viewportWidth - menuWidth - padding);
+    }
+
+    if (top + menuHeight + padding > viewportHeight) {
+        top = Math.max(padding, viewportHeight - menuHeight - padding);
+    }
+
+    menu.style.left = `${left}px`;
+    menu.style.top = `${top}px`;
+}
