@@ -73,7 +73,13 @@ function createDirectoryTreeItem(dir) {
         }
     });
     
-    item.addEventListener('click', (e) => {
+    item.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const ok = await copyTextToClipboard(dir.path);
+        showNotification(ok ? 'Path copied' : 'Failed to copy path', ok ? 'success' : 'error');
+    });
+
+    item.addEventListener('dblclick', (e) => {
         e.stopPropagation();
         loadDirectory(dir.path);
     });

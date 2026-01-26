@@ -515,15 +515,22 @@ function renderSavedFoldersByColor(enabled) {
             const parts = path.split('/').filter(Boolean);
             name.textContent = parts.length ? parts[parts.length - 1] : path;
 
-            const pathLabel = document.createElement('span');
-            pathLabel.className = 'saved-folder-path';
-            pathLabel.textContent = path;
-
             item.appendChild(icon);
             item.appendChild(name);
-            item.appendChild(pathLabel);
+            if (!enabled) {
+                const pathLabel = document.createElement('span');
+                pathLabel.className = 'saved-folder-path';
+                pathLabel.textContent = path;
+                item.appendChild(pathLabel);
+            }
 
-            item.addEventListener('click', (e) => {
+            item.addEventListener('click', async (e) => {
+                e.stopPropagation();
+                const ok = await copyTextToClipboard(path);
+                showNotification(ok ? 'Path copied' : 'Failed to copy path', ok ? 'success' : 'error');
+            });
+
+            item.addEventListener('dblclick', (e) => {
                 e.stopPropagation();
                 loadDirectory(path);
             });
@@ -716,9 +723,21 @@ function applyFilters() {
 function displayFiles(files) {
     const container = document.getElementById('files-container');
     container.innerHTML = '';
+
+    visibleFiles = files;
+    visibleFileMap = new Map(files.map(file => [file.path, file]));
+    if (typeof resetSelection === 'function') {
+        resetSelection();
+    } else {
+        selectedFiles = [];
+        selectedFile = null;
+    }
     
     if (files.length === 0) {
         container.innerHTML = '<div class="no-selection"><i class="fas fa-folder-open"></i><p>No files match the filter</p></div>';
+        if (typeof updateSelectionDetails === 'function') {
+            updateSelectionDetails();
+        }
         return;
     }
     
@@ -737,8 +756,8 @@ function displayFiles(files) {
         return a.name.localeCompare(b.name);
     });
     
-    files.forEach(file => {
-        const fileItem = createFileItem(file);
+    files.forEach((file, index) => {
+        const fileItem = createFileItem(file, index);
         container.appendChild(fileItem);
     });
 }
@@ -1198,11 +1217,6 @@ function createFileItem(file, index) {
     
     // Click handler
     fileItem.addEventListener('click', (e) => {
-        const hasModifier = e.shiftKey || e.ctrlKey || e.metaKey;
-        if (file.is_directory && !hasModifier) {
-            loadDirectory(file.path);
-            return;
-        }
         if (typeof handleFileItemSelection === 'function') {
             handleFileItemSelection(e, fileItem, file);
         } else {
@@ -1212,17 +1226,19 @@ function createFileItem(file, index) {
     
     // Double-click handler
     fileItem.addEventListener('dblclick', () => {
-        if (!file.is_directory) {
-            const ext = file.name.split('.').pop().toLowerCase();
-            if (isImageFile(ext)) {
-                openImageViewer(file);
-            } else if (isVideoFile(ext) && typeof openVideoViewer === 'function') {
-                openVideoViewer(file);
-            } else if (isTextFile(ext)) {
-                openFileInEditor(file);
-            } else {
-                downloadFile();
-            }
+        if (file.is_directory) {
+            loadDirectory(file.path);
+            return;
+        }
+        const ext = file.name.split('.').pop().toLowerCase();
+        if (isImageFile(ext)) {
+            openImageViewer(file);
+        } else if (isVideoFile(ext) && typeof openVideoViewer === 'function') {
+            openVideoViewer(file);
+        } else if (isTextFile(ext)) {
+            openFileInEditor(file);
+        } else {
+            downloadFile();
         }
     });
     

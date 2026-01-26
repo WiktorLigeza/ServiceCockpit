@@ -151,22 +151,19 @@ function createFileItem(file, index) {
     item.addEventListener('dragleave', handleDragLeave);
     
     item.addEventListener('click', (e) => {
-        const hasModifier = e.shiftKey || e.ctrlKey || e.metaKey;
-        if (file.is_directory && !hasModifier) {
-            loadDirectory(file.path);
-            return;
-        }
         handleFileItemSelection(e, item, file);
     });
     
     item.addEventListener('dblclick', () => {
-        if (!file.is_directory) {
-            const ext = file.name.split('.').pop().toLowerCase();
-            if (isImageFile(ext)) {
-                openImageViewer(file);
-            } else if (isTextFile(ext)) {
-                openFileInEditor(file);
-            }
+        if (file.is_directory) {
+            loadDirectory(file.path);
+            return;
+        }
+        const ext = file.name.split('.').pop().toLowerCase();
+        if (isImageFile(ext)) {
+            openImageViewer(file);
+        } else if (isTextFile(ext)) {
+            openFileInEditor(file);
         }
     });
     
@@ -224,12 +221,76 @@ function updateSelectionDetails() {
         return;
     }
 
-    container.innerHTML = `
-        <div class="no-selection">
-            <i class="fas fa-file-alt"></i>
-            <p>Select a file or folder to view details</p>
-        </div>
-    `;
+    displayCurrentFolderDetails();
+}
+
+async function displayCurrentFolderDetails() {
+    const container = document.getElementById('file-details-container');
+    if (!container) return;
+
+    const path = currentPath || '/';
+    const name = path.split('/').filter(Boolean).pop() || '/';
+
+    try {
+        const response = await fetch(`/api/file-details?path=${encodeURIComponent(path)}`);
+        const data = await response.json();
+
+        if (!data.success) {
+            container.innerHTML = `
+                <div class="no-selection">
+                    <i class="fas fa-folder-open"></i>
+                    <p>${path}</p>
+                </div>
+            `;
+            return;
+        }
+
+        const details = data.details;
+        container.innerHTML = `
+            <div class="detail-section">
+                <h3><i class="fas fa-folder"></i> ${name}</h3>
+                <div class="detail-row">
+                    <span class="detail-label">Type:</span>
+                    <span class="detail-value">Directory</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Path:</span>
+                    <span class="detail-value">${path}</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Size:</span>
+                    <span class="detail-value" id="detail-size">
+                        <button class="btn btn-sm btn-info" onclick="inspectFolderDetails('${path}')">
+                            <i class="fas fa-search"></i> Calculate Size
+                        </button>
+                    </span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Owner:</span>
+                    <span class="detail-value">${details.owner}</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Created:</span>
+                    <span class="detail-value">${new Date(details.created * 1000).toLocaleString()}</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Modified:</span>
+                    <span class="detail-value">${new Date(details.modified * 1000).toLocaleString()}</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Accessed:</span>
+                    <span class="detail-value">${new Date(details.accessed * 1000).toLocaleString()}</span>
+                </div>
+            </div>
+        `;
+    } catch (error) {
+        container.innerHTML = `
+            <div class="no-selection">
+                <i class="fas fa-folder-open"></i>
+                <p>${path}</p>
+            </div>
+        `;
+    }
 }
 
 function setSelectionByPaths(paths, primaryPath) {
