@@ -279,10 +279,10 @@ async function displayFileDetails(file) {
                             return buttons.join('');
                         })()}
                     ` : `
-                        <button class="btn btn-sm btn-primary" onclick="createArchive('zip', selectedFile.path)">
+                        <button class="btn btn-sm btn-primary" onclick="createArchive('zip', selectedFile.path, currentPath)">
                             <i class="fas fa-file-archive"></i> Create ZIP
                         </button>
-                        <button class="btn btn-sm btn-primary" onclick="createArchive('targz', selectedFile.path)">
+                        <button class="btn btn-sm btn-primary" onclick="createArchive('targz', selectedFile.path, currentPath)">
                             <i class="fas fa-file-archive"></i> Create tar.gz
                         </button>
                         ${archiveCache?.has?.(selectedFile.path) ? `

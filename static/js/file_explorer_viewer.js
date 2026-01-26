@@ -11,6 +11,9 @@ function openImageViewer(file) {
     imageInfo.textContent = `Size: ${formatFileSize(file.size)}`;
     
     viewerWindow.style.display = 'flex';
+    if (typeof bringToFront === 'function') {
+        bringToFront(viewerWindow);
+    }
     
     viewerImg.onload = function() {
         imageInfo.textContent = `Size: ${formatFileSize(file.size)} | Dimensions: ${this.naturalWidth}x${this.naturalHeight}px`;
@@ -30,6 +33,9 @@ function setupImageViewer() {
     let currentX, currentY, initialX, initialY;
     
     header.addEventListener('mousedown', dragStart);
+    if (typeof registerWindowFocus === 'function') {
+        registerWindowFocus(viewerWindow, [header, viewerWindow]);
+    }
     document.addEventListener('mousemove', drag);
     document.addEventListener('mouseup', dragEnd);
     
@@ -89,6 +95,9 @@ function openVideoViewer(file) {
     videoEl.src = `/api/download?path=${encodeURIComponent(file.path)}`;
 
     viewerWindow.style.display = 'flex';
+    if (typeof bringToFront === 'function') {
+        bringToFront(viewerWindow);
+    }
 
     videoEl.onloadedmetadata = () => {
         const duration = isFinite(videoEl.duration) ? `${Math.round(videoEl.duration)}s` : 'Unknown';
@@ -118,6 +127,9 @@ function setupVideoViewer() {
     let currentX, currentY, initialX, initialY;
 
     header.addEventListener('mousedown', dragStart);
+    if (typeof registerWindowFocus === 'function') {
+        registerWindowFocus(viewerWindow, [header, viewerWindow]);
+    }
     document.addEventListener('mousemove', drag);
     document.addEventListener('mouseup', dragEnd);
 

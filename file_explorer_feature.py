@@ -544,6 +544,7 @@ def build_file_explorer_blueprint() -> Blueprint:
             data = request.get_json(silent=True) or {}
             path = (data.get('path') or '').strip()
             fmt = (data.get('format') or 'zip').lower()
+            destination_path = (data.get('destination_path') or '').strip()
 
             if not path:
                 return jsonify({'success': False, 'error': 'Path parameter required'}), 400
@@ -555,6 +556,10 @@ def build_file_explorer_blueprint() -> Blueprint:
             if not path_obj.is_dir():
                 return jsonify({'success': False, 'error': 'Path is not a directory'}), 400
 
+            dest_dir = Path(destination_path) if destination_path else path_obj.parent
+            if not dest_dir.exists() or not dest_dir.is_dir():
+                return jsonify({'success': False, 'error': 'Invalid destination'}), 400
+
             if fmt in ('targz', 'tar.gz', 'tgz'):
                 archive_format = 'gztar'
                 extension = 'tar.gz'
@@ -564,29 +569,39 @@ def build_file_explorer_blueprint() -> Blueprint:
             else:
                 return jsonify({'success': False, 'error': 'Invalid format'}), 400
 
-            archive_root = _archive_root()
-            archive_id = uuid.uuid4().hex
-            base_name = archive_root / f"{path_obj.name}-{archive_id}"
-            archive_path = shutil.make_archive(
+            tmp_dir = Path(tempfile.mkdtemp(prefix='archive_'))
+            base_name = tmp_dir / path_obj.name
+            tmp_archive = shutil.make_archive(
                 str(base_name),
                 archive_format,
                 root_dir=str(path_obj.parent),
                 base_dir=path_obj.name,
             )
 
-            info = {
-                'id': archive_id,
-                'path': archive_path,
-                'format': fmt,
-                'filename': f"{path_obj.name}.{extension}",
-                'created_at': time.time(),
-                'source': str(path_obj),
-            }
+            final_name = f"{path_obj.name}.{extension}"
+            final_path = dest_dir / final_name
+            if final_path.exists():
+                counter = 1
+                while final_path.exists():
+                    final_name = f"{path_obj.name}_{counter}.{extension}"
+                    final_path = dest_dir / final_name
+                    counter += 1
 
-            with _ARCHIVE_CACHE_LOCK:
-                _ARCHIVE_CACHE[archive_id] = info
+            shutil.move(tmp_archive, final_path)
+            shutil.rmtree(tmp_dir, ignore_errors=True)
 
-            return jsonify({'success': True, 'archive': info})
+            return jsonify(
+                {
+                    'success': True,
+                    'archive': {
+                        'path': str(final_path),
+                        'filename': final_name,
+                        'format': fmt,
+                        'destination': str(dest_dir),
+                        'source': str(path_obj),
+                    },
+                }
+            )
         except Exception as e:
             return jsonify({'success': False, 'error': str(e)}), 500
 

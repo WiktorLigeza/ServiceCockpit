@@ -1446,6 +1446,42 @@ body {
     overflow-x: auto;
 }
 
+.archive-jobs-bar {
+    position: fixed;
+    bottom: 42px;
+    left: 0;
+    right: 0;
+    display: flex;
+    gap: 8px;
+    padding: 6px 12px;
+    background: rgba(0, 0, 0, 0.5);
+    border-top: 1px solid rgba(0, 255, 255, 0.15);
+    z-index: 1850;
+    overflow-x: auto;
+}
+
+.archive-job {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 10px;
+    border-radius: 6px;
+    background: rgba(0, 255, 255, 0.08);
+    border: 1px solid rgba(0, 255, 255, 0.2);
+    color: #bdbdbd;
+    white-space: nowrap;
+}
+
+.archive-job .archive-download {
+    background: transparent;
+    border: none;
+    color: #00ffff;
+}
+
+.archive-job .archive-download:hover {
+    color: #7fffd4;
+}
+
 .exec-runner-dock-item {
     display: flex;
     align-items: center;

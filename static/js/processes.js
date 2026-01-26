@@ -180,6 +180,10 @@ function showInfocard() {
     if (!infocard) return;
     infocard.classList.remove('hidden');
 
+    if (typeof bringToFront === 'function') {
+        bringToFront(infocard);
+    }
+
     // If never positioned, place it near center.
     if (!infocard.dataset.positioned) {
         const vw = window.innerWidth || 1200;
@@ -260,6 +264,10 @@ function initInfocardBehavior() {
 
     const header = infocard.querySelector('.infocard-header');
     if (!header) return;
+
+    if (typeof registerWindowFocus === 'function') {
+        registerWindowFocus(infocard, [header, infocard]);
+    }
 
     let dragging = false;
     let offsetX = 0;

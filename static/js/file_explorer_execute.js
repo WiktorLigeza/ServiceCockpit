@@ -173,6 +173,10 @@ function createRunnerWindow(file) {
         isDragging = true;
     });
 
+    if (typeof registerWindowFocus === 'function') {
+        registerWindowFocus(runnerWindow, [header, runnerWindow]);
+    }
+
     document.addEventListener('mousemove', (e) => {
         if (!isDragging) return;
         e.preventDefault();
@@ -245,4 +249,7 @@ function openExecutableRunner(file) {
     const runner = createRunnerWindow(file);
     if (!runner) return;
     restoreRunner(runner);
+    if (typeof bringToFront === 'function') {
+        bringToFront(runner.windowEl);
+    }
 }

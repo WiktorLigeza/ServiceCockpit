@@ -16,6 +16,9 @@ async function openFileInEditor(file) {
             editorTitle.innerHTML = `<i class="fas fa-code"></i> ${file.name} <span class="editor-language-badge">${getLanguageFromExtension(file.name)}</span>`;
             editorInfo.textContent = `Lines: ${data.content.split('\n').length} | Size: ${formatFileSize(file.size)}`;
             editorWindow.style.display = 'flex';
+            if (typeof bringToFront === 'function') {
+                bringToFront(editorWindow);
+            }
             
             applySyntaxHighlighting(file.name);
             
@@ -94,6 +97,9 @@ function setupCodeEditor() {
     let currentX, currentY, initialX, initialY;
     
     header.addEventListener('mousedown', dragStart);
+    if (typeof registerWindowFocus === 'function') {
+        registerWindowFocus(editorWindow, [header, editorWindow]);
+    }
     document.addEventListener('mousemove', drag);
     document.addEventListener('mouseup', dragEnd);
     

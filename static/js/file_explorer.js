@@ -922,12 +922,12 @@ function showDirectoryContextMenu(x, y, dir) {
     menuItems.push({
         icon: 'fa-file-archive',
         text: 'Create ZIP',
-        action: () => createArchive('zip', dir.path),
+        action: () => createArchive('zip', dir.path, currentPath),
     });
     menuItems.push({
         icon: 'fa-file-archive',
         text: 'Create tar.gz',
-        action: () => createArchive('targz', dir.path),
+        action: () => createArchive('targz', dir.path, currentPath),
     });
     if (archiveCache.has(dir.path)) {
         menuItems.push({
@@ -1214,12 +1214,12 @@ function showFileContextMenu(x, y, file) {
         menuItems.push({
             icon: 'fa-file-archive',
             text: 'Create ZIP',
-            action: () => createArchive('zip', file.path),
+            action: () => createArchive('zip', file.path, currentPath),
         });
         menuItems.push({
             icon: 'fa-file-archive',
             text: 'Create tar.gz',
-            action: () => createArchive('targz', file.path),
+            action: () => createArchive('targz', file.path, currentPath),
         });
         if (archiveCache.has(file.path)) {
             menuItems.push({
@@ -1360,39 +1360,70 @@ function downloadArchive(format, path) {
     downloadLatestArchive(path);
 }
 
-async function createArchive(format, path) {
+function createArchiveJob(label) {
+    const bar = document.getElementById('archive-jobs-bar');
+    if (!bar) return null;
+    const job = document.createElement('div');
+    job.className = 'archive-job';
+    job.innerHTML = `<i class="fas fa-spinner fa-spin"></i> <span>${label}</span>`;
+    bar.appendChild(job);
+    return job;
+}
+
+async function createArchive(format, path, destinationPath) {
     if (!path) return;
     const fmt = format === 'targz' ? 'targz' : 'zip';
+    const label = `Creating ${fmt} for ${path}`;
+    const job = createArchiveJob(label);
     showNotification('Preparing archive...', 'info');
     try {
         const resp = await fetch('/api/archive/create', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ path, format: fmt }),
+            body: JSON.stringify({ path, format: fmt, destination_path: destinationPath || currentPath }),
         });
         const data = await resp.json();
         if (!data.success) {
             showNotification(`Archive failed: ${data.error || 'unknown'}`, 'error');
+            if (job) job.innerHTML = `<i class="fas fa-times"></i> <span>Archive failed</span>`;
             return;
         }
         const archive = data.archive;
         archiveCache.set(path, archive);
         showNotification('Archive created', 'success');
+        if (job) {
+            job.innerHTML = `
+                <i class="fas fa-check"></i>
+                <span>${archive.filename} ready</span>
+                <button class="archive-download" title="Download">
+                    <i class="fas fa-download"></i>
+                </button>
+            `;
+            const btn = job.querySelector('.archive-download');
+            btn?.addEventListener('click', (e) => {
+                e.stopPropagation();
+                downloadLatestArchive(path);
+            });
+            setTimeout(() => job.remove(), 15000);
+        }
+
+        loadDirectory(currentPath);
         if (selectedFile && selectedFile.path === path) {
             displayFileDetails(selectedFile);
         }
     } catch (e) {
         showNotification(`Archive failed: ${e}`, 'error');
+        if (job) job.innerHTML = `<i class="fas fa-times"></i> <span>Archive failed</span>`;
     }
 }
 
 function downloadLatestArchive(path) {
     const archive = archiveCache.get(path);
-    if (!archive || !archive.id) {
+    if (!archive || !archive.path) {
         showNotification('No archive available. Create one first.', 'warning');
         return;
     }
-    window.location.href = `/api/archive/download?id=${encodeURIComponent(archive.id)}`;
+    window.location.href = `/api/download?path=${encodeURIComponent(archive.path)}`;
 }
 
 function showContainerContextMenu(x, y) {
@@ -1438,12 +1469,12 @@ function showContainerContextMenu(x, y) {
     menuItems.push({
         icon: 'fa-file-archive',
         text: 'Create ZIP',
-        action: () => createArchive('zip', currentPath),
+        action: () => createArchive('zip', currentPath, currentPath),
     });
     menuItems.push({
         icon: 'fa-file-archive',
         text: 'Create tar.gz',
-        action: () => createArchive('targz', currentPath),
+        action: () => createArchive('targz', currentPath, currentPath),
     });
     if (archiveCache.has(currentPath)) {
         menuItems.push({
