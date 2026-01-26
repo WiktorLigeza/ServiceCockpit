@@ -86,6 +86,47 @@ body {
     margin: 0 1rem 15px 1rem;
 }
 
+.directory-filters {
+    margin: 0 1rem 10px 1rem;
+    padding: 8px 10px;
+    border-radius: 8px;
+    background: rgba(0,0,0,0.2);
+}
+
+.filter-label {
+    font-size: 0.8rem;
+    color: #bdbdbd;
+    margin-bottom: 6px;
+}
+
+.color-filter-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.color-filter-btn {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    border: 2px solid rgba(255,255,255,0.3);
+    cursor: pointer;
+    position: relative;
+}
+
+.color-filter-btn.active {
+    box-shadow: 0 0 6px rgba(0, 255, 255, 0.6);
+    border-color: #00ffff;
+}
+
+.color-filter-btn::after {
+    content: '';
+    position: absolute;
+    inset: 2px;
+    border-radius: 50%;
+    background: currentColor;
+}
+
 .form-control {
     background: rgba(0,0,0,0.3) !important;
     color: #fff !important;
@@ -436,6 +477,18 @@ body {
 
 .folder-types {
     opacity: 0.9;
+}
+
+.chmod-control {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.chmod-input {
+    max-width: 120px;
+    height: 32px;
+    font-size: 0.85rem;
 }
 
 /* Grid View */

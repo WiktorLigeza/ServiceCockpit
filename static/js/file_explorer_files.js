@@ -220,6 +220,17 @@ async function displayFileDetails(file) {
                         <span class="detail-value">${file.permissions}</span>
                     </div>
                     <div class="detail-row">
+                        <span class="detail-label">Chmod:</span>
+                        <span class="detail-value">
+                            <div class="chmod-control">
+                                <input type="text" id="chmod-input" class="form-control chmod-input" placeholder="e.g. 644">
+                                <button class="btn btn-sm btn-info" onclick="applyChmod(selectedFile.path)">
+                                    <i class="fas fa-key"></i> Apply
+                                </button>
+                            </div>
+                        </span>
+                    </div>
+                    <div class="detail-row">
                         <span class="detail-label">Owner:</span>
                         <span class="detail-value">${details.owner}</span>
                     </div>
@@ -268,12 +279,17 @@ async function displayFileDetails(file) {
                             return buttons.join('');
                         })()}
                     ` : `
-                        <button class="btn btn-sm btn-primary" onclick="downloadArchive('zip', selectedFile.path)">
-                            <i class="fas fa-file-archive"></i> Download ZIP
+                        <button class="btn btn-sm btn-primary" onclick="createArchive('zip', selectedFile.path)">
+                            <i class="fas fa-file-archive"></i> Create ZIP
                         </button>
-                        <button class="btn btn-sm btn-primary" onclick="downloadArchive('targz', selectedFile.path)">
-                            <i class="fas fa-file-archive"></i> Download tar.gz
+                        <button class="btn btn-sm btn-primary" onclick="createArchive('targz', selectedFile.path)">
+                            <i class="fas fa-file-archive"></i> Create tar.gz
                         </button>
+                        ${archiveCache?.has?.(selectedFile.path) ? `
+                            <button class="btn btn-sm btn-success" onclick="downloadLatestArchive(selectedFile.path)">
+                                <i class="fas fa-download"></i> Download Archive
+                            </button>
+                        ` : ''}
                     `}
                     <button class="btn btn-sm btn-warning" onclick="renameFile()">
                         <i class="fas fa-edit"></i> Rename
@@ -365,4 +381,34 @@ function renderFolderCounts(data) {
     }
 
     return parts.length ? `<div class="folder-summary">${parts.join('')}</div>` : '';
+}
+
+async function applyChmod(path) {
+    const input = document.getElementById('chmod-input');
+    if (!input) return;
+    const mode = (input.value || '').trim();
+    if (!mode) {
+        showNotification('Enter a chmod value (e.g. 644)', 'warning');
+        return;
+    }
+    try {
+        const resp = await fetch('/api/chmod', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ path, mode }),
+        });
+        const data = await resp.json();
+        if (!data.success) {
+            showNotification(`Chmod failed: ${data.error || 'unknown'}`, 'error');
+            return;
+        }
+        showNotification('Permissions updated', 'success');
+        loadDirectory(currentPath);
+        if (selectedFile && selectedFile.path === path) {
+            selectedFile.permissions = data.permissions || selectedFile.permissions;
+            displayFileDetails(selectedFile);
+        }
+    } catch (e) {
+        showNotification(`Chmod failed: ${e}`, 'error');
+    }
 }

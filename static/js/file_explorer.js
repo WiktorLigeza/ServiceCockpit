@@ -13,6 +13,8 @@ let isCutOperation = false;
 let draggedItem = null;
 let folderPreferences = {}; // Store folder colors and favorites
 let uploadTargetPath = null;
+let selectedColorFilters = new Set();
+const archiveCache = new Map();
 
 // Import modules
 document.addEventListener('DOMContentLoaded', function() {
@@ -51,6 +53,8 @@ async function loadFolderPreferences() {
         const data = await response.json();
         if (data.success) {
             folderPreferences = data.preferences || {};
+            setupColorFilters();
+            applyDirectoryColorFilter();
         }
     } catch (error) {
         console.error('Error loading folder preferences:', error);
@@ -198,6 +202,18 @@ function setupEventListeners() {
             }
         });
     }
+
+    window.addEventListener('dragover', (e) => {
+        if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+            e.preventDefault();
+        }
+    });
+
+    window.addEventListener('drop', (e) => {
+        if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+            e.preventDefault();
+        }
+    });
     
     // Setup file upload functionality
     setupFileUpload();
@@ -381,6 +397,61 @@ function showNotification(message, type = 'info') {
             notification.remove();
         }, 300);
     }, 3000);
+}
+
+function setupColorFilters() {
+    const container = document.getElementById('color-filter-buttons');
+    if (!container) return;
+    container.innerHTML = '';
+
+    const palette = [
+        { color: '#ff6b6b', name: 'Red' },
+        { color: '#4ecdc4', name: 'Teal' },
+        { color: '#45b7d1', name: 'Blue' },
+        { color: '#96ceb4', name: 'Green' },
+        { color: '#ffeaa7', name: 'Yellow' },
+        { color: '#fd79a8', name: 'Pink' },
+        { color: '#a29bfe', name: 'Purple' },
+        { color: '#e17055', name: 'Orange' }
+    ];
+
+    palette.forEach(entry => {
+        const btn = document.createElement('button');
+        btn.className = 'color-filter-btn';
+        btn.style.color = entry.color;
+        btn.title = entry.name;
+        btn.dataset.color = entry.color;
+        btn.addEventListener('click', () => {
+            if (selectedColorFilters.has(entry.color)) {
+                selectedColorFilters.delete(entry.color);
+                btn.classList.remove('active');
+            } else {
+                selectedColorFilters.add(entry.color);
+                btn.classList.add('active');
+            }
+            applyDirectoryColorFilter();
+        });
+        container.appendChild(btn);
+    });
+}
+
+function applyDirectoryColorFilter() {
+    const items = document.querySelectorAll('.directory-item');
+    if (selectedColorFilters.size === 0) {
+        items.forEach(item => {
+            item.style.display = 'flex';
+        });
+        return;
+    }
+
+    items.forEach(item => {
+        const color = item.dataset.color || '';
+        if (color && selectedColorFilters.has(color)) {
+            item.style.display = 'flex';
+        } else {
+            item.style.display = 'none';
+        }
+    });
 }
 
 async function copyTextToClipboard(text) {
@@ -596,6 +667,8 @@ async function loadDirectoryTree(path, parentElement = null) {
                 const dirItem = createDirectoryTreeItem(dir);
                 container.appendChild(dirItem);
             });
+
+            applyDirectoryColorFilter();
         }
     } catch (error) {
         console.error('Error loading directory tree:', error);
@@ -618,6 +691,7 @@ function createDirectoryTreeItem(dir) {
         if (prefs.color) {
             item.classList.add('colored-folder');
             item.style.setProperty('--folder-color', prefs.color);
+            item.dataset.color = prefs.color;
         }
     }
     
@@ -685,6 +759,8 @@ function createDirectoryTreeItem(dir) {
     
     wrapper.appendChild(item);
     wrapper.appendChild(childrenContainer);
+
+    applyDirectoryColorFilter();
     
     return wrapper;
 }
@@ -845,14 +921,21 @@ function showDirectoryContextMenu(x, y, dir) {
     menuItems.push({ type: 'separator' });
     menuItems.push({
         icon: 'fa-file-archive',
-        text: 'Download ZIP',
-        action: () => downloadArchive('zip', dir.path),
+        text: 'Create ZIP',
+        action: () => createArchive('zip', dir.path),
     });
     menuItems.push({
         icon: 'fa-file-archive',
-        text: 'Download tar.gz',
-        action: () => downloadArchive('targz', dir.path),
+        text: 'Create tar.gz',
+        action: () => createArchive('targz', dir.path),
     });
+    if (archiveCache.has(dir.path)) {
+        menuItems.push({
+            icon: 'fa-download',
+            text: 'Download Latest Archive',
+            action: () => downloadLatestArchive(dir.path),
+        });
+    }
     
     menuItems.forEach(item => {
         if (item.type === 'separator') {
@@ -1130,14 +1213,21 @@ function showFileContextMenu(x, y, file) {
         menuItems.push({ type: 'separator' });
         menuItems.push({
             icon: 'fa-file-archive',
-            text: 'Download ZIP',
-            action: () => downloadArchive('zip', file.path),
+            text: 'Create ZIP',
+            action: () => createArchive('zip', file.path),
         });
         menuItems.push({
             icon: 'fa-file-archive',
-            text: 'Download tar.gz',
-            action: () => downloadArchive('targz', file.path),
+            text: 'Create tar.gz',
+            action: () => createArchive('targz', file.path),
         });
+        if (archiveCache.has(file.path)) {
+            menuItems.push({
+                icon: 'fa-download',
+                text: 'Download Latest Archive',
+                action: () => downloadLatestArchive(file.path),
+            });
+        }
     } else {
         // File-specific options
         const ext = file.name.split('.').pop().toLowerCase();
@@ -1267,8 +1357,42 @@ function showFileContextMenu(x, y, file) {
 
 function downloadArchive(format, path) {
     if (!path) return;
+    downloadLatestArchive(path);
+}
+
+async function createArchive(format, path) {
+    if (!path) return;
     const fmt = format === 'targz' ? 'targz' : 'zip';
-    window.location.href = `/api/archive?path=${encodeURIComponent(path)}&format=${encodeURIComponent(fmt)}`;
+    showNotification('Preparing archive...', 'info');
+    try {
+        const resp = await fetch('/api/archive/create', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ path, format: fmt }),
+        });
+        const data = await resp.json();
+        if (!data.success) {
+            showNotification(`Archive failed: ${data.error || 'unknown'}`, 'error');
+            return;
+        }
+        const archive = data.archive;
+        archiveCache.set(path, archive);
+        showNotification('Archive created', 'success');
+        if (selectedFile && selectedFile.path === path) {
+            displayFileDetails(selectedFile);
+        }
+    } catch (e) {
+        showNotification(`Archive failed: ${e}`, 'error');
+    }
+}
+
+function downloadLatestArchive(path) {
+    const archive = archiveCache.get(path);
+    if (!archive || !archive.id) {
+        showNotification('No archive available. Create one first.', 'warning');
+        return;
+    }
+    window.location.href = `/api/archive/download?id=${encodeURIComponent(archive.id)}`;
 }
 
 function showContainerContextMenu(x, y) {
@@ -1313,14 +1437,21 @@ function showContainerContextMenu(x, y) {
     menuItems.push({ type: 'separator' });
     menuItems.push({
         icon: 'fa-file-archive',
-        text: 'Download ZIP',
-        action: () => downloadArchive('zip', currentPath),
+        text: 'Create ZIP',
+        action: () => createArchive('zip', currentPath),
     });
     menuItems.push({
         icon: 'fa-file-archive',
-        text: 'Download tar.gz',
-        action: () => downloadArchive('targz', currentPath),
+        text: 'Create tar.gz',
+        action: () => createArchive('targz', currentPath),
     });
+    if (archiveCache.has(currentPath)) {
+        menuItems.push({
+            icon: 'fa-download',
+            text: 'Download Latest Archive',
+            action: () => downloadLatestArchive(currentPath),
+        });
+    }
 
     menuItems.push({ type: 'separator' });
     menuItems.push({

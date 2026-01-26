@@ -41,6 +41,34 @@ class _ExecSession:
 _EXEC_SESSIONS: dict[str, _ExecSession] = {}
 _EXEC_SESSIONS_LOCK = threading.Lock()
 
+_ARCHIVE_CACHE: dict[str, dict] = {}
+_ARCHIVE_CACHE_LOCK = threading.Lock()
+_ARCHIVE_TTL_SECONDS = 24 * 60 * 60
+
+
+def _archive_root() -> Path:
+    base = Path(tempfile.gettempdir()) / 'servicecockpit_archives'
+    base.mkdir(parents=True, exist_ok=True)
+    return base
+
+
+def _cleanup_archives() -> None:
+    now = time.time()
+    remove_ids: list[str] = []
+    with _ARCHIVE_CACHE_LOCK:
+        for archive_id, info in _ARCHIVE_CACHE.items():
+            created_at = info.get('created_at') or 0
+            if now - float(created_at) > _ARCHIVE_TTL_SECONDS:
+                remove_ids.append(archive_id)
+
+        for archive_id in remove_ids:
+            info = _ARCHIVE_CACHE.pop(archive_id, None)
+            if info:
+                try:
+                    Path(info.get('path', '')).unlink(missing_ok=True)
+                except Exception:
+                    pass
+
 
 def _get_socketio():
     sock = current_app.extensions.get('socketio')
@@ -508,11 +536,14 @@ def build_file_explorer_blueprint() -> Blueprint:
         except Exception as e:
             return jsonify({'success': False, 'error': str(e)})
 
-    @bp.route('/api/archive')
-    def download_archive():
+    @bp.route('/api/archive/create', methods=['POST'])
+    def create_archive():
         try:
-            path = request.args.get('path')
-            fmt = (request.args.get('format') or 'zip').lower()
+            _cleanup_archives()
+
+            data = request.get_json(silent=True) or {}
+            path = (data.get('path') or '').strip()
+            fmt = (data.get('format') or 'zip').lower()
 
             if not path:
                 return jsonify({'success': False, 'error': 'Path parameter required'}), 400
@@ -533,8 +564,9 @@ def build_file_explorer_blueprint() -> Blueprint:
             else:
                 return jsonify({'success': False, 'error': 'Invalid format'}), 400
 
-            tmp_dir = Path(tempfile.mkdtemp(prefix='archive_'))
-            base_name = tmp_dir / path_obj.name
+            archive_root = _archive_root()
+            archive_id = uuid.uuid4().hex
+            base_name = archive_root / f"{path_obj.name}-{archive_id}"
             archive_path = shutil.make_archive(
                 str(base_name),
                 archive_format,
@@ -542,18 +574,62 @@ def build_file_explorer_blueprint() -> Blueprint:
                 base_dir=path_obj.name,
             )
 
-            @after_this_request
-            def _cleanup(response):
-                try:
-                    tmp_dir_path = Path(tmp_dir)
-                    if tmp_dir_path.exists():
-                        shutil.rmtree(tmp_dir_path, ignore_errors=True)
-                except Exception:
-                    pass
-                return response
+            info = {
+                'id': archive_id,
+                'path': archive_path,
+                'format': fmt,
+                'filename': f"{path_obj.name}.{extension}",
+                'created_at': time.time(),
+                'source': str(path_obj),
+            }
 
-            download_name = f"{path_obj.name}.{extension}"
-            return send_file(archive_path, as_attachment=True, download_name=download_name)
+            with _ARCHIVE_CACHE_LOCK:
+                _ARCHIVE_CACHE[archive_id] = info
+
+            return jsonify({'success': True, 'archive': info})
+        except Exception as e:
+            return jsonify({'success': False, 'error': str(e)}), 500
+
+    @bp.route('/api/archive/download')
+    def download_archive():
+        try:
+            archive_id = (request.args.get('id') or '').strip()
+            if not archive_id:
+                return jsonify({'success': False, 'error': 'archive id required'}), 400
+
+            with _ARCHIVE_CACHE_LOCK:
+                info = _ARCHIVE_CACHE.get(archive_id)
+
+            if not info:
+                return jsonify({'success': False, 'error': 'archive not found'}), 404
+
+            archive_path = info.get('path')
+            filename = info.get('filename') or 'archive'
+
+            return send_file(archive_path, as_attachment=True, download_name=filename)
+        except Exception as e:
+            return jsonify({'success': False, 'error': str(e)}), 500
+
+    @bp.route('/api/archive/delete', methods=['POST'])
+    def delete_archive():
+        try:
+            data = request.get_json(silent=True) or {}
+            archive_id = (data.get('id') or '').strip()
+            if not archive_id:
+                return jsonify({'success': False, 'error': 'archive id required'}), 400
+
+            with _ARCHIVE_CACHE_LOCK:
+                info = _ARCHIVE_CACHE.pop(archive_id, None)
+
+            if not info:
+                return jsonify({'success': False, 'error': 'archive not found'}), 404
+
+            try:
+                Path(info.get('path', '')).unlink(missing_ok=True)
+            except Exception:
+                pass
+
+            return jsonify({'success': True})
         except Exception as e:
             return jsonify({'success': False, 'error': str(e)}), 500
 
@@ -772,6 +848,33 @@ def build_file_explorer_blueprint() -> Blueprint:
             preferences = data.get('preferences', {})
             save_folder_preferences(preferences)
             return jsonify({'success': True})
+        except Exception as e:
+            return jsonify({'success': False, 'error': str(e)}), 500
+
+    @bp.route('/api/chmod', methods=['POST'])
+    def chmod_path():
+        try:
+            data = request.get_json(silent=True) or {}
+            path = (data.get('path') or '').strip()
+            mode = (data.get('mode') or '').strip()
+
+            if not path or not mode:
+                return jsonify({'success': False, 'error': 'Path and mode required'}), 400
+
+            path_obj = Path(path)
+            if not path_obj.exists():
+                return jsonify({'success': False, 'error': 'Path does not exist'}), 404
+
+            try:
+                mode_int = int(mode, 8)
+            except Exception:
+                return jsonify({'success': False, 'error': 'Invalid mode'}), 400
+
+            os.chmod(path_obj, mode_int)
+            stat_info = path_obj.stat()
+            return jsonify({'success': True, 'permissions': stat.filemode(stat_info.st_mode)})
+        except PermissionError:
+            return jsonify({'success': False, 'error': 'Permission denied'}), 403
         except Exception as e:
             return jsonify({'success': False, 'error': str(e)}), 500
 
