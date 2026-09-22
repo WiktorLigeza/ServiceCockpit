@@ -59,11 +59,31 @@ document.addEventListener('DOMContentLoaded', () => {
         fontFamily: "'Fira Code', 'Cascadia Code', Menlo, Consolas, monospace",
         fontSize: 14,
         scrollback: 5000,
+        // 16-color ANSI palette based on Dracula (github.com/dracula/dracula-theme),
+        // kept on a transparent background so it blends into the app's own
+        // purple glass console window instead of boxing in its own solid one.
         theme: {
             background: 'rgba(0, 0, 0, 0)',
-            foreground: '#d6c9ff',
+            foreground: '#f8f8f2',
             cursor: '#c98fff',
+            cursorAccent: '#191970',
             selectionBackground: 'rgba(140, 0, 255, 0.4)',
+            black: '#21222c',
+            red: '#ff5555',
+            green: '#50fa7b',
+            yellow: '#f1fa8c',
+            blue: '#bd93f9',
+            magenta: '#ff79c6',
+            cyan: '#8be9fd',
+            white: '#f8f8f2',
+            brightBlack: '#6272a4',
+            brightRed: '#ff6e6e',
+            brightGreen: '#69ff94',
+            brightYellow: '#ffffa5',
+            brightBlue: '#d6acff',
+            brightMagenta: '#ff92df',
+            brightCyan: '#a4ffff',
+            brightWhite: '#ffffff',
         },
     });
     const fitAddon = new FitAddon.FitAddon();

@@ -39,12 +39,22 @@ def _spawn_shell(sudo_password: str, cwd: str):
     master_fd, slave_fd = pty.openpty()
     _set_winsize(slave_fd, 24, 80)
 
+    # The Flask process itself usually has no real TERM (systemd/service
+    # launches report TERM=dumb or nothing at all), which tells bash, ls,
+    # git, etc. to disable color entirely - even though xterm.js on the other
+    # end is a full xterm-256color-capable terminal. Override it so the shell
+    # matches what's actually rendering it.
+    env = dict(os.environ)
+    env['TERM'] = 'xterm-256color'
+    env['COLORTERM'] = 'truecolor'
+
     proc = subprocess.Popen(
         ['sudo', '-S', '-p', '', 'bash'],
         stdin=slave_fd,
         stdout=slave_fd,
         stderr=slave_fd,
         cwd=cwd,
+        env=env,
         preexec_fn=os.setsid,
         close_fds=True,
     )
