@@ -1,94 +1,106 @@
-import shlex
+import os
 import subprocess
 import threading
 
 from flask import request, session
 
-from auth import AUTH_SESSION_KEY, SUDO_SESSION_KEY, is_authenticated
+from auth import SUDO_SESSION_KEY, is_authenticated
 
-ALLOWED_COMMANDS = {
-    'ls': '/bin/ls',
-    'ps': '/bin/ps',
-    'df': '/bin/df',
-    'free': '/usr/bin/free',
-    'top': '/usr/bin/top',
-    'systemctl': '/bin/systemctl',
-    'journalctl': '/bin/journalctl',
-    'cat': '/bin/cat',
-    'grep': '/bin/grep',
-    'uptime': '/usr/bin/uptime',
-    'who': '/usr/bin/who',
-    'date': '/bin/date',
-    'pwd': '/bin/pwd',
-}
+# Full shell access, run as root via sudo. There is no command allowlist here
+# by design - the console is gated behind a fresh sudo-password prompt before
+# it even opens (see sidebar/header JS), and every command already runs with
+# root privileges, so restricting *which* commands can run would be theater,
+# not security.
+_console_cwd_by_sid: dict[str, str] = {}
+
+
+def _get_cwd(sid: str) -> str:
+    return _console_cwd_by_sid.get(sid) or os.path.expanduser('~')
 
 
 class CommandExecutor:
     @staticmethod
-    def execute_command(socketio, command: str, socket_id: str, sudo_password=None, sudo_enabled: bool = False):
+    def execute_command(socketio, command: str, socket_id: str, sudo_password: str | None):
         try:
-            args = shlex.split(command)
-            if not args:
-                return "[ERROR] Empty command"
+            command = command.strip()
+            if not command:
+                return
 
-            base_command = args[0]
-            if base_command not in ALLOWED_COMMANDS:
-                return f"[ERROR] Command '{base_command}' not allowed"
+            if not sudo_password:
+                socketio.emit(
+                    'sudo_required',
+                    {'message': 'Sudo password required for the console.'},
+                    room=socket_id,
+                )
+                socketio.emit('console_output', {'output': '[ERROR] Sudo password required'}, room=socket_id)
+                return
 
-            args[0] = ALLOWED_COMMANDS[base_command]
+            cwd = _get_cwd(socket_id)
 
-            if base_command in ['systemctl', 'journalctl']:
-                if not all(arg.isalnum() or arg in ['-', '_', '.'] for arg in args[1:]):
-                    return 'Error: Invalid characters in arguments'
-
-            popen_args = args
-            popen_input = None
-
-            if sudo_enabled and sudo_password and base_command in ['systemctl', 'journalctl']:
-                popen_args = ['sudo', '-S', '-p', ''] + args
-                popen_input = sudo_password + '\n'
+            # Each subprocess call is stateless, so `cd` is handled here rather
+            # than shelled out, and the resulting directory is remembered for
+            # the next command on this console session.
+            if command == 'cd' or command.startswith('cd '):
+                target = command[2:].strip() or os.path.expanduser('~')
+                target = os.path.expanduser(target)
+                new_path = target if os.path.isabs(target) else os.path.normpath(os.path.join(cwd, target))
+                if os.path.isdir(new_path):
+                    _console_cwd_by_sid[socket_id] = new_path
+                    socketio.emit('console_output', {'output': f'[INFO] {new_path}'}, room=socket_id)
+                else:
+                    socketio.emit('console_output', {'output': f'[ERROR] No such directory: {target}'}, room=socket_id)
+                return
 
             process = subprocess.Popen(
-                popen_args,
+                ['sudo', '-S', '-p', '', 'bash', '-c', command],
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
-                stdin=subprocess.PIPE if popen_input is not None else None,
+                stdin=subprocess.PIPE,
+                cwd=cwd,
                 text=True,
                 bufsize=1,
                 universal_newlines=True,
             )
 
-            if popen_input is not None:
-                try:
-                    process.stdin.write(popen_input)
-                    process.stdin.flush()
-                except Exception:
-                    pass
+            try:
+                process.stdin.write(sudo_password + '\n')
+                process.stdin.flush()
+                process.stdin.close()
+            except Exception:
+                pass
 
             while True:
                 output = process.stdout.readline()
                 if output:
-                    if any(code in output for code in ['\x1b[31m', '\x1b[32m', '\x1b[33m', '\x1b[34m']):
-                        formatted_output = output.strip()
-                    else:
-                        formatted_output = f"[INFO] {output.strip()}"
-                    socketio.emit('console_output', {'output': formatted_output}, room=socket_id)
+                    socketio.emit('console_output', {'output': output.rstrip('\n')}, room=socket_id)
                     socketio.sleep(0)
 
                 error = process.stderr.readline()
                 if error:
-                    socketio.emit('console_output', {'output': f"[ERROR] {error.strip()}"}, room=socket_id)
+                    text = error.rstrip('\n')
+                    lowered = text.lower()
+                    if 'incorrect password' in lowered or 'sorry, try again' in lowered:
+                        socketio.emit(
+                            'sudo_required',
+                            {'message': 'Invalid sudo password. Please re-enter it.'},
+                            room=socket_id,
+                        )
+                    socketio.emit('console_output', {'output': f'[ERROR] {text}'}, room=socket_id)
                     socketio.sleep(0)
 
                 if output == '' and error == '' and process.poll() is not None:
                     break
 
             return_code = process.poll()
-            if return_code != 0:
-                socketio.emit('console_output', {'output': f"[ERROR] Command exited with status {return_code}"}, room=socket_id)
+            if return_code not in (0, None):
+                socketio.emit(
+                    'console_output',
+                    {'output': f'[ERROR] Command exited with status {return_code}'},
+                    room=socket_id,
+                )
 
         except Exception as e:
-            return f"[ERROR] Error executing command: {str(e)}"
+            socketio.emit('console_output', {'output': f'[ERROR] {e}'}, room=socket_id)
 
 
 def register_console_socket_handlers(socketio):
@@ -104,34 +116,38 @@ def register_console_socket_handlers(socketio):
                 return
 
             sudo_password = session.get(SUDO_SESSION_KEY)
-            sudo_enabled = bool(session.get(AUTH_SESSION_KEY) and sudo_password)
 
             thread = threading.Thread(
                 target=CommandExecutor.execute_command,
-                args=(socketio, command, request.sid, sudo_password, sudo_enabled),
+                args=(socketio, command, request.sid, sudo_password),
             )
             thread.daemon = True
             thread.start()
 
         except Exception as e:
-            socketio.emit('console_output', {'output': f"Error: {str(e)}"}, room=request.sid)
+            socketio.emit('console_output', {'output': f"[ERROR] {str(e)}"}, room=request.sid)
 
     @socketio.on('join_console')
     def on_join_console():
         if not is_authenticated():
             return
+        _console_cwd_by_sid[request.sid] = os.path.expanduser('~')
         socketio.emit(
             'console_output',
-            {'output': "[SUCCESS] Connected to console. Type 'help' for available commands."},
+            {'output': "[SUCCESS] Connected to console - running as root via sudo. Type 'help' for tips."},
             room=request.sid,
         )
+
+    @socketio.on('disconnect')
+    def on_console_disconnect():
+        _console_cwd_by_sid.pop(request.sid, None)
 
     @socketio.on('console_help')
     def handle_console_help():
         help_text = (
-            '[INFO] Available commands:\n'
-            + '\n'.join(f"- {cmd}" for cmd in sorted(ALLOWED_COMMANDS.keys()))
-            + '\n\n[WARNING] Note: All commands are executed with restricted privileges.'
+            '[INFO] Full shell - pipes, redirects, globs, and cd all work.\n'
+            "[INFO] Every command runs as root via 'sudo bash -c'.\n"
+            "[INFO] Type 'clear' to clear the screen."
         )
         socketio.emit('console_output', {'output': help_text}, room=request.sid)
 
