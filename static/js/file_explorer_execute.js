@@ -141,6 +141,7 @@ function createRunnerWindow(file) {
     const titleEl = runnerWindow.querySelector('[data-role="title"]');
     const pathEl = runnerWindow.querySelector('[data-role="path"]');
     const paramsEl = runnerWindow.querySelector('[data-role="params"]');
+    const sudoEl = runnerWindow.querySelector('[data-role="sudo"]');
     const outputEl = runnerWindow.querySelector('[data-role="output"]');
     const statusEl = runnerWindow.querySelector('[data-role="status"]');
     const startBtn = runnerWindow.querySelector('[data-role="start"]');
@@ -154,6 +155,7 @@ function createRunnerWindow(file) {
         titleEl,
         pathEl,
         paramsEl,
+        sudoEl,
         outputEl,
         statusEl,
         startBtn,
@@ -213,11 +215,12 @@ function createRunnerWindow(file) {
         setRunnerStatus(runner, 'Starting...');
 
         const params = (paramsEl.value || '').trim();
+        const sudo = !!(sudoEl && sudoEl.checked);
         try {
             const resp = await fetch('/api/execute', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ path: file.path, params, cwd: currentPath }),
+                body: JSON.stringify({ path: file.path, params, cwd: currentPath, sudo }),
             });
             const data = await resp.json();
             if (!data.success) {
@@ -227,6 +230,7 @@ function createRunnerWindow(file) {
             }
 
             runner.processId = data.process_id;
+            if (sudoEl) sudoEl.disabled = true;
             execRunners.set(runner.processId, runner);
             ensureExecSocket();
             execRunnerSocket.emit('join_exec', { process_id: runner.processId });
@@ -281,6 +285,10 @@ async function restoreExecSessions() {
 
             runner.processId = session.process_id;
             runner.paramsEl.value = session.params || '';
+            if (runner.sudoEl) {
+                runner.sudoEl.checked = !!session.sudo;
+                runner.sudoEl.disabled = true;
+            }
             execRunners.set(runner.processId, runner);
             ensureExecSocket();
             execRunnerSocket.emit('join_exec', { process_id: runner.processId });

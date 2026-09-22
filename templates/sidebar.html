@@ -30,10 +30,13 @@
             <i class="fas fa-network-wired"></i>
             <span class="sidebar-label">Devices</span>
         </a>
-        <a class="sidebar-item" href="#" title="Console" onclick="toggleConsole(); return false;">
-            <i class="fas fa-terminal"></i>
-            <span class="sidebar-label">Console</span>
-        </a>
+        <div class="sidebar-console" id="sidebar-console">
+            <div class="sidebar-item" title="Console">
+                <i class="fas fa-terminal"></i>
+                <span class="sidebar-label">Console</span>
+                <span class="sidebar-console-count" id="sidebar-console-count" hidden>0</span>
+            </div>
+        </div>
     </div>
 
     <div class="sidebar-bottom">
@@ -58,3 +61,20 @@
         </a>
     </div>
 </nav>
+
+<!-- Positioned outside .app-sidebar (which clips overflow) so it can flyout
+     past the sidebar's edge; shown/hidden via JS hover handling in sidebar.js. -->
+<div class="sidebar-console-panel" id="sidebar-console-panel">
+    <div class="sidebar-console-panel-header">Consoles</div>
+    <div class="sidebar-console-panel-actions">
+        <button type="button" onclick="openNewConsole(true); return false;">
+            <i class="fas fa-user-shield"></i> New (Root)
+        </button>
+        <button type="button" onclick="openNewConsole(false); return false;">
+            <i class="fas fa-user"></i> New (Normal)
+        </button>
+    </div>
+    <div class="sidebar-console-panel-list" id="sidebar-console-panel-list">
+        <div class="sidebar-console-panel-empty">No open consoles</div>
+    </div>
+</div>

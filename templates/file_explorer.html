@@ -92,6 +92,9 @@
             <div class="exec-runner-form">
                 <div class="exec-runner-path" data-role="path"></div>
                 <input class="form-control exec-runner-params" data-role="params" type="text" placeholder="Params (string, optional)">
+                <label class="exec-runner-sudo-toggle">
+                    <input type="checkbox" data-role="sudo"> Run as sudo
+                </label>
                 <button class="btn btn-sm btn-info exec-runner-start" data-role="start">
                     <i class="fas fa-play"></i> Start
                 </button>
@@ -168,7 +171,7 @@
 
         <!-- File Details Column -->
         <div class="details-panel">
-            <h2 class="section-title">File Details</h2>
+            <h2 class="section-title"><i class="fas fa-search"></i>Details</h2>
             <div id="file-details-container">
                 <div class="no-selection">
                     <i class="fas fa-file-alt"></i>

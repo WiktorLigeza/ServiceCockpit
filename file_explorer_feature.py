@@ -11,19 +11,20 @@ import uuid
 from collections import deque
 from pathlib import Path
 
-from flask import Blueprint, after_this_request, current_app, jsonify, render_template, request, send_file
+from flask import Blueprint, after_this_request, current_app, jsonify, render_template, request, send_file, session
 from flask_socketio import join_room, leave_room
 
 from config_store import get_folder_preferences, save_folder_preferences
 
-from auth import is_authenticated
+from auth import SUDO_SESSION_KEY, is_authenticated
 
 
 class _ExecSession:
-    def __init__(self, process: subprocess.Popen, path: str, params: str):
+    def __init__(self, process: subprocess.Popen, path: str, params: str, sudo: bool = False):
         self.process = process
         self.path = path
         self.params = params
+        self.sudo = sudo
         self.created_at = time.time()
         self.output = deque(maxlen=5000)
         self.return_code: int | None = None
@@ -84,10 +85,18 @@ def _is_executable_file(path_obj: Path) -> bool:
         return False
 
 
-def _start_exec_process(path_obj: Path, params: str, cwd_override: str | None = None) -> tuple[str, _ExecSession]:
+def _start_exec_process(
+    path_obj: Path,
+    params: str,
+    cwd_override: str | None = None,
+    sudo: bool = False,
+    sudo_password: str | None = None,
+) -> tuple[str, _ExecSession]:
     args = [str(path_obj)]
     if params:
         args.extend(shlex.split(params))
+    if sudo:
+        args = ['sudo', '-S', '-p', ''] + args
 
     cwd = path_obj.parent
     if cwd_override:
@@ -102,7 +111,7 @@ def _start_exec_process(path_obj: Path, params: str, cwd_override: str | None = 
         args,
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
-        stdin=subprocess.DEVNULL,
+        stdin=subprocess.PIPE if sudo else subprocess.DEVNULL,
         text=True,
         bufsize=1,
         universal_newlines=True,
@@ -110,8 +119,19 @@ def _start_exec_process(path_obj: Path, params: str, cwd_override: str | None = 
         preexec_fn=os.setsid,
     )
 
+    if sudo:
+        # `sudo -S` reads the password as a single line from stdin, then hands
+        # off to the target program - which gets no further stdin, same as
+        # the non-sudo path.
+        try:
+            process.stdin.write((sudo_password or '') + '\n')
+            process.stdin.flush()
+            process.stdin.close()
+        except Exception:
+            pass
+
     exec_id = uuid.uuid4().hex
-    session = _ExecSession(process=process, path=str(path_obj), params=params)
+    session = _ExecSession(process=process, path=str(path_obj), params=params, sudo=sudo)
 
     with _EXEC_SESSIONS_LOCK:
         _EXEC_SESSIONS[exec_id] = session
@@ -862,6 +882,7 @@ def build_file_explorer_blueprint() -> Blueprint:
             path = (data.get('path') or '').strip()
             params = (data.get('params') or '').strip()
             cwd = (data.get('cwd') or '').strip() or None
+            sudo = bool(data.get('sudo'))
 
             if not path:
                 return jsonify({'success': False, 'error': 'Path required'}), 400
@@ -873,7 +894,13 @@ def build_file_explorer_blueprint() -> Blueprint:
             if not _is_executable_file(path_obj):
                 return jsonify({'success': False, 'error': 'File is not executable'}), 400
 
-            exec_id, _ = _start_exec_process(path_obj, params, cwd_override=cwd)
+            sudo_password = None
+            if sudo:
+                sudo_password = session.get(SUDO_SESSION_KEY)
+                if not sudo_password:
+                    return jsonify({'success': False, 'error': 'sudo_required', 'message': 'Sudo password required.'}), 401
+
+            exec_id, _ = _start_exec_process(path_obj, params, cwd_override=cwd, sudo=sudo, sudo_password=sudo_password)
             return jsonify({'success': True, 'process_id': exec_id})
 
         except ValueError as e:
@@ -944,6 +971,7 @@ def build_file_explorer_blueprint() -> Blueprint:
                     'return_code': session_obj.return_code,
                     'path': session_obj.path,
                     'params': session_obj.params,
+                    'sudo': session_obj.sudo,
                 }
             )
         except Exception as e:
@@ -966,6 +994,7 @@ def build_file_explorer_blueprint() -> Blueprint:
                         'running': running,
                         'return_code': session_obj.return_code,
                         'created_at': session_obj.created_at,
+                        'sudo': session_obj.sudo,
                     }
                 )
 

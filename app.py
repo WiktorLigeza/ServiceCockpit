@@ -13,7 +13,7 @@ from flask_session import Session
 from flask_socketio import SocketIO
 
 from auth import build_auth_blueprint, configure_session
-from command_executor import register_console_socket_handlers
+from command_executor import build_console_blueprint, register_console_socket_handlers
 from gpu_monitor import gpu_monitor
 from metrics import build_metrics_blueprint
 from mqtt_feature import build_mqtt_blueprint, mqtt_cleanup_on_shutdown, register_mqtt_socket_handlers
@@ -78,6 +78,7 @@ def create_app() -> tuple[Flask, SocketIO]:
     app.register_blueprint(build_file_explorer_blueprint())
     app.register_blueprint(build_export_blueprint())
     app.register_blueprint(build_update_check_blueprint())
+    app.register_blueprint(build_console_blueprint())
 
     # Socket.IO
     init_services_socketio(socketio)

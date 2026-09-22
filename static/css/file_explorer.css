@@ -1492,6 +1492,21 @@ body {
     align-items: center;
 }
 
+.exec-runner-sudo-toggle {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    color: #dadada;
+    font-size: 0.8rem;
+    white-space: nowrap;
+    cursor: pointer;
+    user-select: none;
+}
+
+.exec-runner-sudo-toggle input {
+    cursor: pointer;
+}
+
 .exec-runner-path {
     flex: 1;
     font-size: 0.85rem;

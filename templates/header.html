@@ -117,28 +117,6 @@
 </div>
 
 <script>
-function toggleConsole() {
-    const consoleWindow = document.getElementById('consoleWindow');
-    if (!consoleWindow) return;
-
-    const isOpen = consoleWindow.style.display === 'flex';
-    if (isOpen) {
-        consoleWindow.style.display = 'none';
-        return;
-    }
-
-    // The console runs commands as root - always require a fresh sudo
-    // password before revealing it, even if this session already has one
-    // cached from login.
-    if (typeof window.showSudoModal === 'function') {
-        window.showSudoModal('Enter your sudo password to open the console.', () => {
-            consoleWindow.style.display = 'flex';
-        });
-    } else {
-        consoleWindow.style.display = 'flex';
-    }
-}
-
 function toggleDevicesManager() {
     const devicesManager = document.getElementById('devices-manager-card');
     if (!devicesManager) return;

@@ -98,6 +98,39 @@ async function performSidebarUpdate() {
     }
 }
 
+// The flyout panel lives outside .app-sidebar (which clips overflow), so
+// showing it on hover is done in JS rather than pure CSS :hover - position it
+// next to the sidebar item and keep it open while the pointer is over either
+// the item or the panel itself.
+function _initSidebarConsoleHover() {
+    const wrapper = document.getElementById('sidebar-console');
+    const panel = document.getElementById('sidebar-console-panel');
+    if (!wrapper || !panel) return;
+
+    let hideTimer = null;
+
+    function show() {
+        if (hideTimer) {
+            clearTimeout(hideTimer);
+            hideTimer = null;
+        }
+        const rect = wrapper.getBoundingClientRect();
+        panel.style.left = `${rect.right + 8}px`;
+        panel.style.top = `${Math.max(8, rect.top)}px`;
+        panel.classList.add('visible');
+    }
+
+    function scheduleHide() {
+        if (hideTimer) clearTimeout(hideTimer);
+        hideTimer = setTimeout(() => panel.classList.remove('visible'), 200);
+    }
+
+    wrapper.addEventListener('mouseenter', show);
+    wrapper.addEventListener('mouseleave', scheduleHide);
+    panel.addEventListener('mouseenter', show);
+    panel.addEventListener('mouseleave', scheduleHide);
+}
+
 document.addEventListener('DOMContentLoaded', () => {
     const { sidebar, pinBtn } = _getSidebarEls();
     if (!sidebar) return;
@@ -114,6 +147,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     refreshSidebarUpdateStatus();
     setInterval(refreshSidebarUpdateStatus, 5 * 60 * 1000);
+
+    _initSidebarConsoleHover();
 });
 
 window.toggleSidebarPin = toggleSidebarPin;
