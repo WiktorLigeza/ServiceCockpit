@@ -14,6 +14,7 @@ from flask_socketio import SocketIO
 
 from auth import build_auth_blueprint, configure_session
 from command_executor import register_console_socket_handlers
+from gpu_monitor import gpu_monitor
 from metrics import build_metrics_blueprint
 from mqtt_feature import build_mqtt_blueprint, mqtt_cleanup_on_shutdown, register_mqtt_socket_handlers
 from processes_feature import build_processes_blueprint
@@ -88,6 +89,7 @@ app, socketio = create_app()
 
 
 if __name__ == '__main__':
+    gpu_monitor.start()
     start_background_update(socketio)
     try:
         socketio.run(app, host='0.0.0.0', port=2137, debug=False, allow_unsafe_werkzeug=True)

@@ -100,7 +100,7 @@ function updateMetrics(data) {
     if (cpuUsage && data && typeof data.cpu_percent !== 'undefined') {
         const overall = Number(data.cpu_percent) || 0;
         cpuUsage.querySelector('.metric-value').textContent = `${overall}%`;
-        cpuUsage.querySelector('i').style.color = getCpuColorForPercent(overall);
+        cpuUsage.querySelector('i').style.color = 'rgb(51, 153, 255)';
 
         const perCore = Array.isArray(data.cpu_percent_per_core) ? data.cpu_percent_per_core : [];
         renderCpuMenu(perCore);
@@ -127,50 +127,116 @@ function updateMetrics(data) {
             `Storage: ${data.storage_used}GB used / ${data.storage_total}GB total\n` +
             `(${data.storage_free}GB free)`;
     }
+
+    // GPU Usage (Jetson via tegrastats, discrete NVIDIA via nvidia-smi)
+    updateGpuMetrics(data.gpu);
+}
+
+function updateGpuMetrics(gpu) {
+    const gpuUsage = document.querySelector('#gpu-usage');
+    if (!gpuUsage) return;
+
+    if (!gpu || !gpu.available) {
+        gpuUsage.style.display = 'none';
+        return;
+    }
+    gpuUsage.style.display = '';
+
+    const percent = Number(gpu.gpu_percent) || 0;
+    gpuUsage.querySelector('.metric-value').textContent = `${percent}%`;
+    gpuUsage.querySelector('i').style.color = getCpuColorForPercent(percent);
+
+    const lines = [`GPU load: ${percent}%`];
+    if (typeof gpu.gpu_temp !== 'undefined') lines.push(`Temp: ${gpu.gpu_temp}°C`);
+    if (typeof gpu.gpu_power_mw !== 'undefined') lines.push(`Power: ${(gpu.gpu_power_mw / 1000).toFixed(1)}W`);
+    if (typeof gpu.gpu_mem_used !== 'undefined') lines.push(`Memory: ${gpu.gpu_mem_used}MB / ${gpu.gpu_mem_total}MB`);
+    if (gpu.backend) lines.push(`Source: ${gpu.backend}`);
+
+    const menu = document.getElementById('gpu-menu-content');
+    if (menu) menu.textContent = lines.join('\n');
+}
+
+// --- Platform info: Jetson badge + Tailscale status (fetched once, refreshed occasionally) ---
+function renderPlatformInfo(data) {
+    const jetson = (data && data.jetson) || {};
+    const tailscale = (data && data.tailscale) || {};
+
+    const jetsonBadge = document.getElementById('jetson-badge');
+    if (jetsonBadge) {
+        if (jetson.is_jetson) {
+            jetsonBadge.style.display = '';
+            const lines = ['NVIDIA Jetson platform'];
+            if (jetson.model) lines.push(`Model: ${jetson.model}`);
+            if (jetson.l4t_version) lines.push(`L4T: ${jetson.l4t_version}`);
+            const menu = document.getElementById('jetson-menu-content');
+            if (menu) menu.textContent = lines.join('\n');
+        } else {
+            jetsonBadge.style.display = 'none';
+        }
+    }
+
+    const tailscaleItem = document.getElementById('tailscale-status');
+    if (tailscaleItem) {
+        if (tailscale.installed) {
+            tailscaleItem.style.display = '';
+            const icon = tailscaleItem.querySelector('i');
+            if (icon) icon.style.color = tailscale.active ? 'rgb(46, 204, 113)' : 'rgb(231, 76, 60)';
+
+            const valueEl = tailscaleItem.querySelector('.metric-value');
+            if (valueEl) valueEl.textContent = tailscale.ip || (tailscale.active ? 'No IP' : 'Inactive');
+
+            const lines = [`Tailscale: ${tailscale.active ? 'Active' : 'Inactive'}`];
+            if (tailscale.ip) lines.push(`IP: ${tailscale.ip}`);
+            if (tailscale.hostname) lines.push(`Host: ${tailscale.hostname}`);
+            if (tailscale.version) lines.push(`Version: ${tailscale.version}`);
+            const menu = document.getElementById('tailscale-menu-content');
+            if (menu) menu.textContent = lines.join('\n');
+        } else {
+            tailscaleItem.style.display = 'none';
+        }
+    }
+}
+
+// --- Click-to-copy for IP/MAC-style metric values ---
+async function copyTextToClipboard(text) {
+    if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(text);
+        return;
+    }
+    const textarea = document.createElement('textarea');
+    textarea.value = text;
+    textarea.style.position = 'fixed';
+    textarea.style.opacity = '0';
+    document.body.appendChild(textarea);
+    textarea.select();
+    document.execCommand('copy');
+    document.body.removeChild(textarea);
+}
+
+function showCopiedFeedback(el) {
+    if (!el) return;
+    el.classList.add('copy-flash');
+    setTimeout(() => el.classList.remove('copy-flash'), 900);
+}
+
+function initCopyableMetrics() {
+    document.querySelectorAll('.nav-item[data-copy]').forEach(item => {
+        item.addEventListener('click', async () => {
+            const valueEl = item.querySelector('.metric-value');
+            const text = valueEl ? valueEl.textContent.trim() : '';
+            if (!text || text === 'Loading...' || text === 'N/A' || text === '--') return;
+            try {
+                await copyTextToClipboard(text);
+                showCopiedFeedback(item);
+            } catch (e) {
+                console.error('Copy failed:', e);
+            }
+        });
+    });
 }
 
 // --- Sudo modal + privileged actions (shared across pages) ---
 let sudoPendingRetry = null;
-
-function _getGearMenuEls() {
-    return {
-        wrapper: document.getElementById('header-gear'),
-        menu: document.getElementById('gear-menu')
-    };
-}
-
-function _getMoreMenuEls() {
-    return {
-        wrapper: document.getElementById('header-more'),
-        menu: document.getElementById('more-menu')
-    };
-}
-
-function hideGearMenu() {
-    const { menu } = _getGearMenuEls();
-    if (menu) menu.style.display = 'none';
-}
-
-function hideMoreMenu() {
-    const { menu } = _getMoreMenuEls();
-    if (menu) menu.style.display = 'none';
-}
-
-function toggleGearMenu(ev) {
-    ev?.stopPropagation?.();
-    const { menu } = _getGearMenuEls();
-    if (!menu) return;
-    const isOpen = menu.style.display !== 'none';
-    menu.style.display = isOpen ? 'none' : 'block';
-}
-
-function toggleMoreMenu(ev) {
-    ev?.stopPropagation?.();
-    const { menu } = _getMoreMenuEls();
-    if (!menu) return;
-    const isOpen = menu.style.display !== 'none';
-    menu.style.display = isOpen ? 'none' : 'block';
-}
 
 function _getSudoModalEls() {
     return {
@@ -253,10 +319,6 @@ async function requestReboot() {
 window.showSudoModal = showSudoModal;
 window.hideSudoModal = hideSudoModal;
 window.requestReboot = requestReboot;
-window.toggleGearMenu = toggleGearMenu;
-window.hideGearMenu = hideGearMenu;
-window.toggleMoreMenu = toggleMoreMenu;
-window.hideMoreMenu = hideMoreMenu;
 
 // Socket.io connection with better error handling
 const headerSocket = io({
@@ -329,6 +391,20 @@ document.addEventListener('DOMContentLoaded', () => {
             });
     }
 
+    function updatePlatformInfo() {
+        fetch('/api/platform_info')
+            .then(response => response.json())
+            .then(data => renderPlatformInfo(data))
+            .catch(error => console.error('Error fetching platform info:', error));
+    }
+
+    // Initial fetch, then refresh occasionally - Jetson/Tailscale state
+    // barely changes, so no need for the 5s metrics cadence.
+    updatePlatformInfo();
+    setInterval(updatePlatformInfo, 30000);
+
+    initCopyableMetrics();
+
     fetch('/api/network_info')
         .then(response => response.json())
         .then(data => {
@@ -386,26 +462,6 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
     }
-
-    // Close gear menu on outside click
-    document.addEventListener('click', (e) => {
-        const { wrapper, menu } = _getGearMenuEls();
-        if (!menu || !wrapper) return;
-        if (menu.style.display === 'none') return;
-        if (!wrapper.contains(e.target)) {
-            hideGearMenu();
-        }
-    });
-
-    // Close more menu on outside click
-    document.addEventListener('click', (e) => {
-        const { wrapper, menu } = _getMoreMenuEls();
-        if (!menu || !wrapper) return;
-        if (menu.style.display === 'none') return;
-        if (!wrapper.contains(e.target)) {
-            hideMoreMenu();
-        }
-    });
 
 });
 

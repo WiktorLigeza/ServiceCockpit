@@ -1,0 +1,166 @@
+:root {
+    --sidebar-collapsed: 56px;
+    --sidebar-expanded: 208px;
+}
+
+.app-sidebar {
+    position: fixed;
+    top: 60px;
+    left: 0;
+    bottom: 0;
+    width: var(--sidebar-collapsed);
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    background: rgba(20, 0, 40, 0.92);
+    backdrop-filter: blur(8px);
+    border-right: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow: 2px 0 10px rgba(0, 0, 0, 0.3);
+    overflow: hidden;
+    transition: width 0.22s ease;
+    z-index: 15000;
+}
+
+.app-sidebar:hover,
+.app-sidebar.sidebar-pinned {
+    width: var(--sidebar-expanded);
+}
+
+.sidebar-items {
+    display: flex;
+    flex-direction: column;
+    padding: 10px 0;
+    gap: 4px;
+    overflow-y: auto;
+}
+
+.sidebar-divider {
+    height: 1px;
+    margin: 8px 12px;
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.sidebar-item {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    height: 44px;
+    padding: 0 16px;
+    margin: 0 8px;
+    border-radius: 8px;
+    color: rgba(255, 255, 255, 0.85);
+    text-decoration: none;
+    white-space: nowrap;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    font-size: 1rem;
+    font-family: inherit;
+    width: calc(100% - 16px);
+    box-sizing: border-box;
+}
+
+.sidebar-item i {
+    font-size: 1.15rem;
+    width: 20px;
+    min-width: 20px;
+    text-align: center;
+}
+
+.sidebar-item:hover {
+    background: rgba(140, 0, 255, 0.25);
+    color: white;
+}
+
+.sidebar-item.sidebar-active {
+    background: rgba(140, 0, 255, 0.35);
+    color: white;
+    box-shadow: 0 0 10px rgba(140, 0, 255, 0.5);
+}
+
+.sidebar-label {
+    opacity: 0;
+    transition: opacity 0.15s ease;
+}
+
+.app-sidebar:hover .sidebar-label,
+.app-sidebar.sidebar-pinned .sidebar-label {
+    opacity: 1;
+}
+
+.sidebar-bottom {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 10px 0;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.sidebar-pin-btn {
+    color: rgba(255, 255, 255, 0.6);
+}
+
+.sidebar-pin-btn.active {
+    color: rgb(140, 0, 255);
+}
+
+.sidebar-pin-btn.active i {
+    text-shadow: 0 0 8px rgba(140, 0, 255, 0.8);
+}
+
+/* Settings flyout (Reboot / Logout), pinned to the very bottom of the rail */
+.sidebar-settings {
+    position: relative;
+}
+
+.sidebar-settings-btn {
+    color: rgba(255, 255, 255, 0.6);
+}
+
+.sidebar-settings-btn.active {
+    background: rgba(140, 0, 255, 0.25);
+    color: white;
+}
+
+.sidebar-flyout-menu {
+    position: absolute;
+    left: 100%;
+    bottom: 0;
+    margin-left: 8px;
+    background: rgba(35, 0, 63, 1);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+    min-width: 180px;
+    padding: 8px;
+    z-index: 10000000 !important;
+}
+
+.sidebar-flyout-menu a {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 10px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    color: white;
+    text-decoration: none;
+    white-space: nowrap;
+}
+
+.sidebar-flyout-menu a:hover {
+    background: rgba(0, 0, 0, 0.25);
+}
+
+.sidebar-flyout-menu i {
+    width: 18px;
+    text-align: center;
+}
+
+/* Push page content clear of the collapsed rail without disturbing the
+   existing height math (main-container already subtracts header height).
+   Sidebar.css is only ever loaded alongside the sidebar itself. */
+.main-container {
+    padding-left: calc(1rem + var(--sidebar-collapsed));
+    box-sizing: border-box;
+}

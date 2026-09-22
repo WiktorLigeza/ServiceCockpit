@@ -36,18 +36,58 @@ class SystemdManager:
             return None
 
     @staticmethod
+    def _parse_show_block(block: str) -> dict:
+        status = {}
+        for line in block.strip().split('\n'):
+            if '=' in line:
+                key, value = line.split('=', 1)
+                status[key] = value
+        return status
+
+    @staticmethod
     def get_all_services():
         # List all service units, including disabled ones
         cmd = "systemctl list-unit-files --type=service --all --plain --no-legend"
         result = subprocess.run(cmd.split(), capture_output=True, text=True)
-        services = []
+        service_names = []
         for line in result.stdout.strip().split('\n'):
             if line:
                 service_name = line.split()[0]
-                if service_name.endswith('.service'):
-                    status = SystemdManager.get_service_status(service_name)
-                    if status:
-                        services.append(status)
+                # Skip template units like "foo@.service" - they have no instance
+                # name and systemctl show rejects them outright.
+                if service_name.endswith('.service') and not service_name.endswith('@.service'):
+                    service_names.append(service_name)
+
+        if not service_names:
+            return []
+
+        # Fetch every service's status in a single systemctl call instead of one
+        # subprocess per service - this is what previously made services "trickle
+        # in" one at a time on the frontend.
+        show_cmd = [
+            'systemctl', 'show', *service_names,
+            '--property=Id,ActiveState,UnitFileState,ExecMainPID,FragmentPath,TasksCurrent',
+        ]
+        show_result = subprocess.run(show_cmd, capture_output=True, text=True)
+
+        services = []
+        for block in show_result.stdout.strip().split('\n\n'):
+            status = SystemdManager._parse_show_block(block)
+            if not status.get('Id'):
+                continue
+            try:
+                services.append(
+                    {
+                        'name': status['Id'],
+                        'active': status.get('ActiveState') == 'active',
+                        'enabled': status.get('UnitFileState') == 'enabled',
+                        'main_pid': status.get('ExecMainPID', '0'),
+                        'fragment_path': status.get('FragmentPath', ''),
+                        'tasks': status.get('TasksCurrent', ''),
+                    }
+                )
+            except KeyError:
+                continue
         return services
 
     @staticmethod

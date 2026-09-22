@@ -1,0 +1,62 @@
+<link rel="stylesheet" href="{{ url_for('static', filename='css/sidebar.css') }}">
+<script src="{{ url_for('static', filename='js/sidebar.js') }}" defer></script>
+
+<nav class="app-sidebar" id="app-sidebar">
+    <div class="sidebar-items">
+        <a class="sidebar-item {% if request.endpoint == 'services.index' %}sidebar-active{% endif %}"
+           href="{{ url_for('services.index') }}" title="Services">
+            <i class="fas fa-server"></i>
+            <span class="sidebar-label">Services</span>
+        </a>
+        <a class="sidebar-item {% if request.endpoint == 'processes.processes_page' %}sidebar-active{% endif %}"
+           href="{{ url_for('processes.processes_page') }}" title="Processes">
+            <i class="fas fa-tasks"></i>
+            <span class="sidebar-label">Processes</span>
+        </a>
+        <a class="sidebar-item {% if request.endpoint == 'mqtt.mqtt_explorer' %}sidebar-active{% endif %}"
+           href="{{ url_for('mqtt.mqtt_explorer') }}" title="MQTT Explorer">
+            <i class="fas fa-project-diagram"></i>
+            <span class="sidebar-label">MQTT Explorer</span>
+        </a>
+        <a class="sidebar-item {% if request.endpoint == 'file_explorer.file_explorer' %}sidebar-active{% endif %}"
+           href="{{ url_for('file_explorer.file_explorer') }}" title="File Explorer">
+            <i class="fas fa-folder-open"></i>
+            <span class="sidebar-label">File Explorer</span>
+        </a>
+
+        <div class="sidebar-divider"></div>
+
+        <a class="sidebar-item" href="#" title="Devices" onclick="toggleDevicesManager(); return false;">
+            <i class="fas fa-network-wired"></i>
+            <span class="sidebar-label">Devices</span>
+        </a>
+        <a class="sidebar-item" href="#" title="Console" onclick="toggleConsole(); return false;">
+            <i class="fas fa-terminal"></i>
+            <span class="sidebar-label">Console</span>
+        </a>
+    </div>
+
+    <div class="sidebar-bottom">
+        <button type="button" class="sidebar-item sidebar-pin-btn" id="sidebar-pin-btn" title="Keep expanded" onclick="toggleSidebarPin(); return false;">
+            <i class="fas fa-thumbtack"></i>
+            <span class="sidebar-label">Keep expanded</span>
+        </button>
+
+        <div class="sidebar-settings" id="sidebar-settings">
+            <button type="button" class="sidebar-item sidebar-settings-btn" title="Settings" onclick="toggleSidebarSettings(event); return false;">
+                <i class="fas fa-cog"></i>
+                <span class="sidebar-label">Settings</span>
+            </button>
+            <div class="sidebar-flyout-menu" id="sidebar-settings-menu" style="display: none;">
+                <a href="#" onclick="hideSidebarSettings(); requestReboot(); return false;">
+                    <i class="fas fa-sync-alt"></i>
+                    Reboot
+                </a>
+                <a href="/logout">
+                    <i class="fas fa-sign-out-alt"></i>
+                    Logout
+                </a>
+            </div>
+        </div>
+    </div>
+</nav>
