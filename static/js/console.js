@@ -104,8 +104,17 @@ document.addEventListener('DOMContentLoaded', () => {
         consoleSocket.emit('console_resize', { cols: term.cols, rows: term.rows });
     }
 
+    // "Open Terminal Here" (file explorer) sets this before a shell exists
+    // yet, so the very first shell spawns already cd'd into that folder. Once
+    // a shell is running, the same action instead just types `cd` into it.
+    let shellSpawned = false;
+    let pendingInitialCwd = null;
+
     consoleSocket.on('connect', () => {
-        consoleSocket.emit('join_console');
+        const payload = pendingInitialCwd ? { cwd: pendingInitialCwd } : {};
+        pendingInitialCwd = null;
+        consoleSocket.emit('join_console', payload);
+        shellSpawned = true;
         setTimeout(sendResize, 50);
     });
 
@@ -124,6 +133,26 @@ document.addEventListener('DOMContentLoaded', () => {
     term.onData((data) => {
         consoleSocket.emit('console_input', { data });
     });
+
+    // "Open Terminal Here" - called from the file explorer's folder click /
+    // right-click actions. If a shell is already running, just cd it there
+    // (exactly like typing it in); otherwise it becomes the shell's starting
+    // directory once one spawns.
+    window.openTerminalAt = function (path) {
+        if (!path) return;
+
+        if (shellSpawned && consoleSocket.connected) {
+            const safePath = String(path).replace(/'/g, "'\\''");
+            consoleSocket.emit('console_input', { data: `cd '${safePath}' && clear\r` });
+        } else {
+            pendingInitialCwd = path;
+        }
+
+        const isOpen = consoleWindow.style.display === 'flex';
+        if (!isOpen && typeof window.toggleConsole === 'function') {
+            window.toggleConsole();
+        }
+    };
 
     // Re-fit on manual window resize (the console window has a native CSS
     // resize handle) and whenever the console is actually shown - it starts

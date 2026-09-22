@@ -111,7 +111,7 @@ def _reader_loop(socketio, sid: str, master_fd: int):
 
 def register_console_socket_handlers(socketio):
     @socketio.on('join_console')
-    def on_join_console():
+    def on_join_console(data=None):
         if not is_authenticated():
             return
 
@@ -128,8 +128,11 @@ def register_console_socket_handlers(socketio):
             )
             return
 
+        requested_cwd = (data or {}).get('cwd')
+        cwd = requested_cwd if requested_cwd and os.path.isdir(requested_cwd) else os.path.expanduser('~')
+
         try:
-            proc, master_fd = _spawn_shell(sudo_password, os.path.expanduser('~'))
+            proc, master_fd = _spawn_shell(sudo_password, cwd)
         except Exception as e:
             socketio.emit('console_output', {'output': f'\r\n[ERROR] Could not start console: {e}\r\n'}, room=sid)
             return

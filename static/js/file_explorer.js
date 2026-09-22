@@ -823,8 +823,8 @@ function createDirectoryTreeItem(dir) {
     }
     
     const name = document.createElement('span');
-    name.textContent = dir.name;
-    
+    appendBreakableText(name, dir.name);
+
     // Add favorite star if folder is favorite
     if (prefs?.favorite) {
         const star = document.createElement('i');
@@ -1022,10 +1022,15 @@ function showDirectoryContextMenu(x, y, dir) {
         action: () => triggerFileUpload(dir.path),
     });
     
-    menuItems.push({ 
-        icon: 'fa-folder-open', 
-        text: 'Open', 
-        action: () => loadDirectory(dir.path) 
+    menuItems.push({
+        icon: 'fa-folder-open',
+        text: 'Open',
+        action: () => loadDirectory(dir.path)
+    });
+    menuItems.push({
+        icon: 'fa-terminal',
+        text: 'Open Terminal Here',
+        action: () => openTerminalAt(dir.path),
     });
 
     menuItems.push({ type: 'separator' });
@@ -1193,7 +1198,7 @@ function createFileItem(file, index) {
     
     const fileName = document.createElement('div');
     fileName.className = 'file-name';
-    fileName.textContent = file.name;
+    appendBreakableText(fileName, file.name);
     
     const fileMeta = document.createElement('div');
     fileMeta.className = 'file-meta';
@@ -1314,10 +1319,15 @@ function showFileContextMenu(x, y, file) {
             text: 'Upload Here',
             action: () => triggerFileUpload(file.path),
         });
-        menuItems.push({ 
-            icon: 'fa-folder-open', 
-            text: 'Open', 
-            action: () => loadDirectory(file.path) 
+        menuItems.push({
+            icon: 'fa-folder-open',
+            text: 'Open',
+            action: () => loadDirectory(file.path)
+        });
+        menuItems.push({
+            icon: 'fa-terminal',
+            text: 'Open Terminal Here',
+            action: () => openTerminalAt(file.path),
         });
         menuItems.push({ type: 'separator' });
         menuItems.push({
@@ -1647,6 +1657,11 @@ function showContainerContextMenu(x, y) {
     }
 
     menuItems.push({ type: 'separator' });
+    menuItems.push({
+        icon: 'fa-terminal',
+        text: 'Open Terminal Here',
+        action: () => openTerminalAt(currentPath),
+    });
     menuItems.push({
         icon: 'fa-copy',
         text: 'Copy Path',

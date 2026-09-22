@@ -1,3 +1,38 @@
+// Inserts soft line-break opportunities (<wbr>) into a filename at natural
+// boundaries - after '.', '-', '_', and before a camelCase capital - instead
+// of letting the browser break mid-word wherever it likes. This is the same
+// approach VS Code and GitHub use for long filenames/identifiers.
+function appendBreakableText(parentEl, text) {
+    if (!text) return;
+    let buffer = '';
+    const flush = () => {
+        if (buffer) {
+            parentEl.appendChild(document.createTextNode(buffer));
+            buffer = '';
+        }
+    };
+
+    for (let i = 0; i < text.length; i++) {
+        const ch = text[i];
+        const prev = text[i - 1];
+
+        if (prev && /[a-z0-9]/.test(prev) && /[A-Z]/.test(ch)) {
+            // camelCase boundary: break *before* the capital.
+            flush();
+            parentEl.appendChild(document.createElement('wbr'));
+        }
+
+        buffer += ch;
+
+        if (ch === '.' || ch === '-' || ch === '_') {
+            // Natural separators: break *after* them.
+            flush();
+            parentEl.appendChild(document.createElement('wbr'));
+        }
+    }
+    flush();
+}
+
 function formatFileSize(bytes) {
     if (bytes === 0) return '0 B';
     const k = 1024;
