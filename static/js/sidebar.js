@@ -18,29 +18,6 @@ function toggleSidebarPin() {
     } catch (_) {}
 }
 
-function _getSidebarSettingsEls() {
-    return {
-        wrapper: document.getElementById('sidebar-settings'),
-        menu: document.getElementById('sidebar-settings-menu'),
-        btn: document.querySelector('.sidebar-settings-btn'),
-    };
-}
-
-function toggleSidebarSettings(ev) {
-    ev?.stopPropagation?.();
-    const { menu, btn } = _getSidebarSettingsEls();
-    if (!menu) return;
-    const isOpen = menu.style.display !== 'none';
-    menu.style.display = isOpen ? 'none' : 'block';
-    if (btn) btn.classList.toggle('active', !isOpen);
-}
-
-function hideSidebarSettings() {
-    const { menu, btn } = _getSidebarSettingsEls();
-    if (menu) menu.style.display = 'none';
-    if (btn) btn.classList.remove('active');
-}
-
 document.addEventListener('DOMContentLoaded', () => {
     const { sidebar, pinBtn } = _getSidebarEls();
     if (!sidebar) return;
@@ -54,17 +31,6 @@ document.addEventListener('DOMContentLoaded', () => {
         sidebar.classList.add('sidebar-pinned');
         if (pinBtn) pinBtn.classList.add('active');
     }
-
-    document.addEventListener('click', (e) => {
-        const { wrapper, menu } = _getSidebarSettingsEls();
-        if (!menu || !wrapper) return;
-        if (menu.style.display === 'none') return;
-        if (!wrapper.contains(e.target)) {
-            hideSidebarSettings();
-        }
-    });
 });
 
 window.toggleSidebarPin = toggleSidebarPin;
-window.toggleSidebarSettings = toggleSidebarSettings;
-window.hideSidebarSettings = hideSidebarSettings;

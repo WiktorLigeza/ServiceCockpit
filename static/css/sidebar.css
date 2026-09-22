@@ -108,53 +108,23 @@
     text-shadow: 0 0 8px rgba(140, 0, 255, 0.8);
 }
 
-/* Settings flyout (Reboot / Logout), pinned to the very bottom of the rail */
-.sidebar-settings {
-    position: relative;
+/* Reboot / Logout, pinned to the very bottom of the rail */
+.sidebar-item.sidebar-danger {
+    color: rgb(231, 76, 60);
 }
 
-.sidebar-settings-btn {
-    color: rgba(255, 255, 255, 0.6);
+.sidebar-item.sidebar-danger:hover {
+    background: rgba(231, 76, 60, 0.2);
+    color: rgb(255, 110, 95);
 }
 
-.sidebar-settings-btn.active {
-    background: rgba(140, 0, 255, 0.25);
-    color: white;
+.sidebar-item.sidebar-warning {
+    color: rgb(230, 152, 45);
 }
 
-.sidebar-flyout-menu {
-    position: absolute;
-    left: 100%;
-    bottom: 0;
-    margin-left: 8px;
-    background: rgba(35, 0, 63, 1);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 10px;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
-    min-width: 180px;
-    padding: 8px;
-    z-index: 10000000 !important;
-}
-
-.sidebar-flyout-menu a {
-    display: flex;
-    align-items: center;
-    justify-content: flex-start;
-    gap: 10px;
-    padding: 10px 12px;
-    border-radius: 8px;
-    color: white;
-    text-decoration: none;
-    white-space: nowrap;
-}
-
-.sidebar-flyout-menu a:hover {
-    background: rgba(0, 0, 0, 0.25);
-}
-
-.sidebar-flyout-menu i {
-    width: 18px;
-    text-align: center;
+.sidebar-item.sidebar-warning:hover {
+    background: rgba(230, 152, 45, 0.2);
+    color: rgb(255, 178, 80);
 }
 
 /* Push page content clear of the collapsed rail without disturbing the

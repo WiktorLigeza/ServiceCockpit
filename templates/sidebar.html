@@ -42,21 +42,13 @@
             <span class="sidebar-label">Keep expanded</span>
         </button>
 
-        <div class="sidebar-settings" id="sidebar-settings">
-            <button type="button" class="sidebar-item sidebar-settings-btn" title="Settings" onclick="toggleSidebarSettings(event); return false;">
-                <i class="fas fa-cog"></i>
-                <span class="sidebar-label">Settings</span>
-            </button>
-            <div class="sidebar-flyout-menu" id="sidebar-settings-menu" style="display: none;">
-                <a href="#" onclick="hideSidebarSettings(); requestReboot(); return false;">
-                    <i class="fas fa-sync-alt"></i>
-                    Reboot
-                </a>
-                <a href="/logout">
-                    <i class="fas fa-sign-out-alt"></i>
-                    Logout
-                </a>
-            </div>
-        </div>
+        <a class="sidebar-item sidebar-danger" href="#" title="Reboot" onclick="requestReboot(); return false;">
+            <i class="fas fa-sync-alt"></i>
+            <span class="sidebar-label">Reboot</span>
+        </a>
+        <a class="sidebar-item sidebar-warning" href="/logout" title="Logout">
+            <i class="fas fa-sign-out-alt"></i>
+            <span class="sidebar-label">Logout</span>
+        </a>
     </div>
 </nav>
