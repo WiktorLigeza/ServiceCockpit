@@ -1,20 +1,17 @@
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.css">
+<script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.8.0/lib/xterm-addon-fit.js"></script>
+
 <div class="console-window" id="consoleWindow">
     <div class="console-header" id="consoleHeader">
-        <div class="console-title">System Console</div>
+        <div class="console-title"><i class="fas fa-terminal"></i> Console (root)</div>
         <div class="console-controls">
             <button class="console-control-btn" id="minimizeConsole">
                 <i class="fas fa-window-minimize"></i>
             </button>
         </div>
     </div>
-    <div class="console-content" id="consoleContent">
-        Welcome to ServiceCTRL Console
-        --------------------------------
-    </div>
-    <div class="console-input-line">
-        <span class="console-prompt">$</span>
-        <input type="text" class="console-input" id="consoleInput" autocomplete="off">
-    </div>
+    <div class="console-terminal" id="consoleTerminal"></div>
 </div>
 
 <script src="{{ url_for('static', filename='js/console.js') }}"></script>

@@ -52,44 +52,22 @@
     border-radius: 3px;
 }
 
-.console-content {
+.console-terminal {
     flex: 1;
-    padding: 10px;
-    overflow-y: auto;
-    color: #c98fff;
-    font-size: 14px;
+    padding: 6px 8px;
+    overflow: hidden;
+    min-height: 0;
 }
 
-.console-input-line {
-    display: flex;
-    padding: 5px;
-    border-top: 1px solid #00a2ff;
-}
-
-.console-prompt {
-    color: #c98fff;
-    margin-right: 8px;
-}
-
-.console-input {
-    background: transparent;
-    border: none;
-    color: #c98fff;
-    flex: 1;
-    font-family: 'Courier New', monospace;
-    font-size: 14px;
-    outline: none;
-}
-
-.console-content::-webkit-scrollbar {
+.console-terminal .xterm-viewport::-webkit-scrollbar {
     width: 6px;
 }
 
-.console-content::-webkit-scrollbar-track {
-    background: rgba(0,0,0,0.1);
+.console-terminal .xterm-viewport::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.1);
 }
 
-.console-content::-webkit-scrollbar-thumb {
+.console-terminal .xterm-viewport::-webkit-scrollbar-thumb {
     background-color: #00ffff;
     border-radius: 3px;
 }

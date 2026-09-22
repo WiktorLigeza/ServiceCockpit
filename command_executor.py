@@ -1,155 +1,161 @@
+"""A real, interactive root shell over the console socket.
+
+Each console session gets its own pseudo-terminal running `sudo bash`, so the
+frontend (xterm.js) gets genuine terminal behavior - colors, prompts, tab
+completion, job control, ctrl-c, resizing, even full-screen programs like
+top/nano - instead of a line-oriented command runner. There is no command
+allowlist by design: the console is already gated behind a fresh sudo-password
+prompt before it opens (see the frontend), and every command runs as root
+regardless, so filtering *which* commands can run would be theater, not
+security.
+"""
+
+import fcntl
 import os
+import pty
+import signal
+import struct
 import subprocess
+import termios
 import threading
 
 from flask import request, session
 
 from auth import SUDO_SESSION_KEY, is_authenticated
 
-# Full shell access, run as root via sudo. There is no command allowlist here
-# by design - the console is gated behind a fresh sudo-password prompt before
-# it even opens (see sidebar/header JS), and every command already runs with
-# root privileges, so restricting *which* commands can run would be theater,
-# not security.
-_console_cwd_by_sid: dict[str, str] = {}
+# sid -> {'proc': subprocess.Popen, 'master_fd': int}
+_sessions: dict[str, dict] = {}
 
 
-def _get_cwd(sid: str) -> str:
-    return _console_cwd_by_sid.get(sid) or os.path.expanduser('~')
+def _set_winsize(fd: int, rows: int, cols: int):
+    try:
+        winsize = struct.pack('HHHH', rows, cols, 0, 0)
+        fcntl.ioctl(fd, termios.TIOCSWINSZ, winsize)
+    except Exception:
+        pass
 
 
-class CommandExecutor:
-    @staticmethod
-    def execute_command(socketio, command: str, socket_id: str, sudo_password: str | None):
+def _spawn_shell(sudo_password: str, cwd: str):
+    master_fd, slave_fd = pty.openpty()
+    _set_winsize(slave_fd, 24, 80)
+
+    proc = subprocess.Popen(
+        ['sudo', '-S', '-p', '', 'bash'],
+        stdin=slave_fd,
+        stdout=slave_fd,
+        stderr=slave_fd,
+        cwd=cwd,
+        preexec_fn=os.setsid,
+        close_fds=True,
+    )
+    os.close(slave_fd)
+
+    # `sudo -S` reads the password as a single line from what is now the pty,
+    # then hands off to bash - same one-shot credential the sudo-password
+    # modal just validated before the console was allowed to open.
+    try:
+        os.write(master_fd, (sudo_password + '\n').encode())
+    except OSError:
+        pass
+
+    return proc, master_fd
+
+
+def _cleanup_session(sid: str):
+    entry = _sessions.pop(sid, None)
+    if not entry:
+        return
+    try:
+        os.close(entry['master_fd'])
+    except Exception:
+        pass
+    proc = entry.get('proc')
+    if proc and proc.poll() is None:
         try:
-            command = command.strip()
-            if not command:
-                return
-
-            if not sudo_password:
-                socketio.emit(
-                    'sudo_required',
-                    {'message': 'Sudo password required for the console.'},
-                    room=socket_id,
-                )
-                socketio.emit('console_output', {'output': '[ERROR] Sudo password required'}, room=socket_id)
-                return
-
-            cwd = _get_cwd(socket_id)
-
-            # Each subprocess call is stateless, so `cd` is handled here rather
-            # than shelled out, and the resulting directory is remembered for
-            # the next command on this console session.
-            if command == 'cd' or command.startswith('cd '):
-                target = command[2:].strip() or os.path.expanduser('~')
-                target = os.path.expanduser(target)
-                new_path = target if os.path.isabs(target) else os.path.normpath(os.path.join(cwd, target))
-                if os.path.isdir(new_path):
-                    _console_cwd_by_sid[socket_id] = new_path
-                    socketio.emit('console_output', {'output': f'[INFO] {new_path}'}, room=socket_id)
-                else:
-                    socketio.emit('console_output', {'output': f'[ERROR] No such directory: {target}'}, room=socket_id)
-                return
-
-            process = subprocess.Popen(
-                ['sudo', '-S', '-p', '', 'bash', '-c', command],
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                stdin=subprocess.PIPE,
-                cwd=cwd,
-                text=True,
-                bufsize=1,
-                universal_newlines=True,
-            )
-
+            os.killpg(os.getpgid(proc.pid), signal.SIGTERM)
+        except Exception:
             try:
-                process.stdin.write(sudo_password + '\n')
-                process.stdin.flush()
-                process.stdin.close()
+                proc.terminate()
             except Exception:
                 pass
 
-            while True:
-                output = process.stdout.readline()
-                if output:
-                    socketio.emit('console_output', {'output': output.rstrip('\n')}, room=socket_id)
-                    socketio.sleep(0)
 
-                error = process.stderr.readline()
-                if error:
-                    text = error.rstrip('\n')
-                    lowered = text.lower()
-                    if 'incorrect password' in lowered or 'sorry, try again' in lowered:
-                        socketio.emit(
-                            'sudo_required',
-                            {'message': 'Invalid sudo password. Please re-enter it.'},
-                            room=socket_id,
-                        )
-                    socketio.emit('console_output', {'output': f'[ERROR] {text}'}, room=socket_id)
-                    socketio.sleep(0)
-
-                if output == '' and error == '' and process.poll() is not None:
-                    break
-
-            return_code = process.poll()
-            if return_code not in (0, None):
-                socketio.emit(
-                    'console_output',
-                    {'output': f'[ERROR] Command exited with status {return_code}'},
-                    room=socket_id,
-                )
-
-        except Exception as e:
-            socketio.emit('console_output', {'output': f'[ERROR] {e}'}, room=socket_id)
+def _reader_loop(socketio, sid: str, master_fd: int):
+    try:
+        while True:
+            try:
+                chunk = os.read(master_fd, 4096)
+            except OSError:
+                break
+            if not chunk:
+                break
+            socketio.emit(
+                'console_output',
+                {'output': chunk.decode('utf-8', errors='replace')},
+                room=sid,
+            )
+    finally:
+        _cleanup_session(sid)
+        socketio.emit('console_exit', {}, room=sid)
 
 
 def register_console_socket_handlers(socketio):
-    @socketio.on('console_command')
-    def handle_console_command(data):
-        try:
-            if not is_authenticated():
-                socketio.emit('console_output', {'output': '[ERROR] Not authenticated'}, room=request.sid)
-                return
-
-            command = (data or {}).get('command', '').strip()
-            if not command:
-                return
-
-            sudo_password = session.get(SUDO_SESSION_KEY)
-
-            thread = threading.Thread(
-                target=CommandExecutor.execute_command,
-                args=(socketio, command, request.sid, sudo_password),
-            )
-            thread.daemon = True
-            thread.start()
-
-        except Exception as e:
-            socketio.emit('console_output', {'output': f"[ERROR] {str(e)}"}, room=request.sid)
-
     @socketio.on('join_console')
     def on_join_console():
         if not is_authenticated():
             return
-        _console_cwd_by_sid[request.sid] = os.path.expanduser('~')
-        socketio.emit(
-            'console_output',
-            {'output': "[SUCCESS] Connected to console - running as root via sudo. Type 'help' for tips."},
-            room=request.sid,
-        )
+
+        sid = request.sid
+        if sid in _sessions:
+            return  # already has a live shell
+
+        sudo_password = session.get(SUDO_SESSION_KEY)
+        if not sudo_password:
+            socketio.emit(
+                'sudo_required',
+                {'message': 'Sudo password required for the console.'},
+                room=sid,
+            )
+            return
+
+        try:
+            proc, master_fd = _spawn_shell(sudo_password, os.path.expanduser('~'))
+        except Exception as e:
+            socketio.emit('console_output', {'output': f'\r\n[ERROR] Could not start console: {e}\r\n'}, room=sid)
+            return
+
+        _sessions[sid] = {'proc': proc, 'master_fd': master_fd}
+        thread = threading.Thread(target=_reader_loop, args=(socketio, sid, master_fd), daemon=True)
+        thread.start()
+
+    @socketio.on('console_input')
+    def on_console_input(data):
+        sid = request.sid
+        if not is_authenticated():
+            return
+        entry = _sessions.get(sid)
+        if not entry:
+            return
+        text = (data or {}).get('data', '')
+        if not text:
+            return
+        try:
+            os.write(entry['master_fd'], text.encode('utf-8', errors='replace'))
+        except OSError:
+            _cleanup_session(sid)
+
+    @socketio.on('console_resize')
+    def on_console_resize(data):
+        entry = _sessions.get(request.sid)
+        if not entry:
+            return
+        cols = int((data or {}).get('cols') or 80)
+        rows = int((data or {}).get('rows') or 24)
+        _set_winsize(entry['master_fd'], rows, cols)
 
     @socketio.on('disconnect')
     def on_console_disconnect():
-        _console_cwd_by_sid.pop(request.sid, None)
-
-    @socketio.on('console_help')
-    def handle_console_help():
-        help_text = (
-            '[INFO] Full shell - pipes, redirects, globs, and cd all work.\n'
-            "[INFO] Every command runs as root via 'sudo bash -c'.\n"
-            "[INFO] Type 'clear' to clear the screen."
-        )
-        socketio.emit('console_output', {'output': help_text}, room=request.sid)
+        _cleanup_session(request.sid)
 
 
 __all__ = ['register_console_socket_handlers']

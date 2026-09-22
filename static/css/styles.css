@@ -444,22 +444,6 @@ body {
     color: white;
 }
 
-.console-error {
-    color: #ff4444;
-}
-
-.console-success {
-    color: #00C851;
-}
-
-.console-warning {
-    color: #ffbb33;
-}
-
-.console-info {
-    color: #33b5e5;
-}
-
 #add-service-card input,
 #add-service-card select,
 #add-service-card textarea {

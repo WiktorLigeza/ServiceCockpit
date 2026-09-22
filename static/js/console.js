@@ -2,46 +2,46 @@ document.addEventListener('DOMContentLoaded', () => {
     const consoleWindow = document.getElementById('consoleWindow');
     const consoleHeader = document.getElementById('consoleHeader');
     const minimizeConsole = document.getElementById('minimizeConsole');
-    const consoleInput = document.getElementById('consoleInput');
-    const consoleContent = document.getElementById('consoleContent');
+    const terminalContainer = document.getElementById('consoleTerminal');
+    if (!consoleWindow || !consoleHeader || !terminalContainer) return;
+
+    // --- Dragging (same pattern used by the info card) ---
     let isDragging = false;
-    let currentX;
-    let currentY;
-    let initialX;
-    let initialY;
+    let currentX, currentY, initialX, initialY;
     let xOffset = 100;
     let yOffset = 100;
-
-    // Set initial position
     setTranslate(xOffset, yOffset, consoleWindow);
 
-    // Dragging functionality
     consoleHeader.addEventListener('mousedown', dragStart);
     document.addEventListener('mousemove', drag);
     document.addEventListener('mouseup', dragEnd);
 
+    function getPointerPosition(e) {
+        const zoom = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--page-zoom')) || 1;
+        return { x: e.clientX / zoom, y: e.clientY / zoom };
+    }
+
     function dragStart(e) {
-        initialX = e.clientX - xOffset;
-        initialY = e.clientY - yOffset;
+        const pos = getPointerPosition(e);
+        initialX = pos.x - xOffset;
+        initialY = pos.y - yOffset;
         if (e.target === consoleHeader || e.target.parentNode === consoleHeader) {
             isDragging = true;
         }
     }
 
     function drag(e) {
-        if (isDragging) {
-            e.preventDefault();
-            currentX = e.clientX - initialX;
-            currentY = e.clientY - initialY;
-            xOffset = currentX;
-            yOffset = currentY;
-            setTranslate(currentX, currentY, consoleWindow);
-        }
+        if (!isDragging) return;
+        e.preventDefault();
+        const pos = getPointerPosition(e);
+        currentX = pos.x - initialX;
+        currentY = pos.y - initialY;
+        xOffset = currentX;
+        yOffset = currentY;
+        setTranslate(currentX, currentY, consoleWindow);
     }
 
-    function dragEnd(e) {
-        initialX = currentX;
-        initialY = currentY;
+    function dragEnd() {
         isDragging = false;
     }
 
@@ -49,118 +49,82 @@ document.addEventListener('DOMContentLoaded', () => {
         el.style.transform = `translate(${xPos}px, ${yPos}px)`;
     }
 
-    // Minimize functionality
     minimizeConsole.addEventListener('click', () => {
         consoleWindow.style.display = 'none';
     });
 
-    // Add WebSocket handling
+    // --- Real terminal (xterm.js) wired to a per-session root pty on the server ---
+    const term = new Terminal({
+        cursorBlink: true,
+        fontFamily: "'Fira Code', 'Cascadia Code', Menlo, Consolas, monospace",
+        fontSize: 14,
+        scrollback: 5000,
+        theme: {
+            background: 'rgba(0, 0, 0, 0)',
+            foreground: '#d6c9ff',
+            cursor: '#c98fff',
+            selectionBackground: 'rgba(140, 0, 255, 0.4)',
+        },
+    });
+    const fitAddon = new FitAddon.FitAddon();
+    term.loadAddon(fitAddon);
+    term.open(terminalContainer);
+
     const consoleSocket = io({
         reconnection: true,
         reconnectionAttempts: 5,
         reconnectionDelay: 1000,
-        timeout: 20000
-    });const socket = io();
-    
+        timeout: 20000,
+    });
+
+    function sendResize() {
+        try {
+            fitAddon.fit();
+        } catch (_) { /* container not visible yet */ }
+        consoleSocket.emit('console_resize', { cols: term.cols, rows: term.rows });
+    }
+
     consoleSocket.on('connect', () => {
         consoleSocket.emit('join_console');
+        setTimeout(sendResize, 50);
     });
 
     consoleSocket.on('console_output', (data) => {
-        appendToConsole(data.output);
+        term.write(data.output);
     });
 
-    // Update command input handling
-    consoleInput.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') {
-            const command = consoleInput.value;
-            if (command.trim() === 'clear') {
-                consoleContent.innerHTML = '';
-            } else if (command.trim() === 'help') {
-                consoleSocket.emit('console_help');
-            } else {
-                appendToConsole(`$ ${command}`);
-                consoleSocket.emit('console_command', { command: command });
-            }
-            consoleInput.value = '';
-        }
+    consoleSocket.on('console_exit', () => {
+        term.write('\r\n\x1b[31m[session ended]\x1b[0m\r\n');
     });
 
-    function appendToConsole(text) {
-        const div = document.createElement('div');
-        
-        // Check for color markers
-        if (text.startsWith('[ERROR]')) {
-            div.classList.add('console-error');
-            text = text.replace('[ERROR]', '');
-        } else if (text.startsWith('[SUCCESS]')) {
-            div.classList.add('console-success');
-            text = text.replace('[SUCCESS]', '');
-        } else if (text.startsWith('[WARNING]')) {
-            div.classList.add('console-warning');
-            text = text.replace('[WARNING]', '');
-        } else if (text.startsWith('[INFO]')) {
-            div.classList.add('console-info');
-            text = text.replace('[INFO]', '');
-        }
+    consoleSocket.on('sudo_required', (payload = {}) => {
+        term.write(`\r\n\x1b[31m[${payload.message || 'Sudo password required'}]\x1b[0m\r\n`);
+    });
 
-        // Handle ANSI color codes
-        const colorMap = {
-            '\x1b[31m': 'console-error',     // Red
-            '\x1b[32m': 'console-success',   // Green
-            '\x1b[33m': 'console-warning',   // Yellow
-            '\x1b[34m': 'console-info',      // Blue
-            '\x1b[0m': ''                    // Reset
-        };
+    term.onData((data) => {
+        consoleSocket.emit('console_input', { data });
+    });
 
-        let colorClass = '';
-        for (const [code, className] of Object.entries(colorMap)) {
-            if (text.includes(code)) {
-                colorClass = className;
-                text = text.replace(code, '');
-            }
-        }
-
-        if (colorClass) {
-            div.classList.add(colorClass);
-        }
-
-        div.textContent = text;
-        consoleContent.appendChild(div);
-        consoleContent.scrollTop = consoleContent.scrollHeight;
+    // Re-fit on manual window resize (the console window has a native CSS
+    // resize handle) and whenever the console is actually shown - it starts
+    // hidden (display: none), and xterm can't size itself against a
+    // display:none container.
+    if (window.ResizeObserver) {
+        const resizeObserver = new ResizeObserver(() => sendResize());
+        resizeObserver.observe(consoleWindow);
+    } else {
+        window.addEventListener('resize', () => {
+            if (consoleWindow.style.display !== 'none') sendResize();
+        });
     }
 
-    // Add console history functionality
-    let commandHistory = [];
-    let historyIndex = -1;
-
-    consoleInput.addEventListener('keydown', (e) => {
-        if (e.key === 'ArrowUp') {
-            e.preventDefault();
-            if (historyIndex < commandHistory.length - 1) {
-                historyIndex++;
-                consoleInput.value = commandHistory[commandHistory.length - 1 - historyIndex];
-            }
-        } else if (e.key === 'ArrowDown') {
-            e.preventDefault();
-            if (historyIndex > 0) {
-                historyIndex--;
-                consoleInput.value = commandHistory[commandHistory.length - 1 - historyIndex];
-            } else if (historyIndex === 0) {
-                historyIndex = -1;
-                consoleInput.value = '';
-            }
+    const visibilityObserver = new MutationObserver(() => {
+        if (consoleWindow.style.display === 'flex') {
+            setTimeout(() => {
+                sendResize();
+                term.focus();
+            }, 50);
         }
     });
-
-    consoleInput.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') {
-            const command = consoleInput.value.trim();
-            if (command) {
-                commandHistory.push(command);
-                if (commandHistory.length > 50) commandHistory.shift();
-                historyIndex = -1;
-            }
-        }
-    });
+    visibilityObserver.observe(consoleWindow, { attributes: true, attributeFilter: ['style'] });
 });
