@@ -1030,7 +1030,12 @@ function showDirectoryContextMenu(x, y, dir) {
     menuItems.push({
         icon: 'fa-terminal',
         text: 'Open Terminal Here',
-        action: () => openTerminalAt(dir.path),
+        action: () => openTerminalAt(dir.path, false),
+    });
+    menuItems.push({
+        icon: 'fa-user-shield',
+        text: 'Open Terminal Here (sudo)',
+        action: () => openTerminalAt(dir.path, true),
     });
 
     menuItems.push({ type: 'separator' });
@@ -1327,7 +1332,12 @@ function showFileContextMenu(x, y, file) {
         menuItems.push({
             icon: 'fa-terminal',
             text: 'Open Terminal Here',
-            action: () => openTerminalAt(file.path),
+            action: () => openTerminalAt(file.path, false),
+        });
+        menuItems.push({
+            icon: 'fa-user-shield',
+            text: 'Open Terminal Here (sudo)',
+            action: () => openTerminalAt(file.path, true),
         });
         menuItems.push({ type: 'separator' });
         menuItems.push({
@@ -1660,7 +1670,12 @@ function showContainerContextMenu(x, y) {
     menuItems.push({
         icon: 'fa-terminal',
         text: 'Open Terminal Here',
-        action: () => openTerminalAt(currentPath),
+        action: () => openTerminalAt(currentPath, false),
+    });
+    menuItems.push({
+        icon: 'fa-user-shield',
+        text: 'Open Terminal Here (sudo)',
+        action: () => openTerminalAt(currentPath, true),
     });
     menuItems.push({
         icon: 'fa-copy',

@@ -41,7 +41,15 @@ function ensureConsoleSocket() {
 
     consoleSocket.on('console_opened', (data) => {
         if (!data || !data.id || consoleSessions.has(data.id)) return;
-        createConsoleWindow(data.id, { sudo: data.sudo, cwd: data.cwd });
+        createConsoleWindow(data.id, { sudo: data.sudo, cwd: data.cwd, name: data.name });
+    });
+
+    consoleSocket.on('console_renamed', (data) => {
+        const entry = consoleSessions.get(data && data.id);
+        if (!entry) return;
+        entry.name = data.name || null;
+        _updateConsoleTitle(entry);
+        renderConsolePanelList();
     });
 
     consoleSocket.on('console_output', (data) => {
@@ -69,10 +77,11 @@ function ensureConsoleSocket() {
     return consoleSocket;
 }
 
-function openNewConsole(sudo, cwd) {
+function openNewConsole(sudo, cwd, name) {
     const socket = ensureConsoleSocket();
     const payload = {};
     if (cwd) payload.cwd = cwd;
+    if (name) payload.name = name;
 
     if (sudo) {
         payload.sudo = true;
@@ -86,11 +95,11 @@ function openNewConsole(sudo, cwd) {
     socket.emit('open_console', payload);
 }
 
-// "Open Terminal Here" (file explorer) - always a fresh normal console at
-// that folder, same as opening a new terminal window in a real OS file
-// manager.
-window.openTerminalAt = function (path) {
-    if (path) openNewConsole(false, path);
+// "Open Terminal Here" / "Open Terminal Here (sudo)" (file explorer) - a
+// fresh console at that folder, same as opening a new terminal window in a
+// real OS file manager.
+window.openTerminalAt = function (path, sudo) {
+    if (path) openNewConsole(!!sudo, path);
 };
 
 function createConsoleWindow(id, opts) {
@@ -108,11 +117,14 @@ function createConsoleWindow(id, opts) {
 
     const title = document.createElement('div');
     title.className = 'console-title';
-    const roleIcon = opts.sudo ? 'fa-user-shield' : 'fa-user';
-    title.innerHTML = `<i class="fas fa-terminal"></i> <i class="fas ${roleIcon}" title="${opts.sudo ? 'root' : 'normal user'}"></i> ${opts.cwd || ''}`;
 
     const controls = document.createElement('div');
     controls.className = 'console-controls';
+
+    const renameBtn = document.createElement('button');
+    renameBtn.className = 'console-control-btn';
+    renameBtn.title = 'Rename';
+    renameBtn.innerHTML = '<i class="fas fa-pen"></i>';
 
     const minimizeBtn = document.createElement('button');
     minimizeBtn.className = 'console-control-btn';
@@ -124,6 +136,7 @@ function createConsoleWindow(id, opts) {
     closeBtn.title = 'Close (stops the shell)';
     closeBtn.innerHTML = '<i class="fas fa-times"></i>';
 
+    controls.appendChild(renameBtn);
     controls.appendChild(minimizeBtn);
     controls.appendChild(closeBtn);
     header.appendChild(title);
@@ -199,8 +212,19 @@ function createConsoleWindow(id, opts) {
     term.loadAddon(fitAddon);
     term.open(terminalContainer);
 
-    const entry = { id, term, fitAddon, windowEl: win, sudo: !!opts.sudo, cwd: opts.cwd || '~', minimized: false };
+    const entry = {
+        id,
+        term,
+        fitAddon,
+        windowEl: win,
+        titleEl: title,
+        sudo: !!opts.sudo,
+        cwd: opts.cwd || '~',
+        name: opts.name || null,
+        minimized: false,
+    };
     consoleSessions.set(id, entry);
+    _updateConsoleTitle(entry);
 
     function sendResize() {
         try {
@@ -217,6 +241,7 @@ function createConsoleWindow(id, opts) {
         new ResizeObserver(() => sendResize()).observe(win);
     }
 
+    renameBtn.addEventListener('click', () => renameConsoleWindow(id));
     minimizeBtn.addEventListener('click', () => minimizeConsoleWindow(id));
     closeBtn.addEventListener('click', () => closeConsoleWindow(id));
 
@@ -227,6 +252,26 @@ function createConsoleWindow(id, opts) {
 
     renderConsolePanelList();
     return entry;
+}
+
+function _updateConsoleTitle(entry) {
+    if (!entry.titleEl) return;
+    const roleIcon = entry.sudo ? 'fa-user-shield' : 'fa-user';
+    const label = entry.name || entry.cwd;
+    entry.titleEl.innerHTML = `<i class="fas fa-terminal"></i> <i class="fas ${roleIcon}" title="${entry.sudo ? 'root' : 'normal user'}"></i> ${label}`;
+    entry.titleEl.title = entry.cwd;
+}
+
+function renameConsoleWindow(id) {
+    const entry = consoleSessions.get(id);
+    if (!entry) return;
+    const name = prompt('Name this console:', entry.name || '');
+    if (name === null) return; // cancelled
+    const trimmed = name.trim();
+    entry.name = trimmed || null;
+    _updateConsoleTitle(entry);
+    renderConsolePanelList();
+    ensureConsoleSocket().emit('rename_console', { id, name: trimmed });
 }
 
 function minimizeConsoleWindow(id) {
@@ -302,11 +347,22 @@ function renderConsolePanelList() {
 
         const info = document.createElement('div');
         info.className = 'sidebar-console-row-info';
-        info.innerHTML = `<i class="fas ${entry.sudo ? 'fa-user-shield' : 'fa-user'}"></i> <span>${entry.cwd}</span>`;
+        info.title = entry.cwd;
+        info.innerHTML = `<i class="fas ${entry.sudo ? 'fa-user-shield' : 'fa-user'}"></i> <span>${entry.name || entry.cwd}</span>`;
         info.addEventListener('click', () => restoreConsoleWindow(entry.id));
 
         const actions = document.createElement('div');
         actions.className = 'sidebar-console-row-actions';
+
+        const renameBtn = document.createElement('button');
+        renameBtn.type = 'button';
+        renameBtn.title = 'Rename';
+        renameBtn.innerHTML = '<i class="fas fa-pen"></i>';
+        renameBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            renameConsoleWindow(entry.id);
+        });
+        actions.appendChild(renameBtn);
 
         const minBtn = document.createElement('button');
         minBtn.type = 'button';
@@ -344,7 +400,7 @@ async function restoreConsoleSessions() {
         const socket = ensureConsoleSocket();
         data.sessions.forEach((s) => {
             if (!s || !s.id || !s.alive || consoleSessions.has(s.id)) return;
-            createConsoleWindow(s.id, { sudo: s.sudo, cwd: s.cwd });
+            createConsoleWindow(s.id, { sudo: s.sudo, cwd: s.cwd, name: s.name });
             socket.emit('attach_console', { id: s.id });
             minimizeConsoleWindow(s.id);
         });

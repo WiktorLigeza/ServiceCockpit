@@ -17,6 +17,7 @@ from flask_socketio import join_room, leave_room
 from config_store import get_folder_preferences, save_folder_preferences
 
 from auth import SUDO_SESSION_KEY, is_authenticated
+from command_executor import clean_shell_env
 
 
 class _ExecSession:
@@ -116,6 +117,7 @@ def _start_exec_process(
         bufsize=1,
         universal_newlines=True,
         cwd=str(cwd),
+        env=clean_shell_env(),
         preexec_fn=os.setsid,
     )
 
@@ -937,6 +939,40 @@ def build_file_explorer_blueprint() -> Blueprint:
             try:
                 proc.wait(timeout=2.0)
             except Exception:
+                try:
+                    os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
+                except Exception:
+                    try:
+                        proc.kill()
+                    except Exception:
+                        pass
+
+            return jsonify({'success': True})
+
+        except Exception as e:
+            return jsonify({'success': False, 'error': str(e)}), 500
+
+    @bp.route('/api/execute/close', methods=['POST'])
+    def close_executable():
+        """Hard-stop and forget a runner entirely - unlike /kill, this also
+        removes it from the registry, so it stops coming back on reload.
+        (Closing a runner window without this just hid it client-side; the
+        backend session lived forever and /api/execute/sessions kept handing
+        it back on every page load.)"""
+        try:
+            data = request.get_json(silent=True) or {}
+            process_id = (data.get('process_id') or '').strip()
+            if not process_id:
+                return jsonify({'success': False, 'error': 'process_id required'}), 400
+
+            with _EXEC_SESSIONS_LOCK:
+                session_obj = _EXEC_SESSIONS.pop(process_id, None)
+
+            if session_obj is None:
+                return jsonify({'success': True, 'already_gone': True})
+
+            proc = session_obj.process
+            if proc.poll() is None:
                 try:
                     os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
                 except Exception:

@@ -98,13 +98,13 @@ async function performSidebarUpdate() {
     }
 }
 
-// The flyout panel lives outside .app-sidebar (which clips overflow), so
-// showing it on hover is done in JS rather than pure CSS :hover - position it
+// The flyout panels live outside .app-sidebar (which clips overflow), so
+// showing them on hover is done in JS rather than pure CSS :hover - position
 // next to the sidebar item and keep it open while the pointer is over either
 // the item or the panel itself.
-function _initSidebarConsoleHover() {
-    const wrapper = document.getElementById('sidebar-console');
-    const panel = document.getElementById('sidebar-console-panel');
+function _initFlyoutHover(wrapperId, panelId) {
+    const wrapper = document.getElementById(wrapperId);
+    const panel = document.getElementById(panelId);
     if (!wrapper || !panel) return;
 
     let hideTimer = null;
@@ -131,6 +131,115 @@ function _initSidebarConsoleHover() {
     panel.addEventListener('mouseleave', scheduleHide);
 }
 
+// --- Running Programs panel (exec runners from the file explorer) ---
+function _programRowStatusText(p) {
+    if (p.running) return 'Running';
+    return `Exited (${p.return_code === null || p.return_code === undefined ? 'unknown' : p.return_code})`;
+}
+
+function _focusOrNavigateToProgram(processId) {
+    if (typeof window.focusExecRunner === 'function' && window.focusExecRunner(processId)) {
+        return;
+    }
+    window.location.href = '/file_explorer';
+}
+
+async function killProgramFromSidebar(processId, ev) {
+    ev?.stopPropagation?.();
+    try {
+        await fetch('/api/execute/kill', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ process_id: processId }),
+        });
+    } catch (e) {
+        console.error('Failed to kill program:', e);
+    }
+    refreshProgramsPanel();
+}
+
+async function closeProgramFromSidebar(processId, ev) {
+    ev?.stopPropagation?.();
+    try {
+        await fetch('/api/execute/close', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ process_id: processId }),
+        });
+    } catch (e) {
+        console.error('Failed to close program:', e);
+    }
+    refreshProgramsPanel();
+}
+
+async function refreshProgramsPanel() {
+    const wrapper = document.getElementById('sidebar-programs');
+    const countEl = document.getElementById('sidebar-programs-count');
+    const list = document.getElementById('sidebar-programs-panel-list');
+    if (!wrapper) return;
+
+    try {
+        const resp = await fetch('/api/execute/sessions');
+        const data = await resp.json();
+        const sessions = (data.success && Array.isArray(data.sessions)) ? data.sessions : [];
+
+        wrapper.hidden = sessions.length === 0;
+        if (countEl) {
+            countEl.hidden = sessions.length === 0;
+            countEl.textContent = String(sessions.length);
+        }
+
+        if (!list) return;
+        list.innerHTML = '';
+
+        if (sessions.length === 0) {
+            const empty = document.createElement('div');
+            empty.className = 'sidebar-console-panel-empty';
+            empty.textContent = 'No running programs';
+            list.appendChild(empty);
+            return;
+        }
+
+        sessions.forEach((p) => {
+            const fileName = (p.path || '').split('/').pop() || p.path;
+            const row = document.createElement('div');
+            row.className = 'sidebar-console-row';
+
+            const info = document.createElement('div');
+            info.className = 'sidebar-console-row-info';
+            info.innerHTML = `<i class="fas ${p.sudo ? 'fa-user-shield' : 'fa-user'}"></i> <span title="${fileName}">${fileName} - ${_programRowStatusText(p)}</span>`;
+            info.addEventListener('click', () => _focusOrNavigateToProgram(p.process_id));
+
+            const actions = document.createElement('div');
+            actions.className = 'sidebar-console-row-actions';
+
+            if (p.running) {
+                const killBtn = document.createElement('button');
+                killBtn.type = 'button';
+                killBtn.title = 'Kill';
+                killBtn.innerHTML = '<i class="fas fa-stop"></i>';
+                killBtn.addEventListener('click', (e) => killProgramFromSidebar(p.process_id, e));
+                actions.appendChild(killBtn);
+            }
+
+            const closeBtn = document.createElement('button');
+            closeBtn.type = 'button';
+            closeBtn.className = 'sidebar-console-row-close';
+            closeBtn.title = 'Close (stops it if running, forgets it)';
+            closeBtn.innerHTML = '<i class="fas fa-times"></i>';
+            closeBtn.addEventListener('click', (e) => closeProgramFromSidebar(p.process_id, e));
+            actions.appendChild(closeBtn);
+
+            row.appendChild(info);
+            row.appendChild(actions);
+            list.appendChild(row);
+        });
+    } catch (e) {
+        console.error('Failed to refresh programs panel:', e);
+    }
+}
+window.refreshProgramsPanel = refreshProgramsPanel;
+
 document.addEventListener('DOMContentLoaded', () => {
     const { sidebar, pinBtn } = _getSidebarEls();
     if (!sidebar) return;
@@ -148,7 +257,13 @@ document.addEventListener('DOMContentLoaded', () => {
     refreshSidebarUpdateStatus();
     setInterval(refreshSidebarUpdateStatus, 5 * 60 * 1000);
 
-    _initSidebarConsoleHover();
+    _initFlyoutHover('sidebar-console', 'sidebar-console-panel');
+    _initFlyoutHover('sidebar-programs', 'sidebar-programs-panel');
+
+    refreshProgramsPanel();
+    setInterval(refreshProgramsPanel, 15000);
+
+    window.onExecRunnersChanged = refreshProgramsPanel;
 });
 
 window.toggleSidebarPin = toggleSidebarPin;

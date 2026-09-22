@@ -61,7 +61,19 @@ function setRunnerStatus(runner, text) {
         const label = runner.dockItem.querySelector('.dock-title');
         if (label) label.textContent = `${runner.titleText} • ${text}`;
     }
+    if (typeof window.onExecRunnersChanged === 'function') window.onExecRunnersChanged();
 }
+
+// Lets the sidebar's "Programs" panel bring an already-open runner window to
+// front instead of navigating away, when we're already on this page.
+function focusExecRunner(processId) {
+    const runner = execRunners.get(processId);
+    if (!runner) return false;
+    restoreRunner(runner);
+    if (typeof bringToFront === 'function') bringToFront(runner.windowEl);
+    return true;
+}
+window.focusExecRunner = focusExecRunner;
 
 function createDockItem(runner) {
     const dock = document.getElementById('exec-runner-dock');
@@ -249,8 +261,20 @@ function createRunnerWindow(file) {
         minimizeRunner(runner);
     });
 
-    closeBtn.addEventListener('click', () => {
+    closeBtn.addEventListener('click', async () => {
         if (runner.processId) {
+            // Hard-stop and forget server-side too - otherwise the backend
+            // session lives forever and reappears on every reload even
+            // though its window was closed.
+            try {
+                await fetch('/api/execute/close', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ process_id: runner.processId }),
+                });
+            } catch (e) {
+                console.error('Failed to close runner session:', e);
+            }
             execRunnerSocket?.emit('leave_exec', { process_id: runner.processId });
             execRunners.delete(runner.processId);
         }
@@ -258,6 +282,7 @@ function createRunnerWindow(file) {
             runner.dockItem.remove();
         }
         runner.windowEl.remove();
+        if (typeof window.onExecRunnersChanged === 'function') window.onExecRunnersChanged();
     });
 
     document.body.appendChild(runnerWindow);

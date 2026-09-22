@@ -29,11 +29,12 @@ from auth import SUDO_SESSION_KEY, is_authenticated
 
 
 class _ConsoleSession:
-    def __init__(self, proc: subprocess.Popen, master_fd: int, cwd: str, sudo: bool):
+    def __init__(self, proc: subprocess.Popen, master_fd: int, cwd: str, sudo: bool, name: str | None = None):
         self.proc = proc
         self.master_fd = master_fd
         self.cwd = cwd
         self.sudo = sudo
+        self.name = name
         self.created_at = time.time()
 
 
@@ -49,6 +50,26 @@ def _set_winsize(fd: int, rows: int, cols: int):
         pass
 
 
+def clean_shell_env() -> dict:
+    """A copy of os.environ with this app's own venv scrubbed out.
+
+    run_server.sh does `source venv/bin/activate` before launching the app,
+    which sets VIRTUAL_ENV and prepends the venv's bin/ to PATH for the whole
+    process - and every child process inherits that by default. Without this,
+    `python`/`pip` typed into a console or run via the file explorer's
+    executable runner silently resolve to ServiceCockpit's own venv instead
+    of the system's, which is surprising and not what "run a script" should
+    mean.
+    """
+    env = dict(os.environ)
+    venv_dir = env.pop('VIRTUAL_ENV', None)
+    if venv_dir:
+        venv_bin = os.path.join(venv_dir, 'bin')
+        parts = [p for p in env.get('PATH', '').split(os.pathsep) if p and p != venv_bin]
+        env['PATH'] = os.pathsep.join(parts)
+    return env
+
+
 def _spawn_shell(cwd: str, sudo: bool, sudo_password: str | None):
     master_fd, slave_fd = pty.openpty()
     _set_winsize(slave_fd, 24, 80)
@@ -58,7 +79,7 @@ def _spawn_shell(cwd: str, sudo: bool, sudo_password: str | None):
     # git, etc. to disable color entirely - even though xterm.js on the other
     # end is a full xterm-256color-capable terminal. Override it so the shell
     # matches what's actually rendering it.
-    env = dict(os.environ)
+    env = clean_shell_env()
     env['TERM'] = 'xterm-256color'
     env['COLORTERM'] = 'truecolor'
 
@@ -130,6 +151,7 @@ def list_console_sessions() -> list[dict]:
                 'id': cid,
                 'cwd': s.cwd,
                 'sudo': s.sudo,
+                'name': s.name,
                 'created_at': s.created_at,
                 'alive': s.proc.poll() is None,
             }
@@ -146,6 +168,7 @@ def register_console_socket_handlers(socketio):
         sudo = bool((data or {}).get('sudo'))
         requested_cwd = (data or {}).get('cwd')
         cwd = requested_cwd if requested_cwd and os.path.isdir(requested_cwd) else os.path.expanduser('~')
+        name = ((data or {}).get('name') or '').strip()[:80] or None
 
         sudo_password = None
         if sudo:
@@ -166,10 +189,14 @@ def register_console_socket_handlers(socketio):
 
         console_id = uuid.uuid4().hex
         with _SESSIONS_LOCK:
-            _SESSIONS[console_id] = _ConsoleSession(proc, master_fd, cwd, sudo)
+            _SESSIONS[console_id] = _ConsoleSession(proc, master_fd, cwd, sudo, name)
 
         join_room(console_id)
-        socketio.emit('console_opened', {'id': console_id, 'cwd': cwd, 'sudo': sudo}, room=request.sid)
+        socketio.emit(
+            'console_opened',
+            {'id': console_id, 'cwd': cwd, 'sudo': sudo, 'name': name},
+            room=request.sid,
+        )
 
         thread = threading.Thread(target=_reader_loop, args=(socketio, console_id, master_fd), daemon=True)
         thread.start()
@@ -215,6 +242,19 @@ def register_console_socket_handlers(socketio):
         rows = int((data or {}).get('rows') or 24)
         _set_winsize(session_obj.master_fd, rows, cols)
 
+    @socketio.on('rename_console')
+    def on_rename_console(data):
+        if not is_authenticated():
+            return
+        console_id = (data or {}).get('id')
+        name = ((data or {}).get('name') or '').strip()[:80] or None
+        with _SESSIONS_LOCK:
+            session_obj = _SESSIONS.get(console_id)
+            if session_obj:
+                session_obj.name = name
+        if session_obj:
+            socketio.emit('console_renamed', {'id': console_id, 'name': name}, room=console_id)
+
     @socketio.on('close_console')
     def on_close_console(data):
         if not is_authenticated():
@@ -239,4 +279,4 @@ def build_console_blueprint() -> Blueprint:
     return bp
 
 
-__all__ = ['register_console_socket_handlers', 'list_console_sessions', 'build_console_blueprint']
+__all__ = ['register_console_socket_handlers', 'list_console_sessions', 'build_console_blueprint', 'clean_shell_env']

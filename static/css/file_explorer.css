@@ -1439,9 +1439,9 @@ body {
     top: 120px;
     left: 50%;
     transform: translateX(-50%);
-    width: 520px;
+    width: 680px;
     max-width: 90vw;
-    max-height: 70vh;
+    max-height: 80vh;
     background: rgba(10, 10, 20, 0.95);
     border: 1px solid rgba(0, 255, 255, 0.25);
     border-radius: 10px;
@@ -1449,6 +1449,8 @@ body {
     display: flex;
     flex-direction: column;
     z-index: 2000;
+    resize: both;
+    overflow: auto;
 }
 
 .exec-runner-header {
@@ -1488,23 +1490,34 @@ body {
 
 .exec-runner-form {
     display: flex;
+    flex-wrap: wrap;
     gap: 8px;
     align-items: center;
 }
 
+.exec-runner-params {
+    flex: 1 1 160px;
+    min-width: 120px;
+}
+
 .exec-runner-sudo-toggle {
     display: flex;
+    flex-shrink: 0;
     align-items: center;
-    gap: 5px;
+    gap: 6px;
     color: #dadada;
-    font-size: 0.8rem;
+    font-size: 0.85rem;
     white-space: nowrap;
     cursor: pointer;
     user-select: none;
+    padding: 4px 2px;
 }
 
 .exec-runner-sudo-toggle input {
+    width: 16px;
+    height: 16px;
     cursor: pointer;
+    flex-shrink: 0;
 }
 
 .exec-runner-path {
