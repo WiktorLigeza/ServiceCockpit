@@ -57,10 +57,6 @@ function setRunnerStatus(runner, text) {
     if (runner.startBtn) {
         runner.startBtn.disabled = !!runner.processId;
     }
-    if (runner.dockItem) {
-        const label = runner.dockItem.querySelector('.dock-title');
-        if (label) label.textContent = `${runner.titleText} • ${text}`;
-    }
     if (typeof window.onExecRunnersChanged === 'function') window.onExecRunnersChanged();
 }
 
@@ -70,46 +66,22 @@ function focusExecRunner(processId) {
     const runner = execRunners.get(processId);
     if (!runner) return false;
     restoreRunner(runner);
-    if (typeof bringToFront === 'function') bringToFront(runner.windowEl);
     return true;
 }
 window.focusExecRunner = focusExecRunner;
 
-function createDockItem(runner) {
-    const dock = document.getElementById('exec-runner-dock');
-    if (!dock) return null;
-    const item = document.createElement('div');
-    item.className = 'exec-runner-dock-item';
-    item.innerHTML = `
-        <span class="dock-title">${runner.titleText} • ${runner.statusEl.textContent}</span>
-        <button class="dock-kill" title="Kill">&times;</button>
-    `;
-    item.addEventListener('click', () => {
-        restoreRunner(runner);
-    });
-    const killBtn = item.querySelector('.dock-kill');
-    killBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        killRunnerProcess(runner);
-    });
-    dock.appendChild(item);
-    return item;
-}
-
+// Minimizing/restoring is otherwise-unmanaged UI state - visibility only.
+// Discovering and restoring a minimized runner happens through the sidebar's
+// "Programs" panel (mirrors how consoles work), not a dock bar.
 function restoreRunner(runner) {
     runner.windowEl.style.display = 'flex';
-    runner.windowEl.style.zIndex = `${2000 + execRunnerCounter}`;
-    if (runner.dockItem) {
-        runner.dockItem.remove();
-        runner.dockItem = null;
-    }
+    if (typeof bringToFront === 'function') bringToFront(runner.windowEl);
+    if (typeof window.onExecRunnersChanged === 'function') window.onExecRunnersChanged();
 }
 
 function minimizeRunner(runner) {
     runner.windowEl.style.display = 'none';
-    if (!runner.dockItem) {
-        runner.dockItem = createDockItem(runner);
-    }
+    if (typeof window.onExecRunnersChanged === 'function') window.onExecRunnersChanged();
 }
 
 async function killRunnerProcess(runner) {
@@ -177,7 +149,6 @@ function createRunnerWindow(file) {
         file,
         titleText: file.name,
         processId: null,
-        dockItem: null,
     };
 
     titleEl.innerHTML = `<i class="fas fa-terminal"></i> ${file.name}`;
@@ -278,9 +249,6 @@ function createRunnerWindow(file) {
             execRunnerSocket?.emit('leave_exec', { process_id: runner.processId });
             execRunners.delete(runner.processId);
         }
-        if (runner.dockItem) {
-            runner.dockItem.remove();
-        }
         runner.windowEl.remove();
         if (typeof window.onExecRunnersChanged === 'function') window.onExecRunnersChanged();
     });
@@ -323,6 +291,11 @@ async function restoreExecSessions() {
             } else {
                 setRunnerStatus(runner, `Exited (${session.return_code ?? 'unknown'})`);
             }
+
+            // Restored on page load, not freshly opened - stay out of the way
+            // (visible again via the sidebar's Programs panel), same as
+            // consoles restore minimized rather than popping open.
+            minimizeRunner(runner);
         });
     } catch (e) {
         console.error('Failed to restore exec sessions:', e);
@@ -334,7 +307,4 @@ function openExecutableRunner(file) {
     const runner = createRunnerWindow(file);
     if (!runner) return;
     restoreRunner(runner);
-    if (typeof bringToFront === 'function') {
-        bringToFront(runner.windowEl);
-    }
 }

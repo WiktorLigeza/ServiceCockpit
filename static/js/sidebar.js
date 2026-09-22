@@ -100,29 +100,63 @@ async function performSidebarUpdate() {
 
 // The flyout panels live outside .app-sidebar (which clips overflow), so
 // showing them on hover is done in JS rather than pure CSS :hover - position
-// next to the sidebar item and keep it open while the pointer is over either
-// the item or the panel itself.
+// next to the sidebar item (top-aligned with it) and keep both the panel and
+// the sidebar itself expanded while the pointer is over the item or the
+// panel. Without the sidebar-side of this, moving the mouse off the rail and
+// into the panel exits .app-sidebar's own :hover, so the rail would snap
+// back to its collapsed width mid-interaction, right as you're trying to
+// click something in the list.
+let _openFlyoutCount = 0;
+
 function _initFlyoutHover(wrapperId, panelId) {
     const wrapper = document.getElementById(wrapperId);
     const panel = document.getElementById(panelId);
+    const { sidebar } = _getSidebarEls();
     if (!wrapper || !panel) return;
 
     let hideTimer = null;
+    let isOpen = false;
 
     function show() {
         if (hideTimer) {
             clearTimeout(hideTimer);
             hideTimer = null;
         }
-        const rect = wrapper.getBoundingClientRect();
-        panel.style.left = `${rect.right + 8}px`;
-        panel.style.top = `${Math.max(8, rect.top)}px`;
+
+        // Position against the sidebar's *expanded* right edge, not the
+        // wrapper's live rect - hovering also triggers the sidebar's own
+        // width transition (56px -> 208px), and the wrapper's rect at the
+        // instant of mouseenter still reflects the pre-transition width, so
+        // trusting it would leave the panel positioned too close in.
+        const sidebarRect = (sidebar || wrapper).getBoundingClientRect();
+        const expandedWidth = parseFloat(
+            getComputedStyle(document.documentElement).getPropertyValue('--sidebar-expanded')
+        ) || 208;
+        const itemRect = wrapper.getBoundingClientRect();
+
+        panel.style.left = `${sidebarRect.left + expandedWidth + 8}px`;
+        panel.style.top = `${Math.max(8, itemRect.top)}px`;
         panel.classList.add('visible');
+
+        if (!isOpen) {
+            isOpen = true;
+            _openFlyoutCount += 1;
+            if (sidebar) sidebar.classList.add('sidebar-flyout-active');
+        }
+    }
+
+    function hideNow() {
+        panel.classList.remove('visible');
+        if (isOpen) {
+            isOpen = false;
+            _openFlyoutCount = Math.max(0, _openFlyoutCount - 1);
+            if (sidebar && _openFlyoutCount === 0) sidebar.classList.remove('sidebar-flyout-active');
+        }
     }
 
     function scheduleHide() {
         if (hideTimer) clearTimeout(hideTimer);
-        hideTimer = setTimeout(() => panel.classList.remove('visible'), 200);
+        hideTimer = setTimeout(hideNow, 200);
     }
 
     wrapper.addEventListener('mouseenter', show);

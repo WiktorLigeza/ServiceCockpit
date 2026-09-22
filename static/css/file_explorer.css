@@ -1552,23 +1552,9 @@ body {
     font-size: 0.85rem;
 }
 
-.exec-runner-dock {
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    display: flex;
-    gap: 8px;
-    padding: 8px 12px;
-    background: rgba(0, 0, 0, 0.6);
-    border-top: 1px solid rgba(0, 255, 255, 0.2);
-    z-index: 1900;
-    overflow-x: auto;
-}
-
 .archive-jobs-bar {
     position: fixed;
-    bottom: 42px;
+    bottom: 0;
     left: 0;
     right: 0;
     display: flex;
@@ -1600,34 +1586,6 @@ body {
 
 .archive-job .archive-download:hover {
     color: #7fffd4;
-}
-
-.exec-runner-dock-item {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    background: rgba(0, 255, 255, 0.08);
-    border: 1px solid rgba(0, 255, 255, 0.2);
-    color: #bdbdbd;
-    padding: 4px 10px;
-    border-radius: 6px;
-    cursor: pointer;
-    white-space: nowrap;
-}
-
-.exec-runner-dock-item:hover {
-    background: rgba(0, 255, 255, 0.15);
-}
-
-.exec-runner-dock-item .dock-kill {
-    background: transparent;
-    border: none;
-    color: #dc3545;
-    font-size: 0.9rem;
-}
-
-.exec-runner-dock-item .dock-kill:hover {
-    color: #ff6b6b;
 }
 
 .filter-btn {

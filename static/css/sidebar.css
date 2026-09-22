@@ -22,7 +22,8 @@
 }
 
 .app-sidebar:hover,
-.app-sidebar.sidebar-pinned {
+.app-sidebar.sidebar-pinned,
+.app-sidebar.sidebar-flyout-active {
     width: var(--sidebar-expanded);
 }
 
@@ -84,7 +85,8 @@
 }
 
 .app-sidebar:hover .sidebar-label,
-.app-sidebar.sidebar-pinned .sidebar-label {
+.app-sidebar.sidebar-pinned .sidebar-label,
+.app-sidebar.sidebar-flyout-active .sidebar-label {
     opacity: 1;
 }
 
@@ -186,7 +188,7 @@
     flex-shrink: 0;
 }
 
-.app-sidebar:not(:hover):not(.sidebar-pinned) .sidebar-console-count {
+.app-sidebar:not(:hover):not(.sidebar-pinned):not(.sidebar-flyout-active) .sidebar-console-count {
     /* Collapsed rail: show the badge as a small dot pinned to the icon corner
        instead of a labeled pill (there's no room for the pill's text width). */
     position: absolute;

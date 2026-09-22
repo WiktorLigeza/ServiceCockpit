@@ -1226,12 +1226,8 @@ function createFileItem(file, index) {
     fileItem.appendChild(fileInfo);
     
     // Click handler
-    fileItem.addEventListener('click', (e) => {
-        if (typeof handleFileItemSelection === 'function') {
-            handleFileItemSelection(e, fileItem, file);
-        } else {
-            selectFile(fileItem, file);
-        }
+    fileItem.addEventListener('click', () => {
+        selectFile(fileItem, file);
     });
     
     // Double-click handler
@@ -1257,14 +1253,7 @@ function createFileItem(file, index) {
         e.preventDefault();
         e.stopPropagation();
         
-        const currentPaths = new Set(selectedFiles.map(f => f.path));
-        currentPaths.add(file.path);
-        if (typeof setSelectionByPaths === 'function') {
-            setSelectionByPaths(currentPaths, file.path);
-        } else {
-            selectFile(fileItem, file);
-        }
-        
+        selectFile(fileItem, file);
         showFileContextMenu(e.clientX, e.clientY, file);
     });
     
@@ -1544,9 +1533,6 @@ async function createArchive(format, path, destinationPath) {
         }
 
         loadDirectory(currentPath);
-        if (selectedFile && selectedFile.path === path) {
-            displayFileDetails(selectedFile);
-        }
     } catch (e) {
         showNotification(`Archive failed: ${e}`, 'error');
         if (job) job.innerHTML = `<i class="fas fa-times"></i> <span>Archive failed</span>`;
