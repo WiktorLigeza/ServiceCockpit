@@ -715,3 +715,385 @@
         min-height: 420px;
     }
 }
+
+/* ================================================================
+   Features, device services, and the Audio / Files / Serial tabs
+   ================================================================ */
+
+.bt-column {
+    overflow-y: auto;
+}
+
+.bt-column > .bt-panel {
+    flex-shrink: 0;
+}
+
+.bt-tabs-panel {
+    flex: 1.3 1 0;
+    height: 100%;
+}
+
+.bt-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    border-bottom: 2px solid var(--bt-accent);
+    margin-bottom: 12px;
+    flex-shrink: 0;
+}
+
+.bt-tab {
+    background: none;
+    border: none;
+    color: var(--bt-muted);
+    padding: 8px 14px;
+    border-radius: 8px 8px 0 0;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.bt-tab:hover {
+    color: #fff;
+}
+
+.bt-tab.active {
+    color: var(--bt-accent);
+    background: rgba(0, 255, 255, 0.08);
+}
+
+.bt-tab-badge {
+    background: var(--bt-accent);
+    color: #111;
+    border-radius: 8px;
+    font-size: 0.7rem;
+    padding: 0 6px;
+}
+
+.bt-tab-pane {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+.bt-scroll {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    padding-right: 4px;
+}
+
+.bt-tech {
+    margin-top: 14px;
+}
+
+.bt-tech summary {
+    color: var(--bt-muted);
+    cursor: pointer;
+    margin-bottom: 8px;
+}
+
+.bt-feature-note {
+    background: rgba(241, 196, 15, 0.1);
+    border-left: 3px solid var(--bt-warn);
+    border-radius: 4px;
+    padding: 8px 12px;
+    margin-bottom: 10px;
+    font-size: 0.9rem;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    align-items: flex-start;
+}
+
+/* ---- Features panel ---- */
+
+.bt-features {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.bt-feature {
+    background: var(--bt-surface);
+    border-radius: 8px;
+    padding: 8px 10px;
+}
+
+.bt-feature-head {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.bt-feature-head > i {
+    width: 20px;
+    text-align: center;
+    color: #9ecbff;
+}
+
+.bt-feature-title {
+    flex: 1;
+    min-width: 0;
+    font-weight: 600;
+}
+
+.bt-feature-title .bt-muted {
+    font-weight: normal;
+    font-size: 0.78rem;
+}
+
+.bt-feature-state {
+    font-size: 0.8rem;
+    white-space: nowrap;
+}
+
+.bt-feature-state.ok { color: var(--bt-ok); }
+.bt-feature-state.bad { color: var(--bt-warn); }
+.bt-feature-state.busy { color: var(--bt-accent); }
+
+.bt-feature-issues {
+    margin: 6px 0 0 30px;
+    padding-left: 14px;
+    font-size: 0.78rem;
+    color: var(--bt-muted);
+}
+
+.bt-feature-actions {
+    margin: 6px 0 0 30px;
+}
+
+.bt-setup-log {
+    margin-top: 10px;
+    max-height: 220px;
+    overflow-y: auto;
+    background: rgba(0, 0, 0, 0.4);
+    border-radius: 6px;
+    padding: 6px 8px;
+    font-family: monospace;
+    font-size: 0.72rem;
+    color: #cfd8dc;
+    white-space: pre-wrap;
+    word-break: break-all;
+}
+
+.bt-setup-log .l-chg { color: #9ccfff; font-weight: bold; }
+.bt-setup-log .l-err { color: var(--bt-bad); }
+.bt-setup-log .l-ok { color: var(--bt-ok); }
+
+/* ---- Device service cards ---- */
+
+.bt-services {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 6px;
+}
+
+.bt-service {
+    display: flex;
+    gap: 12px;
+    padding: 12px;
+    background: var(--bt-surface);
+    border: 1px solid var(--bt-border);
+    border-radius: 10px;
+}
+
+.bt-service.active {
+    border-color: rgba(46, 204, 113, 0.6);
+}
+
+.bt-service-icon {
+    width: 38px;
+    height: 38px;
+    border-radius: 10px;
+    background: rgba(92, 124, 250, 0.2);
+    color: #9ecbff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    font-size: 1.05rem;
+}
+
+.bt-service.active .bt-service-icon {
+    background: rgba(46, 204, 113, 0.2);
+    color: var(--bt-ok);
+}
+
+.bt-service-main {
+    flex: 1;
+    min-width: 0;
+}
+
+.bt-service-title {
+    color: #fff;
+    font-weight: 600;
+}
+
+.bt-service-status {
+    font-size: 0.85rem;
+    margin-top: 4px;
+}
+
+.bt-service-status.ok { color: var(--bt-ok); }
+.bt-service-status.bad { color: var(--bt-warn); }
+
+.bt-service-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 8px;
+}
+
+/* ---- Audio ---- */
+
+.bt-audio-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 10px;
+    background: var(--bt-surface);
+    border: 1px solid transparent;
+    border-radius: 8px;
+    margin-bottom: 6px;
+    flex-wrap: wrap;
+}
+
+.bt-audio-row.default {
+    border-color: rgba(0, 255, 255, 0.4);
+}
+
+.bt-audio-name {
+    flex: 1;
+    min-width: 160px;
+    color: #fff;
+}
+
+.bt-audio-name .fa-bluetooth-b {
+    color: #5c7cfa;
+}
+
+.bt-audio-controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.bt-audio-controls input[type=range] {
+    width: 140px;
+    accent-color: #0d9fb8;
+}
+
+.bt-vol-label {
+    width: 40px;
+    font-size: 0.8rem;
+    color: var(--bt-muted);
+    text-align: right;
+}
+
+.bt-icon-btn.is-default {
+    color: var(--bt-warn);
+}
+
+.bt-icon-btn.muted {
+    color: var(--bt-bad);
+}
+
+.bt-audio-help {
+    margin-top: 12px;
+    font-size: 0.82rem;
+}
+
+/* ---- Files ---- */
+
+.bt-send-form {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.bt-transfer {
+    background: var(--bt-surface);
+    border-radius: 8px;
+    padding: 8px 10px;
+    margin-bottom: 6px;
+    font-size: 0.88rem;
+}
+
+.bt-transfer-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.bt-transfer-head .bt-icon-btn {
+    margin-left: auto;
+}
+
+.bt-progress {
+    height: 6px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 3px;
+    overflow: hidden;
+    margin: 6px 0 4px;
+}
+
+.bt-progress > div {
+    height: 100%;
+    background: var(--bt-accent);
+    transition: width 0.3s;
+}
+
+.bt-transfer.complete .bt-progress > div { background: var(--bt-ok); }
+.bt-transfer.error .bt-progress > div { background: var(--bt-bad); }
+
+.bt-file-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 6px 4px;
+    border-bottom: 1px solid var(--bt-border);
+    font-size: 0.88rem;
+    flex-wrap: wrap;
+}
+
+.bt-file-name {
+    color: #fff;
+    word-break: break-all;
+}
+
+a.bt-file-name:hover {
+    color: var(--bt-accent);
+}
+
+.bt-file-row .bt-icon-btn {
+    margin-left: auto;
+}
+
+/* ---- Serial ---- */
+
+.bt-serial-bar {
+    flex-shrink: 0;
+    margin-bottom: 6px;
+}
+
+.bt-serial-info {
+    flex-shrink: 0;
+    margin-bottom: 6px;
+}
+
+.bt-serial-info code {
+    color: var(--bt-accent);
+}
+
+.bt-serial-out .l-sent {
+    color: var(--bt-warn);
+}
+
+.bt-raw .bt-check {
+    white-space: nowrap;
+}

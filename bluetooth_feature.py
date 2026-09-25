@@ -441,6 +441,11 @@ class BluetoothSession:
                 self._stop_timer.cancel()
                 self._stop_timer = None
         self.ensure_started()
+        for hook in session_start_hooks:
+            try:
+                hook()
+            except Exception:
+                pass
 
     def client_disconnected(self):
         with self.lock:
@@ -543,7 +548,9 @@ class BluetoothSession:
         for pattern, level in _NOTICE_PATTERNS:
             n = pattern.match(line.strip())
             if n:
-                self._emit('bt_notice', {'level': level, 'message': n.group(1)})
+                from bluetooth_services import explain_error
+                self._emit('bt_notice', {'level': level, 'message': n.group(1),
+                                         'hint': explain_error(n.group(1)) if level == 'error' else ''})
                 if level != 'info':
                     self._emit('bt_devices_changed', {})
                 break
@@ -692,6 +699,10 @@ class BluetoothSession:
 
 bt_session: BluetoothSession | None = None
 
+# Called (in a worker thread) whenever a page client connects - lets
+# bluetooth_services start its D-Bus helper alongside the agent session.
+session_start_hooks: list = []
+
 
 def list_devices() -> list[dict]:
     all_devices = _device_list() or {}
@@ -744,7 +755,9 @@ def _require_sudo():
 def _result(ok: bool, output: str = '', status: int = 200, **extra):
     body = {'success': ok, 'output': output, **extra}
     if not ok:
+        from bluetooth_services import explain_error
         body['error'] = output or 'Command failed'
+        body['hint'] = explain_error(output)
     return jsonify(body), status if ok else (status if status != 200 else 400)
 
 

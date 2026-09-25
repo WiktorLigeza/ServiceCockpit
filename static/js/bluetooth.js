@@ -135,6 +135,7 @@ async function loadBtStatus() {
         connectBtSocket();
         loadBtDevices();
         if (data.session?.pending_prompt) showAuthPrompt(data.session.pending_prompt);
+        if (typeof btServicesInit === 'function') btServicesInit();
     }
     scheduleBtStatus(15000);
 }
@@ -195,7 +196,7 @@ function connectBtSocket() {
     });
     btSocket.on('bt_rssi', d => updateDeviceRssi(d.mac, d.rssi));
     btSocket.on('bt_notice', d => {
-        btToast(d.message, d.level);
+        btToast(d.hint ? `${d.message}\n${d.hint}` : d.message, d.level, d.hint ? 9000 : 4000);
         if (d.level !== 'info' && btSelectedMac) refreshBtDetails();
     });
     btSocket.on('bt_auth_request', showAuthPrompt);
@@ -206,6 +207,7 @@ function connectBtSocket() {
             btToast('Pairing request was canceled', 'info');
         }
     });
+    if (typeof btServicesAttach === 'function') btServicesAttach(btSocket);
 }
 
 function disconnectBtSocket() {
@@ -481,11 +483,17 @@ function renderBtDetails(d) {
                    placeholder="Local alias (empty = use remote name)" value="${btEscape(d.alias && d.alias !== d.name ? d.alias : '')}">
             <button class="btn btn-sm btn-secondary" type="submit" title="Rename"><i class="fas fa-pen"></i></button>
         </form>
-        <dl class="bt-props">${props}</dl>
-        <div class="bt-subtitle">Services (${(d.uuids || []).length})</div>
-        ${uuids}
+        <div class="bt-subtitle">What would you like to do?</div>
+        <div class="bt-services" id="bt-device-services"><div class="bt-muted">Checking what this device can do…</div></div>
+        <details class="bt-tech">
+            <summary>Technical details</summary>
+            <dl class="bt-props">${props}</dl>
+            <div class="bt-subtitle">Advertised services (${(d.uuids || []).length})</div>
+            ${uuids}
+        </details>
     `;
     document.getElementById('bt-details').dataset.name = d.alias || d.name || d.mac;
+    if (typeof loadDeviceServices === 'function') loadDeviceServices(d.mac);
 }
 
 async function deviceAction(action, extra = undefined) {
@@ -499,7 +507,7 @@ async function deviceAction(action, extra = undefined) {
     btToast(labels[action] || action, 'info', 2000);
     const { ok, data } = await btApi(`/api/bluetooth/device/${encodeURIComponent(mac)}/${action}`, extra || {});
     if (!ok) {
-        btToast(data.error || `Failed: ${action}`, 'error', 7000);
+        btToast((data.error || `Failed: ${action}`) + (data.hint ? `\n${data.hint}` : ''), 'error', 8000);
     } else if (!data.pending) {
         btToast(data.output || 'Done', 'success');
     }

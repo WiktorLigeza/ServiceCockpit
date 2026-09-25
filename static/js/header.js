@@ -86,7 +86,6 @@ function renderCpuMenu(perCore) {
 }
 
 function updateMetrics(data) {
-    console.log('Updating metrics:', data);
     
     // CPU Temperature
     const cpuTemp = document.querySelector('#cpu-temp');

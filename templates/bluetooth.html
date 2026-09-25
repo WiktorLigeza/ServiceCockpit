@@ -112,6 +112,12 @@
                     <div class="bt-scan-status" id="bt-scan-status"></div>
                 </div>
             </div>
+
+            <div class="bt-panel">
+                <h2 class="section-title">Bluetooth features</h2>
+                <div class="bt-features" id="bt-features"><div class="bt-muted">Checking…</div></div>
+                <div class="bt-setup-log" id="bt-setup-log" hidden></div>
+            </div>
         </div>
 
         <!-- Devices column -->
@@ -137,24 +143,76 @@
             </div>
         </div>
 
-        <!-- Details + log column -->
-        <div class="bt-column bt-column-wide">
-            <div class="bt-panel bt-details-panel">
-                <h2 class="section-title">Device</h2>
+        <!-- Tabs column: device / audio / files / serial / log -->
+        <div class="bt-panel bt-tabs-panel">
+            <div class="bt-tabs" id="bt-tabs" role="tablist">
+                <button class="bt-tab active" data-tab="device"><i class="fas fa-info-circle"></i> Device</button>
+                <button class="bt-tab" data-tab="audio"><i class="fas fa-volume-up"></i> Audio</button>
+                <button class="bt-tab" data-tab="files"><i class="fas fa-file-export"></i> Files <span class="bt-tab-badge" id="bt-files-badge" hidden></span></button>
+                <button class="bt-tab" data-tab="serial"><i class="fas fa-terminal"></i> Serial <span class="bt-tab-badge" id="bt-serial-badge" hidden></span></button>
+                <button class="bt-tab" data-tab="log"><i class="fas fa-stream"></i> Log</button>
+            </div>
+
+            <div class="bt-tab-pane" data-pane="device">
                 <div class="bt-details" id="bt-details">
-                    <div class="bt-empty">Select a device to see its details</div>
+                    <div class="bt-empty">Select a device to see what you can do with it</div>
                 </div>
             </div>
 
-            <div class="bt-panel bt-log-panel">
-                <h2 class="section-title">
-                    bluetoothctl
-                    <button class="bt-icon-btn" id="bt-log-clear" title="Clear log"><i class="fas fa-trash"></i></button>
-                </h2>
+            <div class="bt-tab-pane" data-pane="audio" hidden>
+                <div class="bt-scroll" id="bt-audio">
+                    <div class="bt-empty">Loading…</div>
+                </div>
+            </div>
+
+            <div class="bt-tab-pane" data-pane="files" hidden>
+                <div class="bt-scroll">
+                    <div class="bt-feature-note" id="bt-files-note" hidden></div>
+                    <div class="bt-subtitle">Send a file</div>
+                    <form class="bt-send-form" id="bt-send-form" autocomplete="off">
+                        <select class="form-control form-control-sm" id="bt-send-device"></select>
+                        <input type="file" class="form-control form-control-sm" id="bt-send-file">
+                        <div class="bt-inline">
+                            <input type="text" class="form-control form-control-sm" id="bt-send-path" placeholder="…or a path on the Pi, e.g. /home/pi/log.txt">
+                            <button class="btn btn-sm btn-primary" type="submit"><i class="fas fa-paper-plane"></i> Send</button>
+                        </div>
+                    </form>
+                    <div class="bt-subtitle">Transfers</div>
+                    <div id="bt-transfers"><div class="bt-muted">No transfers</div></div>
+                    <div class="bt-subtitle">Received <span class="bt-muted" id="bt-received-folder"></span></div>
+                    <div id="bt-received"><div class="bt-muted">Nothing received yet</div></div>
+                </div>
+            </div>
+
+            <div class="bt-tab-pane" data-pane="serial" hidden>
+                <div class="bt-feature-note" id="bt-serial-note" hidden></div>
+                <div class="bt-inline bt-serial-bar">
+                    <select class="form-control form-control-sm" id="bt-serial-select"></select>
+                    <button class="btn btn-sm btn-success" id="bt-serial-connect" title="Connect to the selected device"><i class="fas fa-link"></i> Connect</button>
+                    <button class="btn btn-sm btn-outline-warning" id="bt-serial-disconnect"><i class="fas fa-unlink"></i> Disconnect</button>
+                </div>
+                <div class="bt-muted bt-serial-info" id="bt-serial-info"></div>
+                <div class="bt-log bt-serial-out" id="bt-serial-out"></div>
+                <form class="bt-inline bt-raw" id="bt-serial-form" autocomplete="off">
+                    <input type="text" class="form-control form-control-sm" id="bt-serial-input" placeholder="Type and press Enter">
+                    <select class="form-control form-control-sm bt-narrow" id="bt-serial-eol" title="Line ending">
+                        <option value="lf">LF</option>
+                        <option value="crlf">CR+LF</option>
+                        <option value="cr">CR</option>
+                        <option value="">None</option>
+                    </select>
+                    <label class="bt-check" title="Send and show bytes as hex"><input type="checkbox" id="bt-serial-hex"> Hex</label>
+                    <button class="btn btn-sm btn-secondary" type="submit"><i class="fas fa-paper-plane"></i></button>
+                    <button class="btn btn-sm btn-outline-light" type="button" id="bt-serial-clear" title="Clear"><i class="fas fa-trash"></i></button>
+                </form>
+            </div>
+
+            <div class="bt-tab-pane" data-pane="log" hidden>
                 <div class="bt-log" id="bt-log"></div>
                 <form class="bt-inline bt-raw" id="bt-raw-form" autocomplete="off">
-                    <input type="text" class="form-control form-control-sm" id="bt-raw-input" placeholder="Raw command, e.g. info AA:BB:CC:DD:EE:FF  or  help">
+                    <input type="text" class="form-control form-control-sm" id="bt-raw-input" placeholder="Raw bluetoothctl command, e.g. info AA:BB:CC:DD:EE:FF  or  help">
                     <button class="btn btn-sm btn-secondary" type="submit"><i class="fas fa-paper-plane"></i></button>
+                    <button class="btn btn-sm btn-outline-light" type="button" id="bt-log-clear" title="Clear log"><i class="fas fa-trash"></i></button>
                 </form>
             </div>
         </div>
@@ -173,6 +231,19 @@
         </div>
     </div>
 
+    <!-- Incoming file offer -->
+    <div class="bt-modal" id="bt-file-modal" hidden>
+        <div class="bt-modal-card">
+            <div class="bt-modal-title"><i class="fas fa-file-download"></i> Incoming file</div>
+            <div class="bt-modal-device" id="bt-file-device"></div>
+            <div class="bt-modal-message" id="bt-file-message"></div>
+            <div class="bt-modal-actions">
+                <button class="btn btn-secondary btn-sm" id="bt-file-decline">Decline</button>
+                <button class="btn btn-success btn-sm" id="bt-file-accept">Accept</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Confirmation dialog for destructive device actions -->
     <div class="bt-modal" id="bt-confirm-modal" hidden>
         <div class="bt-modal-card">
@@ -186,5 +257,6 @@
     </div>
 
     <script src="{{ url_for('static', filename='js/bluetooth.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/bluetooth_services.js') }}"></script>
 </body>
 </html>
