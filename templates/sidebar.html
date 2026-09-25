@@ -23,6 +23,11 @@
             <i class="fas fa-folder-open"></i>
             <span class="sidebar-label">File Explorer</span>
         </a>
+        <a class="sidebar-item {% if request.endpoint == 'bluetooth.bluetooth_page' %}sidebar-active{% endif %}"
+           href="{{ url_for('bluetooth.bluetooth_page') }}" title="Bluetooth">
+            <i class="fab fa-bluetooth-b"></i>
+            <span class="sidebar-label">Bluetooth</span>
+        </a>
 
         <div class="sidebar-divider"></div>
 

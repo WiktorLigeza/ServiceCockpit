@@ -13,6 +13,7 @@ from flask_session import Session
 from flask_socketio import SocketIO
 
 from auth import build_auth_blueprint, configure_session
+from bluetooth_feature import bluetooth_cleanup_on_shutdown, build_bluetooth_blueprint, register_bluetooth_socket_handlers
 from command_executor import build_console_blueprint, register_console_socket_handlers
 from gpu_monitor import gpu_monitor
 from metrics import build_metrics_blueprint
@@ -79,6 +80,7 @@ def create_app() -> tuple[Flask, SocketIO]:
     app.register_blueprint(build_export_blueprint())
     app.register_blueprint(build_update_check_blueprint())
     app.register_blueprint(build_console_blueprint())
+    app.register_blueprint(build_bluetooth_blueprint())
 
     # Socket.IO
     init_services_socketio(socketio)
@@ -86,6 +88,7 @@ def create_app() -> tuple[Flask, SocketIO]:
     register_console_socket_handlers(socketio)
     register_mqtt_socket_handlers(socketio)
     register_file_exec_socket_handlers(socketio)
+    register_bluetooth_socket_handlers(socketio)
 
     return app, socketio
 
@@ -100,3 +103,4 @@ if __name__ == '__main__':
         socketio.run(app, host='0.0.0.0', port=2137, debug=False, allow_unsafe_werkzeug=True)
     finally:
         mqtt_cleanup_on_shutdown()
+        bluetooth_cleanup_on_shutdown()

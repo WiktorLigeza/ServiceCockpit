@@ -1,5 +1,5 @@
 :root {
-    --sidebar-collapsed: 56px;
+    --sidebar-collapsed: 60px;
     --sidebar-expanded: 208px;
 }
 
@@ -19,6 +19,7 @@
     overflow: hidden;
     transition: width 0.22s ease;
     z-index: 15000;
+    
 }
 
 .app-sidebar:hover,
@@ -33,6 +34,7 @@
     padding: 10px 0;
     gap: 4px;
     overflow-y: auto;
+    overflow: hidden;
 }
 
 .sidebar-divider {
@@ -194,7 +196,7 @@
     position: absolute;
     left: 30px;
     top: 4px;
-    min-width: 14px;
+    min-width: 30px;
     height: 14px;
     line-height: 14px;
     font-size: 0.6rem;

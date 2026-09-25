@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bluetooth - Phantom Cockpit</title>
+    <link rel="icon" type="image/webp" href="{{ url_for('static', filename='images/H2A_Render_Phantom.webp') }}">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/bluetooth.css') }}">
+    <script src="https://cdn.socket.io/4.0.1/socket.io.min.js"></script>
+</head>
+<body class="bg-light">
+    {% include 'header.html' %}
+
+    <!-- Shown instead of the page when BlueZ / an adapter isn't usable -->
+    <div class="main-container bt-unavailable" id="bt-unavailable" hidden>
+        <div class="bt-unavailable-card">
+            <div class="bt-unavailable-icon">
+                <i class="fab fa-bluetooth-b"></i>
+                <i class="fas fa-slash"></i>
+            </div>
+            <h2>Bluetooth not available</h2>
+            <p class="bt-unavailable-reason" id="bt-unavailable-reason">Checking…</p>
+            <ul class="bt-checklist" id="bt-checklist"></ul>
+            <ul class="bt-hints" id="bt-hints"></ul>
+            <div class="bt-fixes" id="bt-fixes"></div>
+            <button class="btn btn-outline-light btn-sm" id="bt-recheck-btn">
+                <i class="fas fa-redo"></i> Check again
+            </button>
+        </div>
+    </div>
+
+    <div class="main-container bt-main" id="bt-main" hidden>
+        <!-- Adapter + scan column -->
+        <div class="bt-column">
+            <div class="bt-panel">
+                <h2 class="section-title">
+                    Adapter
+                    <span class="bt-session-dot" id="bt-session-dot" title="bluetoothctl agent session"></span>
+                </h2>
+                <div class="bt-adapter" id="bt-adapter">
+                    <div class="bt-field">
+                        <label for="bt-alias">Name (visible to other devices)</label>
+                        <div class="bt-inline">
+                            <input type="text" id="bt-alias" class="form-control form-control-sm" maxlength="248">
+                            <button class="btn btn-sm btn-primary" id="bt-alias-save" title="Save name"><i class="fas fa-check"></i></button>
+                        </div>
+                    </div>
+                    <div class="bt-kv"><span>Address</span><code id="bt-adapter-mac">—</code></div>
+                    <div class="bt-kv"><span>Class</span><code id="bt-adapter-class">—</code></div>
+                    <div class="bt-kv" id="bt-controllers-row" hidden><span>Controllers</span><span id="bt-controllers"></span></div>
+
+                    <label class="bt-toggle">
+                        <input type="checkbox" id="bt-powered">
+                        <span class="bt-toggle-track"></span>
+                        <span>Powered</span>
+                    </label>
+                    <label class="bt-toggle">
+                        <input type="checkbox" id="bt-pairable">
+                        <span class="bt-toggle-track"></span>
+                        <span>Pairable</span>
+                    </label>
+                    <div class="bt-inline">
+                        <label class="bt-toggle">
+                            <input type="checkbox" id="bt-discoverable">
+                            <span class="bt-toggle-track"></span>
+                            <span>Discoverable</span>
+                        </label>
+                        <select id="bt-discoverable-timeout" class="form-control form-control-sm bt-narrow" title="Discoverable timeout">
+                            <option value="60">1 min</option>
+                            <option value="180" selected>3 min</option>
+                            <option value="600">10 min</option>
+                            <option value="3600">1 hour</option>
+                            <option value="0">Always</option>
+                        </select>
+                    </div>
+                    <div class="bt-muted" id="bt-discoverable-note"></div>
+
+                    <div class="bt-actions">
+                        <button class="btn btn-sm btn-outline-warning" data-fix="restart_service">
+                            <i class="fas fa-sync-alt"></i> Restart service
+                        </button>
+                        <button class="btn btn-sm btn-outline-info" data-fix="unblock" id="bt-unblock-btn" hidden>
+                            <i class="fas fa-unlock"></i> Unblock radio
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bt-panel">
+                <h2 class="section-title">Scan</h2>
+                <div class="bt-scan">
+                    <div class="bt-inline">
+                        <select id="bt-scan-transport" class="form-control form-control-sm" title="Transport">
+                            <option value="all">Classic + LE</option>
+                            <option value="bredr">Classic (BR/EDR)</option>
+                            <option value="le">Low Energy</option>
+                        </select>
+                        <select id="bt-scan-duration" class="form-control form-control-sm bt-narrow" title="Duration">
+                            <option value="15">15 s</option>
+                            <option value="30" selected>30 s</option>
+                            <option value="60">60 s</option>
+                            <option value="300">5 min</option>
+                            <option value="0">Until stopped</option>
+                        </select>
+                    </div>
+                    <button class="btn btn-primary bt-scan-btn" id="bt-scan-btn">
+                        <i class="fas fa-search"></i> <span>Start scan</span>
+                    </button>
+                    <div class="bt-scan-status" id="bt-scan-status"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Devices column -->
+        <div class="bt-panel bt-devices-panel">
+            <h2 class="section-title">
+                Devices
+                <span class="bt-count" id="bt-device-count"></span>
+            </h2>
+            <div class="bt-device-filters">
+                <input type="text" class="form-control form-control-sm" id="bt-device-search" placeholder="Search name or address…">
+                <div class="bt-chips" id="bt-chips">
+                    <button class="bt-chip active" data-filter="all">All</button>
+                    <button class="bt-chip" data-filter="paired">Paired</button>
+                    <button class="bt-chip" data-filter="connected">Connected</button>
+                    <button class="bt-chip" data-filter="nearby">Nearby</button>
+                </div>
+                <label class="bt-check">
+                    <input type="checkbox" id="bt-hide-unnamed" checked> Hide unnamed devices
+                </label>
+            </div>
+            <div class="bt-device-list" id="bt-device-list">
+                <div class="bt-empty">Loading…</div>
+            </div>
+        </div>
+
+        <!-- Details + log column -->
+        <div class="bt-column bt-column-wide">
+            <div class="bt-panel bt-details-panel">
+                <h2 class="section-title">Device</h2>
+                <div class="bt-details" id="bt-details">
+                    <div class="bt-empty">Select a device to see its details</div>
+                </div>
+            </div>
+
+            <div class="bt-panel bt-log-panel">
+                <h2 class="section-title">
+                    bluetoothctl
+                    <button class="bt-icon-btn" id="bt-log-clear" title="Clear log"><i class="fas fa-trash"></i></button>
+                </h2>
+                <div class="bt-log" id="bt-log"></div>
+                <form class="bt-inline bt-raw" id="bt-raw-form" autocomplete="off">
+                    <input type="text" class="form-control form-control-sm" id="bt-raw-input" placeholder="Raw command, e.g. info AA:BB:CC:DD:EE:FF  or  help">
+                    <button class="btn btn-sm btn-secondary" type="submit"><i class="fas fa-paper-plane"></i></button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Pairing / authentication dialog -->
+    <div class="bt-modal" id="bt-auth-modal" hidden>
+        <div class="bt-modal-card">
+            <div class="bt-modal-title"><i class="fas fa-key"></i> <span id="bt-auth-title">Pairing request</span></div>
+            <div class="bt-modal-device" id="bt-auth-device"></div>
+            <div class="bt-modal-message" id="bt-auth-message"></div>
+            <div class="bt-modal-code" id="bt-auth-code" hidden></div>
+            <input type="text" class="form-control" id="bt-auth-input" hidden autocomplete="off">
+            <div class="bt-modal-error" id="bt-auth-error" hidden></div>
+            <div class="bt-modal-actions" id="bt-auth-actions"></div>
+        </div>
+    </div>
+
+    <!-- Confirmation dialog for destructive device actions -->
+    <div class="bt-modal" id="bt-confirm-modal" hidden>
+        <div class="bt-modal-card">
+            <div class="bt-modal-title" id="bt-confirm-title"></div>
+            <div class="bt-modal-message" id="bt-confirm-message"></div>
+            <div class="bt-modal-actions">
+                <button class="btn btn-secondary btn-sm" id="bt-confirm-cancel">Cancel</button>
+                <button class="btn btn-danger btn-sm" id="bt-confirm-ok">Confirm</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/bluetooth.js') }}"></script>
+</body>
+</html>
