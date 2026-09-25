@@ -1097,3 +1097,32 @@ a.bt-file-name:hover {
 .bt-raw .bt-check {
     white-space: nowrap;
 }
+
+/* Scrollbars - same look as the rest of the app (styles.css), applied to
+   every scroll area on this page: columns, device list, tabs, logs, serial. */
+.bt-main *::-webkit-scrollbar,
+.bt-main::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+.bt-main *::-webkit-scrollbar-track,
+.bt-main::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.1);
+}
+
+.bt-main *::-webkit-scrollbar-thumb,
+.bt-main::-webkit-scrollbar-thumb {
+    background-color: #00ffff;
+    border-radius: 3px;
+}
+
+.bt-main *::-webkit-scrollbar-corner {
+    background: transparent;
+}
+
+.bt-main,
+.bt-main * {
+    scrollbar-width: thin;
+    scrollbar-color: #00ffff rgba(0, 0, 0, 0.1);
+}
