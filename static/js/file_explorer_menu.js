@@ -61,8 +61,12 @@ function showContextMenu(x, y, file) {
             menuItems.push({ icon: 'fa-download', text: 'Download', action: downloadFile });
             
             const ext = file.name.split('.').pop().toLowerCase();
-            if (isTextFile(ext)) {
-                menuItems.push({ icon: 'fa-edit', text: 'Edit', action: () => openFileInEditor(selectedFile) });
+            if (isTextFile(ext) || canInspectAsExecutable(file)) {
+                menuItems.push({
+                    icon: canInspectAsExecutable(file) ? 'fa-search' : 'fa-edit',
+                    text: canInspectAsExecutable(file) ? 'Inspect in Editor' : 'Edit',
+                    action: () => openFileInEditor(file)
+                });
             }
         }
         

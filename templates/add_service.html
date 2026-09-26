@@ -1,14 +1,13 @@
-<div class="infocard hidden" id="add-service-card" style="min-height: 850px; min-width: 400px;">
+<div class="infocard service-editor-card hidden" id="add-service-card">
     <div class="infocard-header">
-        Add New Service
+        <span id="service-form-title">Add New Service</span>
         <div class="infocard-controls">
             <button class="btn-close"><i class="fas fa-times"></i></button>
         </div>
     </div>
-    <div class="infocard-body">
-        <div class="row">
-            <div class="col-md-4">
-                <form id="add-service-form">
+    <div class="infocard-body service-editor-body">
+        <div class="service-editor-layout">
+            <form id="add-service-form" class="service-editor-form">
                     <div class="mb-3">
                         <label for="serviceName" class="form-label">Service Name</label>
                         <input type="text" class="form-control" id="serviceName" name="serviceName" required>
@@ -21,8 +20,13 @@
                         <label for="serviceType" class="form-label">Type</label>
                         <select class="form-select" id="serviceType" name="serviceType">
                             <option value="simple">Simple</option>
+                            <option value="exec">Exec</option>
                             <option value="oneshot">Oneshot</option>
                             <option value="forking">Forking</option>
+                            <option value="dbus">D-Bus</option>
+                            <option value="notify">Notify</option>
+                            <option value="notify-reload">Notify Reload</option>
+                            <option value="idle">Idle</option>
                         </select>
                     </div>
                     <div class="mb-3">
@@ -31,7 +35,12 @@
                     </div>
                     <div class="mb-3">
                         <label for="execPath" class="form-label">Exec Path</label>
-                        <input type="text" class="form-control" id="execPath" name="execPath" required>
+                        <div class="input-group">
+                            <input type="text" class="form-control" id="execPath" name="execPath" required>
+                            <button type="button" class="btn btn-outline-info" id="inspect-exec-path" title="Open this executable in the File Explorer editor" aria-label="Open executable in File Explorer editor" hidden>
+                                <i class="fas fa-file-code"></i>
+                            </button>
+                        </div>
                     </div>
                     <div class="mb-3">
                         <label for="serviceParams" class="form-label">Parameters</label>
@@ -41,7 +50,11 @@
                         <label for="restartPolicy" class="form-label">Restart Policy</label>
                         <select class="form-select" id="restartPolicy" name="restartPolicy">
                             <option value="always">Always</option>
+                            <option value="on-success">On Success</option>
                             <option value="on-failure">On Failure</option>
+                            <option value="on-abnormal">On Abnormal</option>
+                            <option value="on-watchdog">On Watchdog</option>
+                            <option value="on-abort">On Abort</option>
                             <option value="no">No</option>
                         </select>
                     </div>
@@ -53,15 +66,12 @@
                         <label for="workingDirectory" class="form-label">Working Directory</label>
                         <input type="text" class="form-control" id="workingDirectory" name="workingDirectory">
                     </div>
-                </form>
-            </div>
-            <div class="col-md-8">
-                <div class="mb-3">
-                    <label for="servicePreview" class="form-label">Service File Preview</label>
-                    <textarea class="form-control" id="servicePreview" rows="15" readonly></textarea>
-                </div>
-                <button id="submit-service" class="btn btn-primary" style="width: 100%;">Apply</button>
-            </div>
+            </form>
+            <section class="service-preview-pane">
+                <label for="servicePreview" class="form-label">Service File Preview</label>
+                <textarea class="form-control" id="servicePreview" readonly spellcheck="false"></textarea>
+                <button id="submit-service" class="btn btn-primary" style="width: 100%;">Create Service</button>
+            </section>
         </div>
     </div>
 </div>

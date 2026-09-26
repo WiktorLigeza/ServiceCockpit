@@ -44,7 +44,7 @@ function formatFileSize(bytes) {
 function getFileIcon(file) {
     if (file.is_directory) return 'fa-folder';
 
-    if (file.is_executable) return 'fa-terminal';
+    if (canInspectAsExecutable(file)) return 'fa-terminal';
     
     const ext = file.name.split('.').pop().toLowerCase();
     if (isVideoFile(ext)) return 'fa-file-video';
@@ -67,6 +67,10 @@ function getFileIcon(file) {
     };
     
     return iconMap[ext] || 'fa-file';
+}
+
+function canInspectAsExecutable(file) {
+    return !!file.is_executable || file.name.toLowerCase().endsWith('.exe');
 }
 
 function getFileIconClass(file) {

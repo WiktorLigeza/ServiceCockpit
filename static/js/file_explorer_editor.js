@@ -9,16 +9,25 @@ async function openFileInEditor(file) {
     const editorExecutable = document.getElementById('editor-executable');
     
     try {
-        const response = await fetch(`/api/read-file?path=${encodeURIComponent(file.path)}`);
+        const inspect = canInspectAsExecutable(file) ? '&inspect=1' : '';
+        const response = await fetch(`/api/read-file?path=${encodeURIComponent(file.path)}${inspect}`);
         const data = await response.json();
         
         if (data.success) {
+            editorFile = {...file, binaryInspection: !!data.binary};
             editorContent.value = data.content;
             editorTitle.innerHTML = `<i class="fas fa-code"></i> ${file.name} <span class="editor-language-badge">${getLanguageFromExtension(file.name)}</span>`;
-            editorInfo.textContent = `Lines: ${data.content.split('\n').length} | Size: ${formatFileSize(file.size)}`;
+            editorContent.readOnly = !!data.binary;
+            editorInfo.textContent = data.binary
+                ? `Binary inspection | ${formatFileSize(data.bytes_shown)} of ${formatFileSize(data.size)}${data.truncated ? ' shown' : ''}`
+                : `Lines: ${data.content.split('\n').length} | Size: ${formatFileSize(file.size)}`;
+            const saveButton = document.getElementById('save-file-btn');
+            const executableLabel = editorExecutable && editorExecutable.closest('label');
+            if (saveButton) saveButton.disabled = !!data.binary;
+            if (executableLabel) executableLabel.hidden = !!data.binary;
             if (editorExecutable) {
                 editorExecutable.checked = !!file.is_executable;
-                editorExecutable.disabled = false;
+                editorExecutable.disabled = !!data.binary;
             }
             editorWindow.style.display = 'flex';
             if (typeof bringToFront === 'function') {
@@ -27,10 +36,11 @@ async function openFileInEditor(file) {
             
             applySyntaxHighlighting(file.name);
             
-            editorContent.addEventListener('input', () => {
+            editorContent.oninput = () => {
+                if (editorFile && editorFile.binaryInspection) return;
                 const lines = editorContent.value.split('\n').length;
                 editorInfo.textContent = `Lines: ${lines} | Modified`;
-            });
+            };
         } else {
             alert('Failed to open file: ' + data.error);
         }
@@ -50,7 +60,7 @@ function applySyntaxHighlighting(filename) {
 }
 
 async function saveFile() {
-    if (!editorFile) return;
+    if (!editorFile || editorFile.binaryInspection) return;
     
     const editorContent = document.getElementById('editor-content');
     const editorInfo = document.getElementById('editor-info');
@@ -94,6 +104,10 @@ function closeEditor() {
     const editorWindow = document.getElementById('code-editor-window');
     const editorExecutable = document.getElementById('editor-executable');
     editorWindow.style.display = 'none';
+    document.getElementById('editor-content').readOnly = false;
+    document.getElementById('save-file-btn').disabled = false;
+    const executableLabel = editorExecutable && editorExecutable.closest('label');
+    if (executableLabel) executableLabel.hidden = false;
     editorFile = null;
     if (editorExecutable) {
         editorExecutable.checked = false;

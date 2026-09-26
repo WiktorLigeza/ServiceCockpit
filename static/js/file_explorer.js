@@ -37,17 +37,29 @@ document.addEventListener('DOMContentLoaded', function() {
     setupKeyboardShortcuts();
 });
 
-function initializeFileExplorer() {
+async function initializeFileExplorer() {
     // Load folder preferences from server
     loadFolderPreferences();
     
     // Load the last visited path from localStorage
     const savedPath = localStorage.getItem('fileExplorerLastPath');
-    if (savedPath) {
-        currentPath = savedPath;
+    const requestedFile = new URLSearchParams(window.location.search).get('open');
+    if (requestedFile) {
+        const parentPath = requestedFile.slice(0, requestedFile.lastIndexOf('/')) || '/';
+        await loadDirectory(parentPath || '/');
+        const file = allFiles.find(item => item.path === requestedFile && !item.is_directory);
+        if (file) {
+            await openFileInEditor(file);
+        } else {
+            showNotification('Executable not found in its parent directory', 'error');
+        }
+    } else {
+        if (savedPath) {
+            currentPath = savedPath;
+        }
+        await loadDirectory(currentPath);
     }
-    
-    loadDirectory(currentPath);
+
     loadDirectoryTree('/');
     const filesContainer = document.getElementById('files-container');
     filesContainer.classList.add('grid-view');

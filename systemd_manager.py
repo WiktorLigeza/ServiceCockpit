@@ -1,14 +1,15 @@
+import os
 import subprocess
 
 class SystemdManager:
     @staticmethod
-    def _run_sudo(args, sudo_password: str | None, check=True):
+    def _run_sudo(args, sudo_password: str | None, check=True, input_text: str = ''):
         if not sudo_password:
             raise ValueError('sudo_password is required')
         cmd = ['sudo', '-S', '-p', ''] + args
         return subprocess.run(
             cmd,
-            input=sudo_password + '\n',
+            input=sudo_password + '\n' + input_text,
             text=True,
             capture_output=True,
             check=check,
@@ -114,6 +115,37 @@ class SystemdManager:
             return result.stdout
         except Exception:
             return "Error fetching logs"
+
+    @staticmethod
+    def get_unit_file(service_name):
+        try:
+            result = subprocess.run(
+                ['systemctl', 'show', service_name, '--property=FragmentPath', '--value'],
+                capture_output=True,
+                text=True,
+                check=True,
+            )
+            path = result.stdout.strip()
+            if not path or not os.path.isfile(path):
+                return None
+            with open(path, encoding='utf-8') as unit_file:
+                return {'path': path, 'content': unit_file.read()}
+        except (OSError, subprocess.CalledProcessError):
+            return None
+
+    @staticmethod
+    def save_unit_file(service_name, content, sudo_password: str | None = None):
+        if not sudo_password:
+            return False
+        try:
+            unit_path = f'/etc/systemd/system/{service_name}'
+            SystemdManager._run_sudo(
+                ['tee', unit_path], sudo_password, check=True, input_text=content
+            )
+            SystemdManager._run_sudo(['systemctl', 'daemon-reload'], sudo_password, check=True)
+            return True
+        except (OSError, subprocess.CalledProcessError, ValueError):
+            return False
 
     @staticmethod
     def delete_service(service_name, sudo_password: str | None = None):

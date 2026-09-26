@@ -160,7 +160,9 @@ function createFileItem(file, index) {
             return;
         }
         const ext = file.name.split('.').pop().toLowerCase();
-        if (isImageFile(ext)) {
+        if (canInspectAsExecutable(file)) {
+            openFileInEditor(file);
+        } else if (isImageFile(ext)) {
             openImageViewer(file);
         } else if (isTextFile(ext)) {
             openFileInEditor(file);

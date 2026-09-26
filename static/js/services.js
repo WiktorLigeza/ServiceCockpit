@@ -115,6 +115,9 @@ async function deleteService(event, serviceName) {
 }
 
 async function selectService(serviceName) {
+    if (selectedService !== serviceName) {
+        document.getElementById('journal-container').textContent = '';
+    }
     selectedService = serviceName;
     document.querySelectorAll('.service-card').forEach(card => {
         card.classList.remove('selected-service');
@@ -128,24 +131,26 @@ async function selectService(serviceName) {
 }
 
 async function updateJournal(serviceName) {
+    const journalContainer = document.getElementById('journal-container');
+    const requestId = (updateJournal.requestId || 0) + 1;
+    updateJournal.requestId = requestId;
+    const previousScrollTop = journalContainer.scrollTop;
+    const wasAtBottom = journalContainer.scrollTop + journalContainer.clientHeight >= journalContainer.scrollHeight - 8;
+
     try {
-        document.getElementById('journal-container').innerHTML = `
-            <div class="loading-spinner">
-                <i class="fas fa-spinner"></i>
-                <p>Loading logs...</p>
-            </div>
-        `;
-        
-        const response = await fetch(`/journal/${serviceName}`);
+        const response = await fetch(`/journal/${encodeURIComponent(serviceName)}`);
+        if (!response.ok) throw new Error(`Journal request failed (${response.status})`);
         const data = await response.json();
-        const journalContainer = document.getElementById('journal-container');
-        journalContainer.textContent = data.logs;
-        journalContainer.scrollTop = journalContainer.scrollHeight;
+        if (requestId !== updateJournal.requestId || selectedService !== serviceName) return;
+        if (journalContainer.textContent !== data.logs) {
+            journalContainer.textContent = data.logs;
+            journalContainer.scrollTop = wasAtBottom ? journalContainer.scrollHeight : previousScrollTop;
+        }
     } catch (error) {
         console.error('Error fetching journal:', error);
-        document.getElementById('journal-container').innerHTML = `
-            <div class="text-danger">Error loading logs. Please try again.</div>
-        `;
+        if (requestId === updateJournal.requestId && selectedService === serviceName && !journalContainer.textContent) {
+            journalContainer.textContent = 'Unable to load service logs.';
+        }
     }
 }
 
@@ -337,5 +342,28 @@ async function showServiceInfo(serviceName) {
     document.getElementById('info-pid').textContent = service.main_pid || 'N/A';
     document.getElementById('info-tasks').textContent = service.tasks || 'N/A';
     document.getElementById('info-path').textContent = service.fragment_path || 'N/A';
+
+    let editButton = document.getElementById('edit-service-settings-btn');
+    if (!editButton) {
+        editButton = document.createElement('button');
+        editButton.type = 'button';
+        editButton.id = 'edit-service-settings-btn';
+        editButton.className = 'btn btn-outline-light mt-3';
+        editButton.innerHTML = '<i class="fas fa-sliders-h"></i> Edit Settings';
+        document.getElementById('service-details')?.after(editButton);
+    }
+    editButton.onclick = () => editServiceSettings(serviceName);
+}
+
+async function editServiceSettings(serviceName) {
+    try {
+        const response = await fetch(`/api/service/${encodeURIComponent(serviceName)}/unit`);
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.message || 'Unable to load service settings');
+        if (typeof window.openServiceEditor !== 'function') throw new Error('Service editor is unavailable');
+        window.openServiceEditor(serviceName, data.content);
+    } catch (error) {
+        alert(error.message);
+    }
 }
 

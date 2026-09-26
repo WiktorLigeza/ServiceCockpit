@@ -86,6 +86,26 @@ def _is_executable_file(path_obj: Path) -> bool:
         return False
 
 
+def _binary_file_preview(path_obj: Path) -> dict:
+    max_bytes = 64 * 1024
+    with open(path_obj, 'rb') as f:
+        raw = f.read(max_bytes)
+    rows = []
+    for offset in range(0, len(raw), 16):
+        chunk = raw[offset:offset + 16]
+        hex_part = ' '.join(f'{byte:02x}' for byte in chunk)
+        ascii_part = ''.join(chr(byte) if 32 <= byte < 127 else '.' for byte in chunk)
+        rows.append(f'{offset:08x}  {hex_part:<47}  |{ascii_part}|')
+    size = path_obj.stat().st_size
+    return {
+        'content': '\n'.join(rows),
+        'binary': True,
+        'bytes_shown': len(raw),
+        'size': size,
+        'truncated': size > len(raw),
+    }
+
+
 def _start_exec_process(
     path_obj: Path,
     params: str,
@@ -774,11 +794,22 @@ def build_file_explorer_blueprint() -> Blueprint:
             if path_obj.is_dir():
                 return jsonify({'success': False, 'error': 'Cannot read directory'}), 400
 
+            inspect_executable = request.args.get('inspect') == '1' and (
+                _is_executable_file(path_obj) or path_obj.suffix.lower() == '.exe'
+            )
+            if inspect_executable:
+                with open(path_obj, 'rb') as f:
+                    has_null_bytes = b'\x00' in f.read(8192)
+                if has_null_bytes:
+                    return jsonify({'success': True, **_binary_file_preview(path_obj)})
+
             try:
                 with open(path_obj, 'r', encoding='utf-8') as f:
                     content = f.read()
                 return jsonify({'success': True, 'content': content})
             except UnicodeDecodeError:
+                if inspect_executable:
+                    return jsonify({'success': True, **_binary_file_preview(path_obj)})
                 return jsonify({'success': False, 'error': 'Cannot read binary file'}), 400
 
         except PermissionError:

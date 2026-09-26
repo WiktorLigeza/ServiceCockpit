@@ -1,4 +1,5 @@
 import subprocess
+import re
 
 from flask import Blueprint, jsonify, render_template, request, session
 
@@ -26,6 +27,29 @@ def build_services_blueprint() -> Blueprint:
         sudo_password = session.get(SUDO_SESSION_KEY)
         logs = SystemdManager.get_journal_logs(service, sudo_password=sudo_password)
         return {'logs': logs}
+
+    @bp.route('/api/service/<service>/unit', methods=['GET', 'POST'])
+    def service_unit(service: str):
+        if not re.fullmatch(r'(?:[A-Za-z0-9_.@:-]|\\x[0-9a-fA-F]{2})+\.service', service):
+            return jsonify({'success': False, 'message': 'Invalid service name'}), 400
+
+        if request.method == 'GET':
+            unit_file = SystemdManager.get_unit_file(service)
+            if not unit_file:
+                return jsonify({'success': False, 'message': 'Service unit file not found'}), 404
+            return jsonify({'success': True, **unit_file})
+
+        data = request.get_json(silent=True) or {}
+        content = data.get('content')
+        if not isinstance(content, str) or len(content) > 1_000_000:
+            return jsonify({'success': False, 'message': 'Invalid unit file content'}), 400
+
+        sudo_password = session.get(SUDO_SESSION_KEY)
+        if not sudo_password:
+            return jsonify({'success': False, 'error': 'sudo_required', 'message': 'Sudo password required.'}), 401
+        if not SystemdManager.save_unit_file(service, content, sudo_password=sudo_password):
+            return jsonify({'success': False, 'message': 'Failed to save service unit'}), 500
+        return jsonify({'success': True, 'path': f'/etc/systemd/system/{service}'})
 
     @bp.route('/api/devices')
     def get_devices():
