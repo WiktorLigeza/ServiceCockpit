@@ -2,6 +2,7 @@
 let currentPath = '/home';
 let selectedFile = null;
 let viewMode = 'grid';
+let directorySnapshot = '';
 let allFiles = [];
 let currentFilter = 'all';
 let nameFilter = '';
@@ -62,7 +63,8 @@ async function initializeFileExplorer() {
 
     loadDirectoryTree('/');
     const filesContainer = document.getElementById('files-container');
-    filesContainer.classList.add('grid-view');
+    filesContainer.classList.toggle('grid-view', viewMode === 'grid');
+    window.setInterval(refreshDirectoryIfChanged, 4000);
 }
 
 async function loadFolderPreferences() {
@@ -100,22 +102,18 @@ async function saveFolderPreferences() {
 function setupEventListeners() {
     document.querySelectorAll('.view-btn').forEach(btn => {
         btn.addEventListener('click', function() {
-            document.querySelectorAll('.view-btn').forEach(b => b.classList.remove('active'));
-            this.classList.add('active');
             viewMode = this.dataset.view;
-            const filesContainer = document.getElementById('files-container');
-            if (viewMode === 'grid') {
-                filesContainer.classList.add('grid-view');
-            } else {
-                filesContainer.classList.remove('grid-view');
-            }
+            localStorage.setItem('fileExplorerViewMode', viewMode);
+            applyViewMode();
         });
     });
 
-    const gridViewBtn = document.querySelector('.view-btn[data-view="grid"]');
-    const listViewBtn = document.querySelector('.view-btn[data-view="list"]');
-    if (gridViewBtn) gridViewBtn.classList.add('active');
-    if (listViewBtn) listViewBtn.classList.remove('active');
+    const savedViewMode = localStorage.getItem('fileExplorerViewMode');
+    viewMode = savedViewMode === 'list' || savedViewMode === 'grid' ? savedViewMode : 'grid';
+    applyViewMode();
+
+    const refreshButton = document.getElementById('refresh-files-btn');
+    if (refreshButton) refreshButton.addEventListener('click', () => loadDirectory(currentPath));
 
     // Setup filter toggle buttons
     setupFilterButtons();
@@ -125,6 +123,17 @@ function setupEventListeners() {
         fileSearch.addEventListener('input', function(e) {
             nameFilter = e.target.value.toLowerCase();
             applyFilters();
+        });
+    }
+
+    const clearFileSearchButton = document.getElementById('clear-file-search');
+    if (clearFileSearchButton) {
+        clearFileSearchButton.addEventListener('click', () => {
+            if (!fileSearch) return;
+            fileSearch.value = '';
+            nameFilter = '';
+            applyFilters();
+            fileSearch.focus();
         });
     }
 
@@ -638,8 +647,47 @@ function showError(message) {
     `;
 }
 
+function applyViewMode() {
+    document.querySelectorAll('.view-btn').forEach(button => {
+        button.classList.toggle('active', button.dataset.view === viewMode);
+    });
+    const filesContainer = document.getElementById('files-container');
+    if (filesContainer) filesContainer.classList.toggle('grid-view', viewMode === 'grid');
+}
+
+function getDirectorySnapshot(files) {
+    return JSON.stringify(files
+        .map(file => [file.path, file.modified, file.size, file.permissions, file.is_directory, file.is_executable])
+        .sort((a, b) => a[0].localeCompare(b[0])));
+}
+
+async function refreshDirectoryIfChanged() {
+    if (document.hidden) return;
+    const path = currentPath;
+    try {
+        const response = await fetch(`/api/files?path=${encodeURIComponent(path)}`, { cache: 'no-store' });
+        const data = await response.json();
+        if (!data.success || path !== currentPath) return;
+
+        const snapshot = getDirectorySnapshot(data.files);
+        if (snapshot === directorySnapshot) return;
+        directorySnapshot = snapshot;
+        allFiles = data.files;
+        applyFilters();
+        highlightActiveDirectory(path);
+    } catch (error) {
+        console.debug('Automatic folder refresh failed:', error);
+    }
+}
+
 // Directory and File Operations
 async function loadDirectory(path) {
+    const pathChanged = path !== currentPath;
+    if (pathChanged) {
+        nameFilter = '';
+        const fileSearch = document.getElementById('file-search');
+        if (fileSearch) fileSearch.value = '';
+    }
     currentPath = path;
     
     // Save the current path to localStorage
@@ -652,11 +700,12 @@ async function loadDirectory(path) {
     updateBreadcrumb(path);
     
     try {
-        const response = await fetch(`/api/files?path=${encodeURIComponent(path)}`);
+        const response = await fetch(`/api/files?path=${encodeURIComponent(path)}`, { cache: 'no-store' });
         const data = await response.json();
         
         if (data.success) {
             allFiles = data.files;
+            directorySnapshot = getDirectorySnapshot(allFiles);
             applyFilters();
             highlightActiveDirectory(path);
         } else {

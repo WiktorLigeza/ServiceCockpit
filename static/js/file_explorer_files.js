@@ -474,11 +474,32 @@ async function displayFileDetails(file) {
                     <div class="detail-row">
                         <span class="detail-label">Chmod:</span>
                         <span class="detail-value">
-                            <div class="chmod-control">
-                                <input type="text" id="chmod-input" class="form-control chmod-input" placeholder="e.g. 644">
-                                <button class="btn btn-sm btn-info" onclick="applyChmod(selectedFile.path)">
-                                    <i class="fas fa-key"></i> Apply
-                                </button>
+                            <div class="chmod-editor">
+                                <div class="chmod-grid" aria-label="Set read, write and execute permissions">
+                                    <span></span><span>Read</span><span>Write</span><span>Execute</span>
+                                    <span>Owner</span>
+                                    <input type="checkbox" data-permission-bit="0400" aria-label="Owner read">
+                                    <input type="checkbox" data-permission-bit="0200" aria-label="Owner write">
+                                    <input type="checkbox" data-permission-bit="0100" aria-label="Owner execute">
+                                    <span>Group</span>
+                                    <input type="checkbox" data-permission-bit="0040" aria-label="Group read">
+                                    <input type="checkbox" data-permission-bit="0020" aria-label="Group write">
+                                    <input type="checkbox" data-permission-bit="0010" aria-label="Group execute">
+                                    <span>Others</span>
+                                    <input type="checkbox" data-permission-bit="0004" aria-label="Others read">
+                                    <input type="checkbox" data-permission-bit="0002" aria-label="Others write">
+                                    <input type="checkbox" data-permission-bit="0001" aria-label="Others execute">
+                                </div>
+                                <div class="chmod-control">
+                                    <input type="text" id="chmod-input" class="form-control chmod-input" inputmode="numeric" maxlength="4" placeholder="e.g. 644" aria-label="Permission mode in octal">
+                                    <button class="btn btn-sm btn-info" onclick="applyChmod(selectedFile.path)">
+                                        <i class="fas fa-key"></i> Apply
+                                    </button>
+                                </div>
+                                <div class="chmod-preview">
+                                    <span>Mode <code id="chmod-mode-preview"></code></span>
+                                    <code id="chmod-symbolic-preview"></code>
+                                </div>
                             </div>
                         </span>
                     </div>
@@ -551,10 +572,86 @@ async function displayFileDetails(file) {
                     </button>
                 </div>
             `;
+            initializeChmodControls(file.permissions);
         }
     } catch (error) {
         console.error('Error loading file details:', error);
     }
+}
+
+function initializeChmodControls(permissions) {
+    const symbolicPreview = document.getElementById('chmod-symbolic-preview');
+    if (symbolicPreview) symbolicPreview.dataset.typeCharacter = permissions?.[0] || '-';
+    const bits = Array.from(document.querySelectorAll('.chmod-grid input[data-permission-bit]'));
+    bits.forEach((checkbox, index) => {
+        checkbox.checked = permissions?.[index + 1] !== '-';
+        checkbox.addEventListener('change', updateChmodFromCheckboxes);
+    });
+
+    const input = document.getElementById('chmod-input');
+    if (!input) return;
+    const specialBits = ((permissions?.[3] === 's' || permissions?.[3] === 'S') ? 4 : 0)
+        + ((permissions?.[6] === 's' || permissions?.[6] === 'S') ? 2 : 0)
+        + ((permissions?.[9] === 't' || permissions?.[9] === 'T') ? 1 : 0);
+    const regularMode = permissionModeFromCheckboxes();
+    input.value = specialBits ? `${specialBits}${regularMode}` : regularMode;
+    input.addEventListener('input', updateChmodFromInput);
+    updateChmodPreview(permissions?.[0] || '-');
+}
+
+function permissionModeFromCheckboxes() {
+    const bits = Array.from(document.querySelectorAll('.chmod-grid input[data-permission-bit]'));
+    const digits = [];
+    for (let group = 0; group < 3; group += 1) {
+        let value = 0;
+        for (let permission = 0; permission < 3; permission += 1) {
+            if (bits[group * 3 + permission]?.checked) value += [4, 2, 1][permission];
+        }
+        digits.push(value);
+    }
+    return digits.join('');
+}
+
+function updateChmodPreview(typeCharacter = null) {
+    const mode = document.getElementById('chmod-input')?.value || '';
+    const modePreview = document.getElementById('chmod-mode-preview');
+    const symbolicPreview = document.getElementById('chmod-symbolic-preview');
+    typeCharacter = typeCharacter || symbolicPreview?.dataset.typeCharacter || '-';
+    if (!/^[0-7]{3,4}$/.test(mode)) {
+        if (modePreview) modePreview.textContent = 'Invalid mode';
+        if (symbolicPreview) symbolicPreview.textContent = '';
+        return;
+    }
+
+    const permissions = mode.slice(-3).split('').map(digit => Number.parseInt(digit, 8));
+    const specialBits = mode.length === 4 ? Number.parseInt(mode[0], 8) : 0;
+    const symbolic = permissions.map(value => `${value & 4 ? 'r' : '-'}${value & 2 ? 'w' : '-'}${value & 1 ? 'x' : '-'}`).join('').split('');
+    if (specialBits & 4) symbolic[2] = permissions[0] & 1 ? 's' : 'S';
+    if (specialBits & 2) symbolic[5] = permissions[1] & 1 ? 's' : 'S';
+    if (specialBits & 1) symbolic[8] = permissions[2] & 1 ? 't' : 'T';
+    if (modePreview) modePreview.textContent = mode;
+    if (symbolicPreview) symbolicPreview.textContent = `${typeCharacter}${symbolic.join('')}`;
+}
+
+function updateChmodFromCheckboxes() {
+    const input = document.getElementById('chmod-input');
+    if (input) {
+        const specialBits = /^[0-7]{4}$/.test(input.value) ? input.value[0] : '';
+        input.value = `${specialBits}${permissionModeFromCheckboxes()}`;
+    }
+    updateChmodPreview();
+}
+
+function updateChmodFromInput() {
+    const input = document.getElementById('chmod-input');
+    if (!input) return;
+    if (/^[0-7]{3,4}$/.test(input.value)) {
+        const values = input.value.slice(-3).split('').map(digit => Number.parseInt(digit, 8));
+        document.querySelectorAll('.chmod-grid input[data-permission-bit]').forEach((checkbox, index) => {
+            checkbox.checked = !!(values[Math.floor(index / 3)] & [4, 2, 1][index % 3]);
+        });
+    }
+    updateChmodPreview();
 }
 
 async function inspectFolder(path, buttonElement) {

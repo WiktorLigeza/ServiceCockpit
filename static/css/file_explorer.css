@@ -279,6 +279,7 @@ body {
 
 .control-group {
     display: flex;
+    flex-wrap: wrap;
     gap: 10px;
     align-items: center;
     flex: 1;
@@ -291,6 +292,26 @@ body {
     border: 1px solid rgba(255,255,255,0.1) !important;
     padding: 0.375rem 0.75rem;
     font-size: 0.875rem;
+}
+
+.file-search-wrap {
+    display: flex;
+    align-items: center;
+    flex: 1 1 280px;
+    min-width: min(100%, 240px);
+}
+
+.file-search-wrap .file-search {
+    min-width: 0;
+    max-width: none;
+    width: 100%;
+    flex: 1 1 auto;
+}
+
+.file-search-clear {
+    height: 38px;
+    flex: 0 0 38px;
+    padding: 0;
 }
 
 .filter-select {
@@ -310,6 +331,56 @@ body {
 .view-controls {
     display: flex;
     gap: 5px;
+    align-items: center;
+}
+
+.directory-watch-status {
+    color: rgba(255,255,255,0.62);
+    font-size: 11px;
+    white-space: nowrap;
+}
+
+.directory-watch-status i {
+    color: #70d6a4;
+    font-size: 7px;
+    vertical-align: 1px;
+}
+
+.chmod-editor {
+    display: grid;
+    gap: 8px;
+    min-width: 200px;
+}
+
+.chmod-grid {
+    display: grid;
+    grid-template-columns: 1fr repeat(3, 42px);
+    align-items: center;
+    gap: 5px;
+    color: #c9d3da;
+    font-size: 11px;
+    text-align: center;
+}
+
+.chmod-grid input {
+    justify-self: center;
+    accent-color: #38b2ac;
+}
+
+.chmod-grid span:first-child {
+    min-height: 1em;
+}
+
+.chmod-preview {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    color: rgba(255,255,255,0.7);
+    font-size: 11px;
+}
+
+.chmod-preview code {
+    color: #75d9c4;
 }
 
 .btn {

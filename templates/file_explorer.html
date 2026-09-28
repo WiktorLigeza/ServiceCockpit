@@ -147,7 +147,12 @@
                     <button class="btn btn-sm btn-warning" id="upload-btn">
                         <i class="fas fa-upload"></i> Upload
                     </button>
-                    <input type="text" class="form-control file-search" id="file-search" placeholder="Search files...">
+                    <div class="file-search-wrap">
+                        <input type="text" class="form-control file-search" id="file-search" placeholder="Search files...">
+                        <button type="button" class="btn btn-sm file-search-clear" id="clear-file-search" title="Clear file search" aria-label="Clear file search">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
                     <select class="form-control filter-select" id="file-filter">
                         <option value="all">All Files</option>
                         <option value="folders">Folders Only</option>
@@ -158,12 +163,18 @@
                     </select>
                 </div>
                 <div class="view-controls">
+                    <button class="btn btn-sm" id="refresh-files-btn" type="button" title="Refresh folder" aria-label="Refresh folder">
+                        <i class="fas fa-sync-alt"></i>
+                    </button>
                     <button class="btn btn-sm view-btn active" data-view="list">
                         <i class="fas fa-list"></i>
                     </button>
                     <button class="btn btn-sm view-btn" data-view="grid">
                         <i class="fas fa-th"></i>
                     </button>
+                    <span class="directory-watch-status" id="directory-watch-status" title="Folder changes are checked automatically">
+                        <i class="fas fa-circle"></i> Watching
+                    </span>
                 </div>
             </div>
             <div id="files-container"></div>
