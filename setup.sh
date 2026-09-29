@@ -34,7 +34,7 @@ After=network.target
 [Service]
 Type=simple
 User=$service_user
-WorkingDirectory="$SCRIPT_DIR"
+WorkingDirectory=$SCRIPT_DIR
 ExecStart="$SCRIPT_DIR/run_server.sh"
 Restart=always
 RestartSec=1s
