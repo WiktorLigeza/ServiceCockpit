@@ -428,24 +428,38 @@ def build_file_explorer_blueprint() -> Blueprint:
     @bp.route('/api/delete', methods=['POST'])
     def delete_item():
         try:
-            data = request.json
-            path = data.get('path')
-            is_directory = data.get('is_directory', False)
+            data = request.get_json(silent=True) or {}
+            paths = data.get('paths')
+            if paths is None:
+                paths = [data.get('path')]
+            if not isinstance(paths, list) or not paths or any(not isinstance(path, str) or not path for path in paths):
+                return jsonify({'success': False, 'error': 'One or more valid paths are required'}), 400
 
-            if not path:
-                return jsonify({'success': False, 'error': 'Path required'})
+            path_objects = [Path(path) for path in paths]
+            missing_paths = [str(path_obj) for path_obj in path_objects if not path_obj.exists() and not path_obj.is_symlink()]
+            if missing_paths:
+                return jsonify({'success': False, 'error': f'Path does not exist: {missing_paths[0]}'}), 404
 
-            path_obj = Path(path)
+            deleted_paths = []
+            errors = []
+            for path_obj in path_objects:
+                try:
+                    if path_obj.is_dir() and not path_obj.is_symlink():
+                        shutil.rmtree(path_obj)
+                    else:
+                        path_obj.unlink()
+                    deleted_paths.append(str(path_obj))
+                except OSError as error:
+                    errors.append({'path': str(path_obj), 'error': str(error)})
 
-            if not path_obj.exists():
-                return jsonify({'success': False, 'error': 'Path does not exist'})
-
-            if is_directory:
-                shutil.rmtree(path_obj)
-            else:
-                path_obj.unlink()
-
-            return jsonify({'success': True})
+            return jsonify(
+                {
+                    'success': not errors,
+                    'deleted_paths': deleted_paths,
+                    'errors': errors,
+                    'error': errors[0]['error'] if errors else None,
+                }
+            )
         except Exception as e:
             return jsonify({'success': False, 'error': str(e)})
 
@@ -510,47 +524,112 @@ def build_file_explorer_blueprint() -> Blueprint:
     @bp.route('/api/paste', methods=['POST'])
     def paste_item():
         try:
-            data = request.json
-            source_path = data.get('source_path')
+            data = request.get_json(silent=True) or {}
+            source_paths = data.get('source_paths')
+            if source_paths is None:
+                source_paths = [data.get('source_path')]
             destination_path = data.get('destination_path')
             is_cut = data.get('is_cut', False)
 
-            if not source_path or not destination_path:
-                return jsonify({'success': False, 'error': 'Source and destination paths required'})
+            if (
+                not isinstance(source_paths, list)
+                or not source_paths
+                or any(not isinstance(path, str) or not path for path in source_paths)
+                or not destination_path
+            ):
+                return jsonify({'success': False, 'error': 'Source paths and destination path are required'}), 400
 
-            source_obj = Path(source_path)
+            conflict_action = data.get('conflict_action')
+            if conflict_action is None:
+                conflict_action = 'keep_both' if 'source_path' in data else 'ask'
+            if conflict_action not in {'ask', 'replace', 'keep_both'}:
+                return jsonify({'success': False, 'error': 'Invalid conflict action'}), 400
+
             dest_dir_obj = Path(destination_path)
-
-            if not source_obj.exists():
-                return jsonify({'success': False, 'error': 'Source does not exist'})
-
             if not dest_dir_obj.is_dir():
-                return jsonify({'success': False, 'error': 'Destination must be a directory'})
+                return jsonify({'success': False, 'error': 'Destination must be a directory'}), 400
 
-            destination_path_obj = dest_dir_obj / source_obj.name
+            source_objects = [Path(path) for path in source_paths]
+            missing_sources = [str(path_obj) for path_obj in source_objects if not path_obj.exists()]
+            if missing_sources:
+                return jsonify({'success': False, 'error': f'Source does not exist: {missing_sources[0]}'}), 404
 
-            if destination_path_obj.exists():
-                base_name = source_obj.stem
-                extension = source_obj.suffix
-                counter = 1
-
-                while destination_path_obj.exists():
-                    if source_obj.is_dir():
-                        new_name = f"{source_obj.name}_copy{counter}"
-                    else:
-                        new_name = f"{base_name}_copy{counter}{extension}"
-                    destination_path_obj = dest_dir_obj / new_name
-                    counter += 1
-
-            if is_cut:
-                shutil.move(str(source_obj), str(destination_path_obj))
-            else:
+            destination_resolved = dest_dir_obj.resolve()
+            for source_obj in source_objects:
                 if source_obj.is_dir():
-                    shutil.copytree(str(source_obj), str(destination_path_obj))
-                else:
-                    shutil.copy2(str(source_obj), str(destination_path_obj))
+                    source_resolved = source_obj.resolve()
+                    if destination_resolved == source_resolved or destination_resolved.is_relative_to(source_resolved):
+                        return jsonify(
+                            {'success': False, 'error': f'Cannot paste a folder into itself or its subdirectory: {source_obj}'}
+                        ), 400
 
-            return jsonify({'success': True})
+            conflicts = []
+            source_destinations = []
+            reserved_destinations = set()
+            for source_obj in source_objects:
+                target_obj = dest_dir_obj / source_obj.name
+                same_source = target_obj.exists() and target_obj.resolve() == source_obj.resolve()
+                target_key = os.path.normcase(str(target_obj.absolute()))
+                target_exists = target_obj.exists() or target_obj.is_symlink()
+                if not same_source and (target_exists or target_key in reserved_destinations):
+                    conflicts.append({'source': str(source_obj), 'destination': str(target_obj)})
+                source_destinations.append((source_obj, target_obj, same_source))
+                reserved_destinations.add(target_key)
+
+            if conflicts and conflict_action == 'ask':
+                return jsonify(
+                    {
+                        'success': False,
+                        'error': 'Destination items already exist',
+                        'conflicts': conflicts,
+                    }
+                ), 409
+
+            completed_paths = []
+            errors = []
+            for source_obj, destination_path_obj, same_source in source_destinations:
+                if is_cut and same_source:
+                    # Moving an item into the folder it already lives in is a no-op
+                    completed_paths.append(str(source_obj))
+                    continue
+                try:
+                    if same_source or (destination_path_obj.exists() or destination_path_obj.is_symlink()):
+                        if conflict_action == 'replace' and not same_source:
+                            if destination_path_obj.is_dir() and not destination_path_obj.is_symlink():
+                                shutil.rmtree(destination_path_obj)
+                            else:
+                                destination_path_obj.unlink()
+                        else:
+                            base_name = source_obj.stem
+                            extension = source_obj.suffix
+                            counter = 1
+
+                            while destination_path_obj.exists() or destination_path_obj.is_symlink():
+                                if source_obj.is_dir():
+                                    new_name = f"{source_obj.name}_copy{counter}"
+                                else:
+                                    new_name = f"{base_name}_copy{counter}{extension}"
+                                destination_path_obj = dest_dir_obj / new_name
+                                counter += 1
+
+                    if is_cut:
+                        shutil.move(str(source_obj), str(destination_path_obj))
+                    elif source_obj.is_dir():
+                        shutil.copytree(str(source_obj), str(destination_path_obj))
+                    else:
+                        shutil.copy2(str(source_obj), str(destination_path_obj))
+                    completed_paths.append(str(source_obj))
+                except OSError as error:
+                    errors.append({'path': str(source_obj), 'error': str(error)})
+
+            return jsonify(
+                {
+                    'success': not errors,
+                    'completed_paths': completed_paths,
+                    'errors': errors,
+                    'error': errors[0]['error'] if errors else None,
+                }
+            )
         except Exception as e:
             return jsonify({'success': False, 'error': str(e)})
 

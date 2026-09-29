@@ -85,6 +85,47 @@ body {
     max-width: 350px;
 }
 
+.selection-details {
+    min-height: 0;
+    overflow: auto;
+}
+
+.selection-size-button {
+    align-self: flex-start;
+    margin: 8px 0;
+}
+
+.selection-size-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-top: 10px;
+    max-height: 45vh;
+    overflow: auto;
+}
+
+.selection-size-item {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 6px 0;
+    border-top: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.selection-size-name {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.selection-size-value {
+    flex-shrink: 0;
+    color: rgba(255, 255, 255, 0.72);
+    font-size: 0.85rem;
+}
+
 .section-title {
     color: #bdbdbd;
     text-shadow: 0 0 10px rgba(0,255,255,0.3);

@@ -21,6 +21,8 @@ async function loadDirectory(path) {
     }
 }
 
+const selectionSizeCache = new Map();
+
 function highlightActiveDirectory(path) {
     document.querySelectorAll('.directory-item').forEach(item => {
         item.classList.remove('active');
@@ -184,6 +186,7 @@ function resetSelection() {
     selectedFiles = [];
     selectedFile = null;
     lastSelectedIndex = -1;
+    selectionSizeCache.clear();
     updateSelectionDetails();
 }
 
@@ -199,31 +202,112 @@ function updateSelectionDetails() {
     if (selectedFiles.length > 1) {
         const dirCount = selectedFiles.filter(f => f.is_directory).length;
         const fileCount = selectedFiles.length - dirCount;
-        const totalSize = selectedFiles
-            .filter(f => !f.is_directory)
-            .reduce((acc, f) => acc + (f.size || 0), 0);
+        const section = document.createElement('div');
+        section.className = 'detail-section selection-details';
 
-        container.innerHTML = `
-            <div class="detail-section">
-                <h3><i class="fas fa-layer-group"></i> ${selectedFiles.length} items selected</h3>
-                <div class="detail-row">
-                    <span class="detail-label">Files:</span>
-                    <span class="detail-value">${fileCount}</span>
-                </div>
-                <div class="detail-row">
-                    <span class="detail-label">Folders:</span>
-                    <span class="detail-value">${dirCount}</span>
-                </div>
-                <div class="detail-row">
-                    <span class="detail-label">Total size:</span>
-                    <span class="detail-value">${formatFileSize(totalSize)}</span>
-                </div>
-            </div>
-        `;
+        const heading = document.createElement('h3');
+        heading.innerHTML = '<i class="fas fa-layer-group"></i> ';
+        heading.append(document.createTextNode(`${selectedFiles.length} items selected`));
+        section.appendChild(heading);
+        section.appendChild(createSelectionDetailRow('Files:', String(fileCount)));
+        section.appendChild(createSelectionDetailRow('Folders:', String(dirCount)));
+
+        const allSizesCalculated = selectedFiles.every(file =>
+            !file.is_directory || selectionSizeCache.has(file.path)
+        );
+        const totalSize = selectedFiles.reduce((total, file) => {
+            const calculatedSize = selectionSizeCache.get(file.path);
+            return total + (file.is_directory ? (calculatedSize || 0) : (file.size || 0));
+        }, 0);
+        section.appendChild(createSelectionDetailRow(
+            'Total size:',
+            allSizesCalculated ? formatFileSize(totalSize) : 'Calculate folder sizes'
+        ));
+
+        if (dirCount) {
+            const calculateButton = document.createElement('button');
+            calculateButton.type = 'button';
+            calculateButton.className = 'btn btn-sm btn-info selection-size-button';
+            calculateButton.innerHTML = '<i class="fas fa-calculator"></i> Calculate folder sizes';
+            calculateButton.addEventListener('click', calculateSelectedSizes);
+            section.appendChild(calculateButton);
+        }
+
+        const itemList = document.createElement('div');
+        itemList.className = 'selection-size-list';
+        selectedFiles.forEach(file => {
+            const row = document.createElement('div');
+            row.className = 'selection-size-item';
+
+            const name = document.createElement('span');
+            name.className = 'selection-size-name';
+            name.textContent = file.name;
+            name.title = file.path;
+
+            const size = document.createElement('span');
+            size.className = 'selection-size-value';
+            const calculatedSize = selectionSizeCache.get(file.path);
+            size.textContent = file.is_directory
+                ? (calculatedSize === undefined ? 'Not calculated' : formatFileSize(calculatedSize))
+                : formatFileSize(file.size || 0);
+
+            row.append(name, size);
+            itemList.appendChild(row);
+        });
+        section.appendChild(itemList);
+        container.replaceChildren(section);
         return;
     }
 
     displayCurrentFolderDetails();
+}
+
+function createSelectionDetailRow(label, value) {
+    const row = document.createElement('div');
+    row.className = 'detail-row';
+    const labelElement = document.createElement('span');
+    labelElement.className = 'detail-label';
+    labelElement.textContent = label;
+    const valueElement = document.createElement('span');
+    valueElement.className = 'detail-value';
+    valueElement.textContent = value;
+    row.append(labelElement, valueElement);
+    return row;
+}
+
+async function calculateSelectedSizes(event) {
+    const targets = selectedFiles.slice();
+    const selectedPaths = targets.map(file => file.path);
+    const button = event.currentTarget;
+    button.disabled = true;
+    button.textContent = 'Calculating...';
+
+    const results = await Promise.all(targets.map(async file => {
+        if (!file.is_directory) return [file.path, file.size || 0];
+        try {
+            const response = await fetch(`/api/folder-size?path=${encodeURIComponent(file.path)}`);
+            const data = await response.json();
+            if (!response.ok || !data.success) throw new Error(data.error || 'Size calculation failed');
+            return [file.path, data.size];
+        } catch (error) {
+            return [file.path, null];
+        }
+    }));
+
+    if (selectedFiles.length !== selectedPaths.length ||
+        !selectedFiles.every((file, index) => file.path === selectedPaths[index])) return;
+
+    selectionSizeCache.clear();
+    results.forEach(([path, size]) => {
+        if (size !== null) selectionSizeCache.set(path, size);
+    });
+    updateSelectionDetails();
+
+    const failedCount = results.filter(([, size]) => size === null).length;
+    showNotification(
+        failedCount ? `Could not calculate ${failedCount} folder size(s)` : 'Selection sizes calculated',
+        failedCount ? 'error' : 'success'
+    );
 }
 
 async function displayCurrentFolderDetails() {
@@ -312,6 +396,7 @@ function setSelectionByPaths(paths, primaryPath) {
 
     const primary = primaryPath ? visibleFileMap.get(primaryPath) : null;
     selectedFile = primary || selectedFiles[selectedFiles.length - 1] || null;
+    selectionSizeCache.clear();
 
     const primaryItem = selectedFile
         ? document.querySelector(`.file-item[data-path="${CSS.escape(selectedFile.path)}"]`)

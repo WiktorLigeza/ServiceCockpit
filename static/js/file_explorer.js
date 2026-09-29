@@ -821,6 +821,9 @@ function displayFiles(files) {
         const fileItem = createFileItem(file, index);
         container.appendChild(fileItem);
     });
+    if (typeof updateCutStyling === 'function') {
+        updateCutStyling();
+    }
 }
 
 // Directory Tree Functions
@@ -1456,28 +1459,33 @@ function showFileContextMenu(x, y, file) {
         });
     }
     
+    const selectionCount = selectedFiles.length;
+    const countSuffix = selectionCount > 1 ? ` (${selectionCount})` : '';
+
     menuItems.push({ type: 'separator' });
     menuItems.push({ 
         icon: 'fa-copy', 
-        text: 'Copy', 
+        text: 'Copy' + countSuffix, 
         action: copyFile 
     });
     menuItems.push({ 
         icon: 'fa-cut', 
-        text: 'Cut', 
+        text: 'Cut' + countSuffix, 
         action: cutFile 
     });
     
     menuItems.push({ type: 'separator' });
-    menuItems.push({ 
-        icon: 'fa-edit', 
-        text: 'Rename', 
-        action: renameFile 
-    });
+    if (selectionCount <= 1) {
+        menuItems.push({ 
+            icon: 'fa-edit', 
+            text: 'Rename', 
+            action: renameFile 
+        });
+    }
     menuItems.push({ 
         icon: 'fa-trash', 
-        text: 'Delete', 
-        action: deleteFile,
+        text: 'Delete' + countSuffix, 
+        action: deleteSelectedFiles,
         class: 'danger'
     });
     menuItems.push({ type: 'separator' });
@@ -1803,50 +1811,6 @@ function filterDirectoryTree(searchTerm) {
             item.style.display = 'none';
         }
     });
-}
-
-async function pasteToDirectory(targetPath) {
-    if (!copiedFile) return;
-    
-    try {
-        const response = await fetch('/api/paste', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                source_path: copiedFilePath,
-                destination_path: targetPath,
-                is_cut: isCutOperation
-            })
-        });
-        
-        const data = await response.json();
-        if (data.success) {
-            showNotification(
-                isCutOperation ? 'Moved successfully' : 'Copied successfully',
-                'success'
-            );
-            
-            // Reset cut operation styling
-            document.querySelectorAll('.file-item').forEach(item => {
-                item.style.opacity = '1';
-            });
-            
-            if (isCutOperation) {
-                copiedFile = null;
-                copiedFilePath = null;
-                isCutOperation = false;
-            }
-            
-            loadDirectory(currentPath);
-            reloadDirectoryInTree(targetPath);
-        } else {
-            showNotification('Failed to paste: ' + data.error, 'error');
-        }
-    } catch (error) {
-        showNotification('Failed to paste: ' + error, 'error');
-    }
 }
 
 function reloadDirectoryInTree(path) {

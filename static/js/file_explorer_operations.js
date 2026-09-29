@@ -55,47 +55,7 @@ async function pasteFile() {
         : (copiedFile ? [{ path: copiedFilePath, is_directory: copiedFile.is_directory, name: copiedFile.name }] : []);
     if (targets.length === 0) return;
     
-    try {
-        for (const item of targets) {
-            const response = await fetch('/api/paste', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    source_path: item.path,
-                    destination_path: currentPath,
-                    is_cut: isCutOperation
-                })
-            });
-            const data = await response.json();
-            if (!data.success) {
-                showNotification('Failed to paste: ' + data.error, 'error');
-                return;
-            }
-        }
-
-        showNotification(
-            isCutOperation ? 'Moved successfully' : 'Copied successfully',
-            'success'
-        );
-        
-        document.querySelectorAll('.file-item').forEach(item => {
-            item.style.opacity = '1';
-        });
-        
-        if (isCutOperation) {
-            copiedFile = null;
-            copiedFilePath = null;
-            copiedFiles = [];
-            isCutOperation = false;
-        }
-        
-        loadDirectory(currentPath);
-        reloadDirectoryInTree(currentPath);
-    } catch (error) {
-        showNotification('Failed to paste: ' + error, 'error');
-    }
+    await pasteItemsToDirectory(targets, currentPath);
 }
 
 async function pasteToDirectory(targetPath) {
@@ -106,43 +66,141 @@ async function pasteToDirectory(targetPath) {
         : (copiedFile ? [{ path: copiedFilePath, is_directory: copiedFile.is_directory, name: copiedFile.name }] : []);
     if (targets.length === 0) return;
     
+    await pasteItemsToDirectory(targets, targetPath);
+}
+
+function isTypingTarget(target) {
+    if (!target) return false;
+    const tag = target.tagName;
+    return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || target.isContentEditable;
+}
+
+function setupKeyboardShortcuts() {
+    document.addEventListener('keydown', (e) => {
+        // Leave shortcuts alone while typing (path bar, search, editor, rename prompts)
+        if (isTypingTarget(e.target)) return;
+        // Let the browser copy text the user highlighted on the page
+        if (window.getSelection && String(window.getSelection())) return;
+
+        // Cmd on Mac, Ctrl on Windows/Linux
+        const mod = e.metaKey || e.ctrlKey;
+        const key = e.key.toLowerCase();
+
+        if (mod && key === 'c' && getSelectedTargets().length) {
+            e.preventDefault();
+            copyFile();
+        } else if (mod && key === 'x' && getSelectedTargets().length) {
+            e.preventDefault();
+            cutFile();
+        } else if (mod && key === 'v' && copiedFiles.length) {
+            e.preventDefault();
+            pasteFile();
+        } else if (mod && key === 'a') {
+            e.preventDefault();
+            setSelectionByPaths(new Set(visibleFiles.map(f => f.path)));
+        } else if ((key === 'delete' || (mod && key === 'backspace')) && getSelectedTargets().length) {
+            // Delete key, or Cmd+Backspace on Mac
+            e.preventDefault();
+            deleteSelectedFiles();
+        } else if (key === 'escape' && selectedFiles.length) {
+            setSelectionByPaths(new Set());
+        }
+    });
+}
+
+function getSelectedTargets() {
+    return selectedFiles.length ? selectedFiles : (selectedFile ? [selectedFile] : []);
+}
+
+function setClipboard(isCut) {
+    const targets = getSelectedTargets();
+    if (targets.length === 0) return 0;
+
+    copiedFiles = targets.map(item => ({ path: item.path, is_directory: item.is_directory, name: item.name }));
+    copiedFile = copiedFiles[0];
+    copiedFilePath = copiedFile.path;
+    isCutOperation = isCut;
+    updateCutStyling();
+    return targets.length;
+}
+
+function updateCutStyling() {
+    const cutPaths = new Set(isCutOperation ? copiedFiles.map(f => f.path) : []);
+    document.querySelectorAll('.file-item').forEach(item => {
+        item.style.opacity = cutPaths.has(item.dataset.path) ? '0.5' : '1';
+    });
+}
+
+function copyFile() {
+    const count = setClipboard(false);
+    if (count) showNotification(`Copied ${count} item(s)`, 'success');
+}
+
+function cutFile() {
+    const count = setClipboard(true);
+    if (count) showNotification(`Cut ${count} item(s)`, 'warning');
+}
+
+async function pasteFile() {
+    await pasteToDirectory(currentPath);
+}
+
+async function pasteToDirectory(targetPath) {
+    if (!copiedFiles.length) return;
+    await pasteItemsToDirectory(copiedFiles.slice(), targetPath);
+}
+
+async function pasteItemsToDirectory(targets, targetPath, conflictAction = 'ask') {
     try {
-        for (const item of targets) {
-            const response = await fetch('/api/paste', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    source_path: item.path,
-                    destination_path: targetPath,
-                    is_cut: isCutOperation
-                })
-            });
-            const data = await response.json();
-            if (!data.success) {
-                showNotification('Failed to paste: ' + data.error, 'error');
-                return;
-            }
+        const wasCutOperation = isCutOperation;
+        const response = await fetch('/api/paste', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                source_paths: targets.map(item => item.path),
+                destination_path: targetPath,
+                is_cut: isCutOperation,
+                conflict_action: conflictAction
+            })
+        });
+        const data = await response.json();
+
+        if (response.status === 409 && Array.isArray(data.conflicts)) {
+            const conflictNames = data.conflicts
+                .map(conflict => conflict.destination.split(/[\\/]/).pop())
+                .join('\n');
+            const replace = confirm(
+                `These destination items already exist:\n${conflictNames}\n\n` +
+                'Choose OK to replace the existing items, or Cancel to keep both.'
+            );
+            await pasteItemsToDirectory(targets, targetPath, replace ? 'replace' : 'keep_both');
+            return;
         }
 
-        showNotification(
-            isCutOperation ? 'Moved successfully' : 'Copied successfully',
-            'success'
-        );
-        
-        document.querySelectorAll('.file-item').forEach(item => {
-            item.style.opacity = '1';
-        });
-        
-        if (isCutOperation) {
-            copiedFile = null;
-            copiedFilePath = null;
-            copiedFiles = [];
-            isCutOperation = false;
+        const completedPaths = new Set(data.completed_paths || []);
+
+        if (wasCutOperation && completedPaths.size) {
+            copiedFiles = copiedFiles.filter(item => !completedPaths.has(item.path));
+            copiedFile = copiedFiles[0] || null;
+            copiedFilePath = copiedFile ? copiedFile.path : null;
+            if (!copiedFiles.length) isCutOperation = false;
         }
-        
-        loadDirectory(currentPath);
+
+        if (!data.success) {
+            const completedCount = completedPaths.size;
+            const failedNames = (data.errors || [])
+                .map(error => error.path.split(/[\\/]/).pop())
+                .join(', ');
+            const error = data.error || 'One or more items could not be pasted';
+            showNotification(
+                `${completedCount}/${targets.length} items pasted. ${failedNames ? `Failed: ${failedNames}. ` : ''}${error}`,
+                'error'
+            );
+        } else {
+            const verb = wasCutOperation ? 'Moved' : 'Copied';
+            showNotification(`${verb} ${completedPaths.size} item(s) successfully`, 'success');
+        }
+        await loadDirectory(currentPath);
         reloadDirectoryInTree(targetPath);
     } catch (error) {
         showNotification('Failed to paste: ' + error, 'error');
@@ -150,37 +208,39 @@ async function pasteToDirectory(targetPath) {
 }
 
 async function deleteSelectedFiles() {
-    const targets = (selectedFiles && selectedFiles.length) ? selectedFiles : (selectedFile ? [selectedFile] : []);
+    const targets = getSelectedTargets().slice();
     if (targets.length === 0) return;
 
     const hasDir = targets.some(item => item.is_directory);
-    const message = hasDir
-        ? `Delete ${targets.length} items (including folders)? This cannot be undone.`
-        : `Delete ${targets.length} files? This cannot be undone.`;
-
+    let message;
+    if (targets.length === 1) {
+        message = hasDir
+            ? `Delete the folder "${targets[0].name}" and all its contents? This cannot be undone.`
+            : `Delete "${targets[0].name}"? This cannot be undone.`;
+    } else {
+        message = `Delete ${targets.length} items${hasDir ? ' (including folders and their contents)' : ''}? This cannot be undone.`;
+    }
     if (!confirm(message)) return;
 
-    for (const item of targets) {
+    try {
         const response = await fetch('/api/delete', {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                path: item.path,
-                is_directory: item.is_directory
-            })
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({paths: targets.map(item => item.path)})
         });
         const data = await response.json();
         if (!data.success) {
-            showNotification('Failed to delete: ' + data.error, 'error');
-            return;
+            showNotification(`${(data.deleted_paths || []).length} item(s) deleted; ${data.error || 'Some items could not be deleted'}`, 'error');
+        } else {
+            showNotification(`Deleted ${targets.length} item(s)`, 'success');
         }
+    } catch (error) {
+        showNotification('Failed to delete: ' + error, 'error');
+        return;
     }
 
-    showNotification('Deleted selection', 'success');
-    loadDirectory(currentPath);
-    reloadDirectoryInTree(currentPath);
+    await loadDirectory(currentPath);
+    if (hasDir) reloadDirectoryInTree(currentPath);
 }
 
 async function createNewFolder() {
@@ -295,45 +355,5 @@ async function renameFile() {
 }
 
 async function deleteFile() {
-    if (selectedFile) {
-        const isDirectory = selectedFile.is_directory;
-        const warningMsg = isDirectory 
-            ? `Are you sure you want to delete the folder "${selectedFile.name}" and all its contents? This action cannot be undone!`
-            : `Are you sure you want to delete "${selectedFile.name}"?`;
-        
-        if (confirm(warningMsg)) {
-            try {
-                const response = await fetch('/api/delete', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        path: selectedFile.path,
-                        is_directory: isDirectory
-                    })
-                });
-                
-                const data = await response.json();
-                if (data.success) {
-                    loadDirectory(currentPath);
-                    if (isDirectory) {
-                        const parentPath = currentPath.substring(0, currentPath.lastIndexOf('/')) || '/';
-                        reloadDirectoryInTree(parentPath);
-                    }
-                    selectedFile = null;
-                    document.getElementById('file-details-container').innerHTML = `
-                        <div class="no-selection">
-                            <i class="fas fa-file-alt"></i>
-                            <p>Select a file or folder to view details</p>
-                        </div>
-                    `;
-                } else {
-                    alert('Failed to delete: ' + data.error);
-                }
-            } catch (error) {
-                alert('Failed to delete: ' + error);
-            }
-        }
-    }
+    await deleteSelectedFiles();
 }
