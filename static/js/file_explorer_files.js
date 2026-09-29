@@ -442,49 +442,84 @@ function setupMultiSelection() {
     const container = document.getElementById('files-container');
     if (!container) return;
 
+    const EDGE_SIZE = 40;
+    const SCROLL_SPEED = 12;
+
     let selectionBox = null;
-    let startX = 0;
-    let startY = 0;
     let isSelecting = false;
     let baseSelection = new Set();
+    let currentPaths = new Set();
+    // Start point is stored in container content coordinates so it stays anchored while scrolling
+    let startContentX = 0;
+    let startContentY = 0;
+    let lastPointer = null;
+    let lastClient = null;
+    let autoScrollFrame = null;
 
-    function updateSelectionBox(currentX, currentY) {
-        const left = Math.min(startX, currentX);
-        const top = Math.min(startY, currentY);
-        const width = Math.abs(currentX - startX);
-        const height = Math.abs(currentY - startY);
+    function pointerFromEvent(e) {
+        return typeof getPointerPosition === 'function'
+            ? getPointerPosition(e)
+            : { x: e.clientX, y: e.clientY };
+    }
 
-        if (selectionBox) {
-            selectionBox.style.left = `${left}px`;
-            selectionBox.style.top = `${top}px`;
-            selectionBox.style.width = `${width}px`;
-            selectionBox.style.height = `${height}px`;
-        }
+    function updateSelectionBox() {
+        if (!selectionBox || !lastPointer) return;
 
+        // Box is positioned in page (zoom-corrected) units, same as the pointer
+        const startX = startContentX - container.scrollLeft;
+        const startY = startContentY - container.scrollTop;
+        selectionBox.style.left = `${Math.min(startX, lastPointer.x)}px`;
+        selectionBox.style.top = `${Math.min(startY, lastPointer.y)}px`;
+        selectionBox.style.width = `${Math.abs(lastPointer.x - startX)}px`;
+        selectionBox.style.height = `${Math.abs(lastPointer.y - startY)}px`;
+
+        // Compare the box's rendered rect with item rects so both are in the same
+        // coordinate space regardless of the page zoom
+        const box = selectionBox.getBoundingClientRect();
         const paths = new Set(baseSelection);
-        const items = Array.from(document.querySelectorAll('.file-item'));
-        items.forEach(item => {
+        document.querySelectorAll('.file-item').forEach(item => {
             const rect = item.getBoundingClientRect();
-            const intersects = rect.right >= left && rect.left <= left + width && rect.bottom >= top && rect.top <= top + height;
-            if (intersects) {
-                paths.add(item.dataset.path);
-            }
+            const intersects = rect.right >= box.left && rect.left <= box.right &&
+                rect.bottom >= box.top && rect.top <= box.bottom;
+            if (intersects) paths.add(item.dataset.path);
         });
 
-        const primaryPath = paths.size ? Array.from(paths).pop() : null;
-        setSelectionByPaths(paths, primaryPath);
+        // Only touch classes while dragging; details panel is updated on mouseup
+        currentPaths = paths;
+        document.querySelectorAll('.file-item').forEach(item => {
+            item.classList.toggle('selected', paths.has(item.dataset.path));
+        });
+    }
+
+    function autoScroll() {
+        autoScrollFrame = null;
+        if (!isSelecting || !lastClient) return;
+
+        const rect = container.getBoundingClientRect();
+        let delta = 0;
+        if (lastClient.y < rect.top + EDGE_SIZE) delta = -SCROLL_SPEED;
+        else if (lastClient.y > rect.bottom - EDGE_SIZE) delta = SCROLL_SPEED;
+
+        if (delta) {
+            const before = container.scrollTop;
+            container.scrollTop += delta;
+            if (container.scrollTop !== before) updateSelectionBox();
+            autoScrollFrame = requestAnimationFrame(autoScroll);
+        }
     }
 
     container.addEventListener('mousedown', (e) => {
         if (e.button !== 0) return;
         if (e.target.closest('.file-item')) return;
+        // Ignore clicks on the scrollbar
+        if (e.target === container && (e.offsetX > container.clientWidth || e.offsetY > container.clientHeight)) return;
 
+        e.preventDefault(); // prevent text selection while dragging
         isSelecting = true;
-        const pos = typeof getPointerPosition === 'function'
-            ? getPointerPosition(e)
-            : { x: e.clientX, y: e.clientY };
-        startX = pos.x;
-        startY = pos.y;
+        lastPointer = pointerFromEvent(e);
+        lastClient = { x: e.clientX, y: e.clientY };
+        startContentX = lastPointer.x + container.scrollLeft;
+        startContentY = lastPointer.y + container.scrollTop;
 
         const keepExisting = e.shiftKey || e.ctrlKey || e.metaKey;
         baseSelection = new Set(keepExisting ? selectedFiles.map(f => f.path) : []);
@@ -492,24 +527,34 @@ function setupMultiSelection() {
         selectionBox = document.createElement('div');
         selectionBox.className = 'selection-box';
         document.body.appendChild(selectionBox);
-        updateSelectionBox(startX, startY);
+        updateSelectionBox();
     });
 
     document.addEventListener('mousemove', (e) => {
         if (!isSelecting) return;
-        const pos = typeof getPointerPosition === 'function'
-            ? getPointerPosition(e)
-            : { x: e.clientX, y: e.clientY };
-        updateSelectionBox(pos.x, pos.y);
+        lastPointer = pointerFromEvent(e);
+        lastClient = { x: e.clientX, y: e.clientY };
+        updateSelectionBox();
+        if (!autoScrollFrame) autoScrollFrame = requestAnimationFrame(autoScroll);
+    });
+
+    container.addEventListener('scroll', () => {
+        if (isSelecting) updateSelectionBox();
     });
 
     document.addEventListener('mouseup', () => {
         if (!isSelecting) return;
         isSelecting = false;
+        if (autoScrollFrame) {
+            cancelAnimationFrame(autoScrollFrame);
+            autoScrollFrame = null;
+        }
         if (selectionBox) {
             selectionBox.remove();
             selectionBox = null;
         }
+        const primaryPath = currentPaths.size ? Array.from(currentPaths).pop() : null;
+        setSelectionByPaths(currentPaths, primaryPath);
     });
 }
 
