@@ -331,10 +331,6 @@
     white-space: nowrap;
 }
 
-.net-iface-sub code {
-    color: var(--net-accent);
-}
-
 .net-iface-rate {
     font-size: 0.75rem;
     text-align: right;
@@ -623,10 +619,6 @@ details.net-section[open] > summary {
 .net-table td.actions .btn {
     padding: 0 8px;
     font-size: 0.78rem;
-}
-
-.net-table code {
-    color: var(--net-accent);
 }
 
 .net-table-wrap {

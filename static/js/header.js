@@ -85,7 +85,7 @@ function renderCpuMenu(perCore) {
     });
 }
 
-// Icon + short label per uplink type (see get_uplink() in cockpit/features/metrics.py)
+// Icon + name per uplink type (see get_uplink() in cockpit/features/metrics.py)
 const UPLINK_TYPES = {
     ethernet: { icon: 'fas fa-ethernet', label: 'Ethernet' },
     wifi: { icon: 'fas fa-wifi', label: 'Wi-Fi' },
@@ -96,35 +96,18 @@ const UPLINK_TYPES = {
     other: { icon: 'fas fa-network-wired', label: 'Network' },
 };
 
-function formatLinkSpeed(mbps) {
-    if (!mbps) return '';
-    return mbps >= 1000 ? `${+(mbps / 1000).toFixed(1)}G` : `${mbps}M`;
-}
-
 function renderConnection(data) {
-    const globe = document.querySelector('#internet-connection .fa-globe');
-    if (globe) {
-        globe.classList.toggle('connected', !!data.has_internet);
-        globe.classList.toggle('disconnected', !data.has_internet);
-    }
-
-    const wrap = document.getElementById('uplink');
+    const icon = document.getElementById('uplink-icon');
     const menu = document.getElementById('uplink-menu-content');
-    if (!wrap) return;
+    if (!icon) return;
     const up = data.uplink;
+    // Icon = connection type (globe when there is no route), colour = online / offline.
+    const type = up ? (UPLINK_TYPES[up.type] || UPLINK_TYPES.other) : { icon: 'fas fa-globe' };
+    icon.className = `${type.icon} uplink-icon${data.has_internet ? '' : ' disconnected'}`;
     if (!up) {
-        wrap.hidden = true;
         if (menu) menu.textContent = `No network route${data.has_internet ? '' : ' - offline'}`;
         return;
     }
-    const type = UPLINK_TYPES[up.type] || UPLINK_TYPES.other;
-    let label = type.label;
-    if (up.type === 'ethernet' && up.speed) label += ` ${formatLinkSpeed(up.speed)}`;
-    if (up.type === 'wifi' && up.signal !== null && up.signal !== undefined) label += ` ${up.signal} dBm`;
-
-    document.getElementById('uplink-icon').className = type.icon;
-    document.getElementById('uplink-label').textContent = label;
-    wrap.hidden = false;
     if (menu) {
         const lines = [
             `Internet: ${data.has_internet ? 'online' : 'offline'}`,

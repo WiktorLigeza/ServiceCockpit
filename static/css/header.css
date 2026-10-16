@@ -217,59 +217,19 @@
     color: rgb(231, 76, 60);
 }
 
-.fa-globe.connected {
-    color: green;
-}
-
-.fa-globe.disconnected {
-    color: red;
-}
-
 /* TODO: Fix tooltip */
 
-/* The globe: green + pulsing when online, red when offline. Scoped to the
-   globe so the uplink icon next to it keeps its own colour. */
-#internet-connection .fa-globe {
+/* Connection indicator: the icon shows the connection type (Ethernet /
+   Wi-Fi / ...), the colour whether the internet is reachable. Details are in
+   the hover menu. */
+#internet-connection .uplink-icon {
     color: lightgreen;
-    animation: pulse-green 2s infinite;
 }
 
-#internet-connection .fa-globe.disconnected {
-    color: red;
-    animation: none;
+#internet-connection .uplink-icon.disconnected {
+    color: #e74c3c;
 }
 
-/* Connection type (Ethernet / Wi-Fi / ...) shown next to the globe */
-#internet-connection .uplink {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-}
-
-#internet-connection .uplink[hidden] {
-    display: none;
-}
-
-#internet-connection .uplink i {
-    color: #9ecbff;
-}
-
-#internet-connection .uplink .metric-value {
-    min-width: 0;
-    white-space: nowrap;
-}
-
-@keyframes pulse-green {
-    0% {
-        box-shadow: 0 0 0 0 rgba(144, 238, 144, 0.7);
-    }
-    70% {
-        box-shadow: 0 0 0 10px rgba(144, 238, 144, 0);
-    }
-    100% {
-        box-shadow: 0 0 0 0 rgba(144, 238, 144, 0);
-    }
-}
 
 /* Sudo modal */
 .sudo-modal {
