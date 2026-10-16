@@ -9,7 +9,7 @@ import subprocess
 
 from flask import Blueprint, jsonify
 
-from repo_export import REPO_ROOT
+from cockpit.paths import PROJECT_ROOT
 
 REMOTE_NAME = 'origin'
 REMOTE_BRANCH = 'main'
@@ -19,7 +19,7 @@ GIT_TIMEOUT = 8
 def _run_git(args: list[str], timeout: int = GIT_TIMEOUT):
     return subprocess.run(
         ['git', *args],
-        cwd=REPO_ROOT,
+        cwd=PROJECT_ROOT,
         capture_output=True,
         text=True,
         timeout=timeout,

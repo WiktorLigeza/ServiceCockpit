@@ -53,7 +53,7 @@ EOF
         exit 1
     fi
 
-    if ! python -c 'from config_store import load_config, save_favorites; name = "PhantomCockpit.service"; favorites = load_config()["services"]["favorites"]; save_favorites(favorites if name in favorites else favorites + [name])'; then
+    if ! python -c 'from cockpit.core.config_store import load_config, save_favorites; name = "PhantomCockpit.service"; favorites = load_config()["services"]["favorites"]; save_favorites(favorites if name in favorites else favorites + [name])'; then
         echo "The service is running, but could not add it to the service favorites in config.json."
         exit 1
     fi

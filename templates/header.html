@@ -44,8 +44,15 @@
                 <div class="metric-menu-content">Storage: Loading...</div>
             </div>
         </div>
-        <div class="nav-item " id="internet-connection" style="width: 50px !important;">
-            <i class='fas fa-globe' style="color: lightgreen; animation: pulse 2s infinite;"></i>
+        <div class="nav-item " id="internet-connection">
+            <i class="fas fa-globe"></i>
+            <span class="uplink" id="uplink" hidden>
+                <i class="fas fa-ethernet" id="uplink-icon"></i>
+                <span class="metric-value" id="uplink-label"></span>
+            </span>
+            <div class="metric-menu">
+                <div class="metric-menu-content" id="uplink-menu-content">Connection: Loading...</div>
+            </div>
         </div>
         <div class="nav-item copyable" id="my-ip" data-copy="true" title="Click to copy IP">
             <i class='fas fa-network-wired'></i>

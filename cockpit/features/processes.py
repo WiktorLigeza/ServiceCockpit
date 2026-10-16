@@ -1,16 +1,18 @@
+"""Processes page: process list with CPU/memory/network usage, per-process
+details and metrics, favorites, and kill (with sudo when needed)."""
+
 from __future__ import annotations
 
 import os
 import signal
 import threading
 import time
-from collections import defaultdict
 
 import psutil
 from flask import Blueprint, jsonify, render_template, request, session
 
-from auth import SUDO_SESSION_KEY, run_sudo
-from config_store import load_config, save_process_favorites
+from cockpit.core.auth import SUDO_SESSION_KEY, run_sudo
+from cockpit.core.config_store import load_config, save_process_favorites
 
 
 def normalize_process_cpu_percent(cpu_percent) -> float:

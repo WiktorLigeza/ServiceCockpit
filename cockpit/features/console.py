@@ -25,7 +25,7 @@ import uuid
 from flask import Blueprint, jsonify, request, session
 from flask_socketio import join_room, leave_room
 
-from auth import SUDO_SESSION_KEY, is_authenticated
+from cockpit.core.auth import SUDO_SESSION_KEY, is_authenticated
 
 
 class _ConsoleSession:

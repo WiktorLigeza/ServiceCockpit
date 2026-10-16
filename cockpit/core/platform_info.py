@@ -5,7 +5,6 @@ Linux box, and Tailscale (if installed) exposes its own IP/status.
 
 import functools
 import json
-import os
 import re
 import shutil
 import subprocess

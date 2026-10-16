@@ -1,11 +1,15 @@
+"""Services page (the start page): systemd service list with live status
+over Socket.IO, start/stop/restart, journal, unit file editing, favorites and
+creating new services."""
+
 import subprocess
 import re
 
 from flask import Blueprint, jsonify, render_template, request, session
 
-from systemd_manager import SystemdManager
-from auth import SUDO_SESSION_KEY, is_authenticated, run_sudo
-from config_store import load_config, save_favorites
+from cockpit.core.systemd import SystemdManager
+from cockpit.core.auth import SUDO_SESSION_KEY, is_authenticated, run_sudo
+from cockpit.core.config_store import load_config, save_favorites
 
 _socketio = None
 

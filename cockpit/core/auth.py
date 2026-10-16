@@ -1,3 +1,10 @@
+"""Login and sudo handling.
+
+Logging in *is* validating the machine's sudo password: it is kept in a
+server-side session (never in a cookie) so features can run privileged
+commands with `run_sudo`. Every page except login/static requires a session.
+"""
+
 from __future__ import annotations
 
 import os
@@ -7,12 +14,26 @@ from typing import Tuple
 
 from flask import Blueprint, jsonify, redirect, render_template, request, session, url_for
 
+from cockpit.paths import SESSION_DIR
+
 SUDO_SESSION_KEY = 'sudo_password'
 AUTH_SESSION_KEY = 'sudo_authenticated'
 
 
 def is_authenticated() -> bool:
     return bool(session.get(AUTH_SESSION_KEY))
+
+
+def require_sudo():
+    """Sudo password from the session for an API call that needs root.
+
+    Returns (password, None), or (None, 401 response). The front end reacts
+    to the 401 'sudo_required' by opening the sudo dialog and retrying.
+    """
+    password = session.get(SUDO_SESSION_KEY)
+    if not password:
+        return None, (jsonify({'success': False, 'error': 'sudo_required', 'message': 'Sudo password required.'}), 401)
+    return password, None
 
 
 def _sudo_validate(password: str) -> Tuple[bool, str]:
@@ -37,7 +58,8 @@ def _sudo_validate(password: str) -> Tuple[bool, str]:
         return False, str(e)
 
 
-def run_sudo(args: list[str], password: str, input_text: str | None = None, check: bool = True):
+def run_sudo(args: list[str], password: str, input_text: str | None = None, check: bool = True,
+             timeout: float | None = None):
     command = ['sudo', '-S', '-p', ''] + args
     stdin = password + '\n'
     if input_text:
@@ -48,6 +70,7 @@ def run_sudo(args: list[str], password: str, input_text: str | None = None, chec
         text=True,
         capture_output=True,
         check=check,
+        timeout=timeout,
     )
 
 
@@ -139,7 +162,7 @@ def configure_session(app):
     app.secret_key = os.environ.get('SECRET_KEY') or os.urandom(32)
     app.config.update(
         SESSION_TYPE='filesystem',
-        SESSION_FILE_DIR=os.path.join(os.path.dirname(__file__), '.flask_session'),
+        SESSION_FILE_DIR=SESSION_DIR,
         SESSION_PERMANENT=False,
         SESSION_USE_SIGNER=True,
         SESSION_COOKIE_HTTPONLY=True,

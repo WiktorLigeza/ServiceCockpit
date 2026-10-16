@@ -1,3 +1,5 @@
+"""systemd access via systemctl / journalctl: list, control, read and edit units."""
+
 import os
 import subprocess
 

@@ -27,9 +27,9 @@ import threading
 import time
 import uuid
 
-from flask import Blueprint, jsonify, render_template, request, session
+from flask import Blueprint, jsonify, render_template, request
 
-from auth import SUDO_SESSION_KEY, is_authenticated, run_sudo
+from cockpit.core.auth import is_authenticated, require_sudo, run_sudo
 
 NAMESPACE = '/bluetooth'
 
@@ -548,7 +548,7 @@ class BluetoothSession:
         for pattern, level in _NOTICE_PATTERNS:
             n = pattern.match(line.strip())
             if n:
-                from bluetooth_services import explain_error
+                from .services import explain_error
                 self._emit('bt_notice', {'level': level, 'message': n.group(1),
                                          'hint': explain_error(n.group(1)) if level == 'error' else ''})
                 if level != 'info':
@@ -745,17 +745,10 @@ def list_devices() -> list[dict]:
 # HTTP
 # --------------------------------------------------------------------------
 
-def _require_sudo():
-    password = session.get(SUDO_SESSION_KEY)
-    if not password:
-        return None, (jsonify({'success': False, 'error': 'sudo_required', 'message': 'Sudo password required.'}), 401)
-    return password, None
-
-
 def _result(ok: bool, output: str = '', status: int = 200, **extra):
     body = {'success': ok, 'output': output, **extra}
     if not ok:
-        from bluetooth_services import explain_error
+        from .services import explain_error
         body['error'] = output or 'Command failed'
         body['hint'] = explain_error(output)
     return jsonify(body), status if ok else (status if status != 200 else 400)
@@ -916,7 +909,7 @@ def build_bluetooth_blueprint() -> Blueprint:
         }
         if action not in commands:
             return _result(False, 'Unknown action')
-        password, error = _require_sudo()
+        password, error = require_sudo()
         if error:
             return error
         if action == 'restart_service' and bt_session:

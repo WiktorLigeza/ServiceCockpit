@@ -1,6 +1,9 @@
+# Python
 venv/
-config.json
+.venv/
 __pycache__/
 *.pyc
-__pycache__/systemd_manager.cpython-311.pyc
-.flask_session
+
+# Local state (per device, may contain secrets)
+config.json
+.flask_session/

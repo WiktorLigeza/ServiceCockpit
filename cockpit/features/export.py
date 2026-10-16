@@ -13,7 +13,7 @@ from datetime import datetime
 
 from flask import Blueprint, send_file
 
-REPO_ROOT = os.path.dirname(os.path.abspath(__file__))
+from cockpit.paths import PROJECT_ROOT
 
 EXCLUDE_DIR_NAMES = {
     'venv', '.venv', 'env',
@@ -49,7 +49,7 @@ def build_repo_zip(archive_name: str = 'ServiceCockpit') -> io.BytesIO:
     buffer = io.BytesIO()
 
     with zipfile.ZipFile(buffer, 'w', zipfile.ZIP_DEFLATED) as zf:
-        for dirpath, dirnames, filenames in os.walk(REPO_ROOT):
+        for dirpath, dirnames, filenames in os.walk(PROJECT_ROOT):
             dirnames[:] = sorted(d for d in dirnames if d not in EXCLUDE_DIR_NAMES)
 
             for filename in sorted(filenames):
@@ -57,7 +57,7 @@ def build_repo_zip(archive_name: str = 'ServiceCockpit') -> io.BytesIO:
                     continue
 
                 file_path = os.path.join(dirpath, filename)
-                rel_path = os.path.relpath(file_path, REPO_ROOT)
+                rel_path = os.path.relpath(file_path, PROJECT_ROOT)
                 arcname = os.path.join(archive_name, rel_path)
 
                 try:

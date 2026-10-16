@@ -1,0 +1,864 @@
+/* Network page - same look as the Bluetooth page */
+:root {
+    --net-accent: #00ffff;
+    --net-text: #bdbdbd;
+    --net-muted: rgba(255, 255, 255, 0.45);
+    --net-surface: rgba(0, 0, 0, 0.25);
+    --net-border: rgba(255, 255, 255, 0.1);
+    --net-ok: #2ecc71;
+    --net-bad: #e74c3c;
+    --net-warn: #f1c40f;
+}
+
+.net-column {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    flex: 0 0 320px;
+    min-width: 0;
+    height: 100%;
+    overflow-y: auto;
+}
+
+.net-column > .net-panel {
+    flex-shrink: 0;
+}
+
+.net-panel {
+    display: flex;
+    flex-direction: column;
+    background: transparent;
+    backdrop-filter: blur(10px);
+    border-radius: 12px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.5);
+    overflow: hidden;
+    min-width: 0;
+    min-height: 0;
+    padding: 1rem;
+    color: var(--net-text);
+}
+
+.net-panel .section-title {
+    margin: 0 0 14px 0;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.net-list-panel {
+    flex: 0.8 1 0;
+    height: 100%;
+}
+
+.net-tabs-panel {
+    flex: 1.4 1 0;
+    height: 100%;
+}
+
+.net-panel .form-control {
+    background: rgba(0, 0, 0, 0.3) !important;
+    color: #fff !important;
+    border: 1px solid var(--net-border) !important;
+}
+
+.net-panel .form-control::placeholder {
+    color: rgba(255, 255, 255, 0.4) !important;
+}
+
+.net-panel select.form-control option {
+    background: #1e1446;
+}
+
+.net-inline {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.net-inline > .form-control {
+    flex: 1;
+    min-width: 0;
+}
+
+.net-inline > .net-narrow,
+.net-narrow {
+    flex: 0 0 auto;
+    width: 90px;
+}
+
+.net-muted {
+    color: var(--net-muted);
+    font-size: 0.85rem;
+}
+
+.net-hint {
+    margin: 4px 0 8px;
+}
+
+.net-empty {
+    color: var(--net-muted);
+    text-align: center;
+    padding: 2rem 1rem;
+}
+
+/* Addresses (MAC, IP, bus...) are wrapped in <code>; Bootstrap colours that
+   pink-red, which reads like an error - use a calm blue everywhere instead. */
+.net-main code,
+.net-modal code {
+    color: #9ecbff;
+    font-size: 0.88em;
+}
+
+.net-yes { color: var(--net-ok) !important; }
+.net-no { color: var(--net-muted) !important; }
+.net-warn-text { color: var(--net-warn) !important; }
+.net-bad-text { color: var(--net-bad) !important; }
+
+/* ---- Overview ---- */
+
+.net-overview {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.net-field label {
+    font-weight: 600;
+    font-size: 0.85rem;
+    margin-bottom: 4px;
+}
+
+.net-kv {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    font-size: 0.9rem;
+}
+
+.net-kv > span:first-child {
+    color: var(--net-muted);
+    flex-shrink: 0;
+}
+
+.net-kv > span:last-child {
+    text-align: right;
+    word-break: break-word;
+    color: #fff;
+}
+
+.net-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.net-traffic {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.net-traffic-row {
+    display: grid;
+    grid-template-columns: 1fr auto auto;
+    gap: 10px;
+    font-size: 0.85rem;
+    align-items: center;
+}
+
+.net-traffic-row .name {
+    color: #fff;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.net-rx { color: #8ff0b4; }
+.net-tx { color: #9ccfff; }
+
+/* Toggle switch */
+.net-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    user-select: none;
+    margin: 0;
+}
+
+.net-toggle input {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.net-toggle-track {
+    position: relative;
+    width: 38px;
+    height: 20px;
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.15);
+    transition: background 0.2s;
+    flex-shrink: 0;
+}
+
+.net-toggle-track::after {
+    content: '';
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: #fff;
+    transition: transform 0.2s;
+}
+
+.net-toggle input:checked + .net-toggle-track { background: #0d9fb8; }
+.net-toggle input:checked + .net-toggle-track::after { transform: translateX(18px); }
+.net-toggle input:focus-visible + .net-toggle-track { outline: 2px solid var(--net-accent); outline-offset: 2px; }
+.net-toggle input:disabled + .net-toggle-track { opacity: 0.4; }
+
+/* ---- Interface list ---- */
+
+.net-filters {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 10px;
+    flex-shrink: 0;
+}
+
+.net-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.net-chip {
+    background: var(--net-surface);
+    border: 1px solid var(--net-border);
+    color: var(--net-text);
+    border-radius: 14px;
+    padding: 2px 12px;
+    font-size: 0.85rem;
+}
+
+.net-chip.active {
+    border-color: var(--net-accent);
+    color: var(--net-accent);
+}
+
+.net-check {
+    font-size: 0.85rem;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin: 0;
+}
+
+.net-count {
+    font-size: 0.9rem;
+    color: var(--net-muted);
+    font-weight: normal;
+}
+
+.net-iface-list {
+    flex: 1;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding-right: 4px;
+}
+
+.net-iface {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 10px 12px;
+    background: var(--net-surface);
+    border: 1px solid transparent;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: border-color 0.15s, background 0.15s;
+}
+
+.net-iface:hover { background: rgba(255, 255, 255, 0.06); }
+.net-iface.selected { border-color: var(--net-accent); }
+
+.net-iface-icon {
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255, 255, 255, 0.08);
+    color: #9ecbff;
+    flex-shrink: 0;
+    position: relative;
+}
+
+.net-iface.up .net-iface-icon {
+    background: rgba(46, 204, 113, 0.2);
+    color: var(--net-ok);
+}
+
+.net-iface.nocarrier .net-iface-icon {
+    background: rgba(241, 196, 15, 0.15);
+    color: var(--net-warn);
+}
+
+.net-iface-main {
+    flex: 1;
+    min-width: 0;
+}
+
+.net-iface-name {
+    color: #fff;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.net-iface-sub {
+    font-size: 0.8rem;
+    color: var(--net-muted);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.net-iface-sub code {
+    color: var(--net-accent);
+}
+
+.net-iface-rate {
+    font-size: 0.75rem;
+    text-align: right;
+    flex-shrink: 0;
+    font-family: monospace;
+    line-height: 1.4;
+}
+
+.net-badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-top: 4px;
+}
+
+.net-badge {
+    font-size: 0.7rem;
+    padding: 1px 7px;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.1);
+    color: var(--net-text);
+    white-space: nowrap;
+}
+
+.net-badge.ok { background: rgba(46, 204, 113, 0.25); color: #8ff0b4; }
+.net-badge.info { background: rgba(52, 152, 219, 0.25); color: #9ccfff; }
+.net-badge.purple { background: rgba(155, 89, 182, 0.3); color: #dcb5ff; }
+.net-badge.warn { background: rgba(241, 196, 15, 0.2); color: #ffe58a; }
+.net-badge.bad { background: rgba(231, 76, 60, 0.3); color: #ffaaa0; }
+
+/* ---- Tabs ---- */
+
+.net-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    border-bottom: 2px solid var(--net-accent);
+    margin-bottom: 12px;
+    flex-shrink: 0;
+}
+
+.net-tab {
+    background: none;
+    border: none;
+    color: var(--net-muted);
+    padding: 8px 12px;
+    border-radius: 8px 8px 0 0;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.net-tab:hover { color: #fff; }
+
+.net-tab.active {
+    color: var(--net-accent);
+    background: rgba(0, 255, 255, 0.08);
+}
+
+.net-tab-pane {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+.net-scroll {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    padding-right: 4px;
+}
+
+/* ---- Details ---- */
+
+.net-details-head {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 12px;
+}
+
+.net-details-head .net-iface-icon {
+    width: 48px;
+    height: 48px;
+    font-size: 1.3rem;
+}
+
+.net-details-title {
+    flex: 1;
+    min-width: 0;
+}
+
+.net-details-title .net-iface-name {
+    font-size: 1.2rem;
+}
+
+.net-details-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 8px;
+}
+
+.net-section {
+    background: var(--net-surface);
+    border: 1px solid var(--net-border);
+    border-radius: 10px;
+    padding: 12px 14px;
+    margin-bottom: 12px;
+}
+
+.net-section > summary,
+.net-section-title {
+    font-weight: 600;
+    color: #fff;
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+details.net-section > summary {
+    cursor: pointer;
+    margin-bottom: 0;
+}
+
+details.net-section[open] > summary {
+    margin-bottom: 10px;
+}
+
+.net-section-title .net-muted,
+.net-section > summary .net-muted {
+    font-weight: normal;
+    margin-left: auto;
+}
+
+.net-props {
+    display: grid;
+    grid-template-columns: max-content 1fr;
+    gap: 4px 16px;
+    font-size: 0.9rem;
+    margin: 0 0 8px;
+}
+
+.net-props dt {
+    color: var(--net-muted);
+    font-weight: normal;
+}
+
+.net-props dd {
+    margin: 0;
+    color: #fff;
+    word-break: break-word;
+}
+
+.net-subtitle {
+    font-weight: 600;
+    font-size: 0.9rem;
+    margin: 10px 0 6px;
+}
+
+.net-form-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    margin-top: 8px;
+}
+
+.net-form-row .form-control {
+    width: auto;
+    min-width: 0;
+}
+
+.net-presets {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.net-preset {
+    background: var(--net-surface);
+    border: 1px solid var(--net-border);
+    color: var(--net-text);
+    border-radius: 6px;
+    padding: 2px 10px;
+    font-size: 0.85rem;
+}
+
+.net-preset:hover:not(:disabled) { border-color: var(--net-accent); color: #fff; }
+.net-preset.current { border-color: var(--net-accent); color: var(--net-accent); }
+.net-preset:disabled { opacity: 0.35; }
+
+.net-modes {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+}
+
+.net-mode {
+    font-family: monospace;
+    font-size: 0.75rem;
+    padding: 1px 6px;
+    border-radius: 4px;
+    background: rgba(255, 255, 255, 0.06);
+    color: var(--net-muted);
+}
+
+.net-mode.adv { color: var(--net-text); }
+.net-mode.both { background: rgba(46, 204, 113, 0.2); color: #8ff0b4; }
+
+.net-note {
+    background: rgba(52, 152, 219, 0.12);
+    border-left: 3px solid #3498db;
+    padding: 8px 12px;
+    border-radius: 4px;
+    font-size: 0.85rem;
+    margin: 8px 0;
+}
+
+.net-note.warn {
+    background: rgba(241, 196, 15, 0.1);
+    border-left-color: var(--net-warn);
+}
+
+.net-note.bad {
+    background: rgba(231, 76, 60, 0.12);
+    border-left-color: var(--net-bad);
+}
+
+.net-features {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+    gap: 6px 14px;
+    font-size: 0.82rem;
+}
+
+.net-features .net-toggle {
+    font-size: 0.82rem;
+}
+
+.net-features .fixed {
+    opacity: 0.5;
+}
+
+/* ---- Tables (Wi-Fi networks, routes, profiles...) ---- */
+
+.net-table {
+    width: 100%;
+    font-size: 0.85rem;
+    border-collapse: collapse;
+    margin-bottom: 8px;
+}
+
+.net-table th {
+    color: var(--net-muted);
+    font-weight: normal;
+    text-align: left;
+    padding: 4px 6px;
+    border-bottom: 1px solid var(--net-border);
+    white-space: nowrap;
+}
+
+.net-table td {
+    padding: 5px 6px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    vertical-align: middle;
+    color: #ddd;
+}
+
+.net-table tr.active td {
+    color: #fff;
+}
+
+.net-table tr.active td:first-child {
+    border-left: 2px solid var(--net-ok);
+}
+
+.net-table td.actions {
+    text-align: right;
+    white-space: nowrap;
+}
+
+.net-table td.actions .btn {
+    padding: 0 8px;
+    font-size: 0.78rem;
+}
+
+.net-table code {
+    color: var(--net-accent);
+}
+
+.net-table-wrap {
+    overflow-x: auto;
+}
+
+.net-signal {
+    display: inline-flex;
+    align-items: flex-end;
+    gap: 2px;
+    height: 12px;
+    vertical-align: middle;
+    margin-right: 6px;
+}
+
+.net-signal span {
+    width: 3px;
+    background: rgba(255, 255, 255, 0.15);
+    border-radius: 1px;
+}
+
+.net-signal span:nth-child(1) { height: 25%; }
+.net-signal span:nth-child(2) { height: 50%; }
+.net-signal span:nth-child(3) { height: 75%; }
+.net-signal span:nth-child(4) { height: 100%; }
+.net-signal span.on { background: var(--net-accent); }
+
+.net-profile-form {
+    display: grid;
+    grid-template-columns: max-content 1fr;
+    gap: 8px 12px;
+    align-items: center;
+    font-size: 0.88rem;
+}
+
+.net-profile-form label {
+    color: var(--net-muted);
+    margin: 0;
+}
+
+.net-secret {
+    font-family: monospace;
+    cursor: pointer;
+    color: var(--net-accent);
+}
+
+.net-log {
+    background: rgba(0, 0, 0, 0.4);
+    border-radius: 6px;
+    padding: 8px 10px;
+    font-family: monospace;
+    font-size: 0.8rem;
+    color: #cfd8dc;
+    white-space: pre-wrap;
+    word-break: break-all;
+    max-height: 260px;
+    overflow-y: auto;
+}
+
+.net-ping-form {
+    margin-bottom: 0;
+}
+
+/* ---- Modals + toasts ---- */
+
+.net-modal {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 20000;
+}
+
+.net-modal[hidden] { display: none; }
+
+.net-modal-card {
+    width: min(460px, 92vw);
+    background: #1c1440;
+    border: 1px solid rgba(0, 255, 255, 0.3);
+    border-radius: 12px;
+    padding: 1.5rem;
+    color: var(--net-text);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.net-modal-title {
+    font-size: 1.2rem;
+    font-weight: bold;
+    color: #fff;
+}
+
+.net-modal-message {
+    white-space: pre-line;
+}
+
+.net-modal-message ol,
+.net-modal-message ul {
+    padding-left: 1.2rem;
+    margin: 6px 0 0;
+    white-space: normal;
+}
+
+.net-modal-card .form-control {
+    background: rgba(0, 0, 0, 0.3);
+    color: #fff;
+    border: 1px solid var(--net-border);
+}
+
+.net-modal-card .form-control::placeholder {
+    color: rgba(255, 255, 255, 0.4);
+}
+
+.net-modal-card select.form-control option {
+    background: #1e1446;
+}
+
+.net-form-fields {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.net-form-fields label {
+    font-size: 0.85rem;
+    margin: 0 0 2px;
+}
+
+.net-form-fields .net-check {
+    font-size: 0.9rem;
+}
+
+.net-modal-error {
+    color: #ff8a80;
+    font-size: 0.9rem;
+}
+
+.net-modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+}
+
+.net-revert-count {
+    font-family: monospace;
+    font-size: 2.4rem;
+    text-align: center;
+    color: var(--net-warn);
+}
+
+.net-pin {
+    font-family: monospace;
+    font-size: 2.2rem;
+    letter-spacing: 0.25em;
+    text-align: center;
+    color: var(--net-accent);
+}
+
+.net-toast-stack {
+    position: fixed;
+    top: 80px;
+    right: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    z-index: 21000;
+    max-width: 420px;
+}
+
+.net-toast {
+    padding: 10px 14px;
+    border-radius: 8px;
+    color: #fff;
+    background: rgba(40, 40, 70, 0.95);
+    border-left: 4px solid #5c7cfa;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+    font-size: 0.9rem;
+    white-space: pre-wrap;
+    transition: opacity 0.3s;
+}
+
+.net-toast.success { border-left-color: var(--net-ok); }
+.net-toast.error { border-left-color: var(--net-bad); }
+.net-toast.fade { opacity: 0; }
+
+@media (max-width: 1100px) {
+    .net-main {
+        flex-direction: column;
+        overflow-y: auto;
+    }
+
+    .net-column,
+    .net-list-panel,
+    .net-tabs-panel {
+        flex: none;
+        height: auto;
+    }
+
+    .net-list-panel,
+    .net-tabs-panel {
+        min-height: 480px;
+    }
+}
+
+/* Scrollbars - same look as the rest of the app */
+.net-main *::-webkit-scrollbar,
+.net-main::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+.net-main *::-webkit-scrollbar-track,
+.net-main::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.1);
+}
+
+.net-main *::-webkit-scrollbar-thumb,
+.net-main::-webkit-scrollbar-thumb {
+    background-color: #00ffff;
+    border-radius: 3px;
+}
+
+.net-main *::-webkit-scrollbar-corner {
+    background: transparent;
+}
+
+.net-main,
+.net-main * {
+    scrollbar-width: thin;
+    scrollbar-color: #00ffff rgba(0, 0, 0, 0.1);
+}

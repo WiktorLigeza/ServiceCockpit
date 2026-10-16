@@ -85,7 +85,60 @@ function renderCpuMenu(perCore) {
     });
 }
 
+// Icon + short label per uplink type (see get_uplink() in cockpit/features/metrics.py)
+const UPLINK_TYPES = {
+    ethernet: { icon: 'fas fa-ethernet', label: 'Ethernet' },
+    wifi: { icon: 'fas fa-wifi', label: 'Wi-Fi' },
+    cellular: { icon: 'fas fa-signal', label: 'Cellular' },
+    tether: { icon: 'fas fa-mobile-alt', label: 'USB tether' },
+    bluetooth: { icon: 'fab fa-bluetooth-b', label: 'Bluetooth' },
+    vpn: { icon: 'fas fa-shield-alt', label: 'VPN' },
+    other: { icon: 'fas fa-network-wired', label: 'Network' },
+};
+
+function formatLinkSpeed(mbps) {
+    if (!mbps) return '';
+    return mbps >= 1000 ? `${+(mbps / 1000).toFixed(1)}G` : `${mbps}M`;
+}
+
+function renderConnection(data) {
+    const globe = document.querySelector('#internet-connection .fa-globe');
+    if (globe) {
+        globe.classList.toggle('connected', !!data.has_internet);
+        globe.classList.toggle('disconnected', !data.has_internet);
+    }
+
+    const wrap = document.getElementById('uplink');
+    const menu = document.getElementById('uplink-menu-content');
+    if (!wrap) return;
+    const up = data.uplink;
+    if (!up) {
+        wrap.hidden = true;
+        if (menu) menu.textContent = `No network route${data.has_internet ? '' : ' - offline'}`;
+        return;
+    }
+    const type = UPLINK_TYPES[up.type] || UPLINK_TYPES.other;
+    let label = type.label;
+    if (up.type === 'ethernet' && up.speed) label += ` ${formatLinkSpeed(up.speed)}`;
+    if (up.type === 'wifi' && up.signal !== null && up.signal !== undefined) label += ` ${up.signal} dBm`;
+
+    document.getElementById('uplink-icon').className = type.icon;
+    document.getElementById('uplink-label').textContent = label;
+    wrap.hidden = false;
+    if (menu) {
+        const lines = [
+            `Internet: ${data.has_internet ? 'online' : 'offline'}`,
+            `Via: ${type.label} (${up.interface})`,
+        ];
+        if (up.ssid) lines.push(`Network: ${up.ssid}`);
+        if (up.signal !== null && up.signal !== undefined) lines.push(`Signal: ${up.signal} dBm`);
+        if (up.speed) lines.push(`Link speed: ${up.speed} Mb/s`);
+        menu.innerHTML = lines.map(l => `<div>${l.replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]))}</div>`).join('');
+    }
+}
+
 function updateMetrics(data) {
+    renderConnection(data);
 
     // CPU Temperature
     const cpuTemp = document.querySelector('#cpu-temp');
@@ -373,17 +426,8 @@ document.addEventListener('DOMContentLoaded', () => {
         fetch('/system_metrics')
             .then(response => response.json())
             .then(data => {
-                // Reuse the same renderer as the socket updates
+                // Same renderer as the socket updates (includes the connection indicator)
                 updateMetrics(data);
-
-                const internetIcon = document.getElementById('internet-connection').querySelector('i');
-                if (data.has_internet) {
-                    internetIcon.classList.remove('disconnected');
-                    internetIcon.classList.add('connected');
-                } else {
-                    internetIcon.classList.remove('connected');
-                    internetIcon.classList.add('disconnected');
-                }
             })
             .catch(error => {
                 console.error('Error fetching system metrics:', error);

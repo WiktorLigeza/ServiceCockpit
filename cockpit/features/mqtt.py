@@ -1,10 +1,13 @@
+"""MQTT Explorer page: one paho-mqtt client per server, bridged to the
+browser over the /mqtt Socket.IO namespace (connect, subscribe, publish)."""
+
 import time
 
 import paho.mqtt.client as mqtt
 from flask import Blueprint, jsonify, render_template
 
-from auth import is_authenticated
-from config_store import get_mqtt_connection_settings, save_mqtt_connection
+from cockpit.core.auth import is_authenticated
+from cockpit.core.config_store import get_mqtt_connection_settings, save_mqtt_connection
 
 
 class MQTTManager:
@@ -176,7 +179,6 @@ def register_mqtt_socket_handlers(socketio):
 
     @socketio.on('mqtt_subscribe', namespace='/mqtt')
     def handle_mqtt_subscribe(data):
-        global mqtt_manager
         if mqtt_manager:
             topic = (data or {}).get('topic', '')
             if topic:
@@ -184,7 +186,6 @@ def register_mqtt_socket_handlers(socketio):
 
     @socketio.on('mqtt_publish', namespace='/mqtt')
     def handle_mqtt_publish(data):
-        global mqtt_manager
         if mqtt_manager:
             topic = (data or {}).get('topic', '')
             payload = (data or {}).get('payload', '')

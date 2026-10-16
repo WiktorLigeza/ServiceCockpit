@@ -1,3 +1,7 @@
+"""File Explorer page: browse, create, rename, move, copy/paste, delete,
+upload/download (zip for folders), view/edit files and run executables with
+live output over Socket.IO."""
+
 import os
 import shlex
 import shutil
@@ -11,13 +15,13 @@ import uuid
 from collections import deque
 from pathlib import Path
 
-from flask import Blueprint, after_this_request, current_app, jsonify, render_template, request, send_file, session
+from flask import Blueprint, current_app, jsonify, render_template, request, send_file, session
 from flask_socketio import join_room, leave_room
 
-from config_store import get_folder_preferences, save_folder_preferences
+from cockpit.core.config_store import get_folder_preferences, save_folder_preferences
 
-from auth import SUDO_SESSION_KEY, is_authenticated
-from command_executor import clean_shell_env
+from cockpit.core.auth import SUDO_SESSION_KEY, is_authenticated
+from cockpit.features.console import clean_shell_env
 
 
 class _ExecSession:

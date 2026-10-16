@@ -1,13 +1,18 @@
+"""Header metrics: CPU / memory / storage / GPU, internet reachability, the
+uplink (which interface and connection type carries traffic), IP and MAC."""
+
 import fcntl
+import os
 import re
 import socket
 import struct
 import subprocess
+import time
 from flask import Blueprint, jsonify
 import psutil
 
-from gpu_monitor import gpu_monitor
-from platform_info import get_platform_info
+from cockpit.core.gpu_monitor import gpu_monitor
+from cockpit.core.platform_info import get_platform_info
 
 
 def get_cpu_temp() -> float:
@@ -51,6 +56,7 @@ def get_system_metrics() -> dict:
         'storage_free': round(disk.free / (1024 * 1024 * 1024), 2),
         'storage_total': round(disk.total / (1024 * 1024 * 1024), 2),
         'has_internet': has_internet,
+        'uplink': get_uplink(),
         'gpu': gpu_monitor.get_latest(),
     }
 
@@ -73,6 +79,83 @@ def _get_default_route_interface() -> str | None:
     except Exception:
         pass
     return None
+
+
+# Kernel interface drivers that are really a phone / modem sharing its connection.
+_TETHER_DRIVERS = {'rndis_host', 'cdc_ether', 'cdc_ncm', 'ipheth', 'cdc_mbim', 'qmi_wwan'}
+_UPLINK_CACHE_SECONDS = 10
+_uplink_cache: tuple[float, dict | None] = (0.0, None)
+
+
+def _sysfs(path: str) -> str:
+    try:
+        with open(path, 'r', encoding='utf-8') as f:
+            return f.read().strip()
+    except Exception:
+        return ''
+
+
+def _classify_interface(name: str) -> str:
+    """ethernet / wifi / cellular / tether / bluetooth / vpn / other - from sysfs only."""
+    base = f'/sys/class/net/{name}'
+    try:
+        driver = os.path.basename(os.readlink(f'{base}/device/driver'))
+    except OSError:
+        driver = ''
+    if os.path.isdir(f'{base}/wireless') or os.path.exists(f'{base}/phy80211'):
+        return 'wifi'
+    if name.startswith(('wwan', 'ppp')) or driver in ('cdc_mbim', 'qmi_wwan'):
+        return 'cellular'
+    if driver in _TETHER_DRIVERS or name.startswith('usb'):
+        return 'tether'
+    if name.startswith('bnep'):
+        return 'bluetooth'
+    if name.startswith(('tun', 'tap', 'wg', 'tailscale', 'zt')) or _sysfs(f'{base}/type') == '65534':
+        return 'vpn'
+    if os.path.exists(f'{base}/device'):
+        return 'ethernet'
+    return 'other'
+
+
+def _wifi_link(name: str) -> dict:
+    try:
+        out = subprocess.run(['iw', 'dev', name, 'link'], capture_output=True, text=True, timeout=2).stdout
+    except Exception:
+        return {}
+    ssid = re.search(r'^\s*SSID: (.*)$', out, re.M)
+    signal = re.search(r'signal: (-?\d+) dBm', out)
+    return {
+        'ssid': ssid.group(1) if ssid else '',
+        'signal': int(signal.group(1)) if signal else None,
+    }
+
+
+def get_uplink() -> dict | None:
+    """The interface carrying the default route and what kind of link it is.
+
+    Cached for a few seconds: the header asks every 2 s and `iw` is not free.
+    """
+    global _uplink_cache
+    stamp, cached = _uplink_cache
+    if time.time() - stamp < _UPLINK_CACHE_SECONDS:
+        return cached
+
+    iface = _get_default_route_interface()
+    uplink = None
+    if iface:
+        kind = _classify_interface(iface)
+        speed = _sysfs(f'/sys/class/net/{iface}/speed')
+        uplink = {
+            'interface': iface,
+            'type': kind,
+            'speed': int(speed) if speed.isdigit() and int(speed) > 0 else None,
+            'ssid': '',
+            'signal': None,
+        }
+        if kind == 'wifi':
+            uplink.update(_wifi_link(iface))
+    _uplink_cache = (time.time(), uplink)
+    return uplink
 
 
 def get_network_info() -> dict:

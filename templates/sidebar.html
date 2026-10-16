@@ -28,6 +28,11 @@
             <i class="fab fa-bluetooth-b"></i>
             <span class="sidebar-label">Bluetooth</span>
         </a>
+        <a class="sidebar-item {% if request.endpoint == 'network.network_page' %}sidebar-active{% endif %}"
+           href="{{ url_for('network.network_page') }}" title="Network">
+            <i class="fas fa-ethernet"></i>
+            <span class="sidebar-label">Network</span>
+        </a>
 
         <div class="sidebar-divider"></div>
 

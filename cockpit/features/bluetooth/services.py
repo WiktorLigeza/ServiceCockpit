@@ -32,11 +32,11 @@ import wave
 
 from flask import Blueprint, jsonify, request, send_file, session
 
-import bluetooth_feature as core
-from auth import SUDO_SESSION_KEY
+from . import controller as core
+from cockpit.core.auth import SUDO_SESSION_KEY
 
 NAMESPACE = core.NAMESPACE
-HELPER_SCRIPT = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'bt_dbus_helper.py')
+HELPER_SCRIPT = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'dbus_helper.py')
 SYSTEM_PYTHON = '/usr/bin/python3'
 OBEXD = '/usr/libexec/bluetooth/obexd'
 RECEIVE_DIR = os.path.expanduser('~/Bluetooth')

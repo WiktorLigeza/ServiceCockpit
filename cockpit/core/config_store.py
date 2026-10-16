@@ -1,7 +1,9 @@
+"""Persistent user settings (favorites, folder preferences, MQTT history) in config.json."""
+
 import json
 import os
 
-CONFIG_FILE = 'config.json'
+from cockpit.paths import CONFIG_FILE
 
 
 MAX_MQTT_CONNECTION_HISTORY = 10

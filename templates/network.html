@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Network - Phantom Cockpit</title>
+    <link rel="icon" type="image/webp" href="{{ url_for('static', filename='images/H2A_Render_Phantom.webp') }}">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/network.css') }}">
+    <script src="https://cdn.socket.io/4.0.1/socket.io.min.js"></script>
+</head>
+<body class="bg-light">
+    {% include 'header.html' %}
+
+    <div class="main-container net-main" id="net-main">
+        <!-- Overview column -->
+        <div class="net-column">
+            <div class="net-panel">
+                <h2 class="section-title">Overview</h2>
+                <div class="net-overview">
+                    <div class="net-field">
+                        <label for="net-hostname">Hostname</label>
+                        <div class="net-inline">
+                            <input type="text" id="net-hostname" class="form-control form-control-sm" maxlength="63">
+                            <button class="btn btn-sm btn-primary" id="net-hostname-save" title="Save hostname"><i class="fas fa-check"></i></button>
+                        </div>
+                    </div>
+                    <div class="net-kv"><span>Managed by</span><span id="net-manager">—</span></div>
+                    <div class="net-kv"><span>Connectivity</span><span id="net-connectivity">—</span></div>
+                    <div class="net-kv"><span>Default gateway</span><span id="net-gateway">—</span></div>
+                    <div class="net-kv"><span>DNS</span><span id="net-dns">—</span></div>
+                    <label class="net-toggle" id="net-wifi-radio-row" hidden>
+                        <input type="checkbox" id="net-wifi-radio">
+                        <span class="net-toggle-track"></span>
+                        <span>Wi-Fi radio</span>
+                    </label>
+                    <div class="net-muted" id="net-wifi-radio-note"></div>
+                    <div class="net-actions">
+                        <button class="btn btn-sm btn-outline-warning" id="net-restart-nm" hidden>
+                            <i class="fas fa-sync-alt"></i> Restart NetworkManager
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="net-panel">
+                <h2 class="section-title">Traffic</h2>
+                <div class="net-traffic" id="net-traffic"><div class="net-muted">Measuring…</div></div>
+            </div>
+        </div>
+
+        <!-- Interfaces column -->
+        <div class="net-panel net-list-panel">
+            <h2 class="section-title">
+                Interfaces
+                <span class="net-count" id="net-iface-count"></span>
+            </h2>
+            <div class="net-filters">
+                <div class="net-chips" id="net-chips">
+                    <button class="net-chip active" data-filter="all">All</button>
+                    <button class="net-chip" data-filter="wired">Wired</button>
+                    <button class="net-chip" data-filter="wireless">Wireless</button>
+                    <button class="net-chip" data-filter="virtual">Virtual</button>
+                </div>
+                <label class="net-check">
+                    <input type="checkbox" id="net-hide-lo" checked> Hide loopback
+                </label>
+            </div>
+            <div class="net-iface-list" id="net-iface-list">
+                <div class="net-empty">Loading…</div>
+            </div>
+        </div>
+
+        <!-- Tabs column -->
+        <div class="net-panel net-tabs-panel">
+            <div class="net-tabs" id="net-tabs" role="tablist">
+                <button class="net-tab active" data-tab="iface"><i class="fas fa-info-circle"></i> Interface</button>
+                <button class="net-tab" data-tab="wifi" id="net-tab-wifi"><i class="fas fa-wifi"></i> Wi-Fi</button>
+                <button class="net-tab" data-tab="p2p" id="net-tab-p2p"><i class="fas fa-exchange-alt"></i> Wi-Fi Direct</button>
+                <button class="net-tab" data-tab="connections"><i class="fas fa-list"></i> Profiles</button>
+                <button class="net-tab" data-tab="routes"><i class="fas fa-route"></i> Routes &amp; DNS</button>
+            </div>
+
+            <div class="net-tab-pane" data-pane="iface">
+                <div class="net-scroll" id="net-details">
+                    <div class="net-empty">Select an interface</div>
+                </div>
+            </div>
+
+            <div class="net-tab-pane" data-pane="wifi" hidden>
+                <div class="net-scroll" id="net-wifi">
+                    <div class="net-empty">Loading…</div>
+                </div>
+            </div>
+
+            <div class="net-tab-pane" data-pane="p2p" hidden>
+                <div class="net-scroll" id="net-p2p">
+                    <div class="net-empty">Loading…</div>
+                </div>
+            </div>
+
+            <div class="net-tab-pane" data-pane="connections" hidden>
+                <div class="net-scroll" id="net-connections">
+                    <div class="net-empty">Loading…</div>
+                </div>
+            </div>
+
+            <div class="net-tab-pane" data-pane="routes" hidden>
+                <div class="net-scroll">
+                    <div class="net-subtitle">Ping</div>
+                    <form class="net-inline net-ping-form" id="net-ping-form" autocomplete="off">
+                        <input type="text" class="form-control form-control-sm" id="net-ping-host" placeholder="Host or IP, e.g. 192.168.0.1">
+                        <input type="number" class="form-control form-control-sm net-narrow" id="net-ping-size" placeholder="Size" min="0" max="65000"
+                               title="Payload size in bytes, sent with fragmentation forbidden. 8972 tests a 9000 MTU path end to end.">
+                        <button class="btn btn-sm btn-primary" type="submit"><i class="fas fa-satellite-dish"></i> Ping</button>
+                    </form>
+                    <div class="net-muted net-hint">Tip: payload 8972 + 28 header bytes = 9000 — tests jumbo frames all the way to the host.</div>
+                    <pre class="net-log" id="net-ping-out" hidden></pre>
+                    <div id="net-routes"><div class="net-empty">Loading…</div></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Generic confirmation -->
+    <div class="net-modal" id="net-confirm-modal" hidden>
+        <div class="net-modal-card">
+            <div class="net-modal-title" id="net-confirm-title"></div>
+            <div class="net-modal-message" id="net-confirm-message"></div>
+            <div class="net-modal-actions">
+                <button class="btn btn-secondary btn-sm" id="net-confirm-cancel">Cancel</button>
+                <button class="btn btn-danger btn-sm" id="net-confirm-ok">Confirm</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Keep / roll back a change on the browser's own interface -->
+    <div class="net-modal" id="net-revert-modal" hidden>
+        <div class="net-modal-card">
+            <div class="net-modal-title"><i class="fas fa-history"></i> Keep these settings?</div>
+            <div class="net-modal-message" id="net-revert-message"></div>
+            <div class="net-revert-count" id="net-revert-count"></div>
+            <div class="net-modal-actions">
+                <button class="btn btn-secondary btn-sm" id="net-revert-undo">Revert now</button>
+                <button class="btn btn-success btn-sm" id="net-revert-keep">Keep</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Form dialog (Wi-Fi password, PIN, hotspot...) -->
+    <div class="net-modal" id="net-form-modal" hidden>
+        <form class="net-modal-card" id="net-form" autocomplete="off">
+            <div class="net-modal-title" id="net-form-title"></div>
+            <div class="net-modal-message" id="net-form-message"></div>
+            <div class="net-form-fields" id="net-form-fields"></div>
+            <div class="net-modal-error" id="net-form-error" hidden></div>
+            <div class="net-modal-actions">
+                <button class="btn btn-secondary btn-sm" type="button" id="net-form-cancel">Cancel</button>
+                <button class="btn btn-primary btn-sm" type="submit" id="net-form-ok">OK</button>
+            </div>
+        </form>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/network.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/network_p2p.js') }}"></script>
+</body>
+</html>
