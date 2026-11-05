@@ -30,6 +30,7 @@ from cockpit.features.export import build_export_blueprint
 from cockpit.features.file_explorer import build_file_explorer_blueprint, register_file_exec_socket_handlers
 from cockpit.features.metrics import build_metrics_blueprint, get_system_metrics
 from cockpit.features.mqtt import build_mqtt_blueprint, mqtt_cleanup_on_shutdown, register_mqtt_socket_handlers
+from cockpit.features.mqtt_broker import build_mqtt_broker_blueprint
 from cockpit.features.network import build_network_blueprint, build_network_p2p_blueprint
 from cockpit.features.processes import build_processes_blueprint
 from cockpit.features.services import (
@@ -64,6 +65,7 @@ def create_app() -> tuple[Flask, SocketIO]:
         build_services_blueprint(),
         build_processes_blueprint(),
         build_mqtt_blueprint(),
+        build_mqtt_broker_blueprint(),
         build_file_explorer_blueprint(),
         build_export_blueprint(),
         build_update_check_blueprint(),

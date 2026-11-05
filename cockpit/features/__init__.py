@@ -6,6 +6,7 @@ Each exposes `build_<name>_blueprint()` and, when it talks over Socket.IO,
 services       Services page (start page) - systemd services
 processes      Processes page
 mqtt           MQTT Explorer page
+mqtt_broker    local Mosquitto broker: detect, install, configure (MQTT page wizard)
 file_explorer  File Explorer page + program runner
 console        Web consoles (root / normal shells)
 bluetooth/     Bluetooth page: adapter, pairing, audio, file transfer, serial

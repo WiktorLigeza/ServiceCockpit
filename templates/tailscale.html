@@ -9,6 +9,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/network.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/setup_wizard.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/tailscale.css') }}">
     <script src="https://cdn.socket.io/4.0.1/socket.io.min.js"></script>
 </head>
@@ -19,23 +20,23 @@
         <div class="ts-loading" id="ts-loading"><i class="fas fa-circle-notch fa-spin"></i> Reading Tailscale status…</div>
 
         <!-- Not installed -->
-        <div class="ts-install" id="ts-install-view" hidden>
-            <div class="net-panel ts-install-card">
-                <div class="ts-install-logo"><i class="fas fa-th"></i></div>
+        <div class="setup-wrap" id="ts-install-view" hidden>
+            <div class="setup-card">
+                <div class="setup-logo"><i class="fas fa-th"></i></div>
                 <h2>Tailscale is not installed</h2>
-                <p class="net-muted">
+                <p class="setup-muted">
                     Tailscale puts this device on your private network (tailnet) so you can reach it
                     from anywhere, without opening ports.
                 </p>
-                <ol class="ts-steps">
-                    <li class="ts-step" id="ts-step-install"><span>1</span> Install Tailscale</li>
-                    <li class="ts-step"><span>2</span> Log in to your tailnet</li>
-                    <li class="ts-step"><span>3</span> Done - this device shows up in your device list</li>
+                <ol class="setup-steps">
+                    <li class="setup-step current"><span>1</span> Install Tailscale</li>
+                    <li class="setup-step"><span>2</span> Log in to your tailnet</li>
+                    <li class="setup-step"><span>3</span> Done - this device shows up in your device list</li>
                 </ol>
-                <button class="btn btn-primary ts-big-btn" id="ts-install-btn">
+                <button class="btn btn-primary setup-big-btn" id="ts-install-btn">
                     <i class="fas fa-download"></i> Install Tailscale
                 </button>
-                <div class="net-muted ts-install-note" id="ts-install-note">
+                <div class="setup-muted" id="ts-install-note">
                     Uses the official install script from tailscale.com. Needs internet access and your sudo password.
                 </div>
             </div>
@@ -175,30 +176,6 @@
         </div>
     </div>
 
-    <!-- Install / update / login progress -->
-    <div class="net-modal" id="ts-job-modal" hidden>
-        <div class="net-modal-card ts-job-card">
-            <div class="net-modal-title" id="ts-job-title"></div>
-            <div class="ts-job-status" id="ts-job-status"></div>
-            <div class="ts-login-url" id="ts-job-login" hidden>
-                <div>Open this link and approve the device:</div>
-                <a id="ts-job-login-link" href="#" target="_blank" rel="noopener"></a>
-                <div class="net-actions">
-                    <a class="btn btn-primary btn-sm" id="ts-job-login-open" href="#" target="_blank" rel="noopener"><i class="fas fa-external-link-alt"></i> Open login page</a>
-                    <button class="btn btn-outline-light btn-sm" id="ts-job-login-copy"><i class="fas fa-copy"></i> Copy link</button>
-                </div>
-            </div>
-            <details class="ts-job-details" id="ts-job-details">
-                <summary>Show log</summary>
-                <pre class="net-log" id="ts-job-log"></pre>
-            </details>
-            <div class="net-modal-actions">
-                <button class="btn btn-secondary btn-sm" id="ts-job-cancel">Cancel</button>
-                <button class="btn btn-primary btn-sm" id="ts-job-close" hidden>Close</button>
-            </div>
-        </div>
-    </div>
-
     <!-- Confirmation -->
     <div class="net-modal" id="ts-confirm-modal" hidden>
         <div class="net-modal-card">
@@ -211,6 +188,7 @@
         </div>
     </div>
 
+    <script src="{{ url_for('static', filename='js/job_modal.js') }}"></script>
     <script src="{{ url_for('static', filename='js/tailscale.js') }}"></script>
 </body>
 </html>

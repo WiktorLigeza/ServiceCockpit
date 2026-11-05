@@ -623,3 +623,49 @@
     background-color: #00ffff;
     border-radius: 3px;
 }
+/* ---- Local broker (Mosquitto) status line + setup wizard ---- */
+
+#mqtt-main.mq-setup-mode > :not(.setup-wrap) {
+    display: none !important;
+}
+
+.mq-broker {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.85rem;
+    color: rgba(255, 255, 255, 0.7);
+    background: rgba(0, 0, 0, 0.25);
+    border-radius: 8px;
+    padding: 6px 10px;
+    margin-bottom: 10px;
+}
+
+.mq-broker[hidden] { display: none; }
+
+.mq-broker #mq-broker-dot { font-size: 0.6rem; }
+.mq-broker.ok #mq-broker-dot { color: #2ecc71; }
+.mq-broker.warn #mq-broker-dot { color: #f1c40f; }
+.mq-broker.off #mq-broker-dot { color: rgba(255, 255, 255, 0.35); }
+
+.mq-broker #mq-broker-text {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.mq-broker-btn {
+    background: none;
+    border: 1px solid rgba(0, 255, 255, 0.4);
+    color: #00ffff;
+    border-radius: 6px;
+    font-size: 0.8rem;
+    padding: 1px 10px;
+    flex-shrink: 0;
+}
+
+.mq-broker-btn:hover {
+    background: rgba(0, 255, 255, 0.1);
+}

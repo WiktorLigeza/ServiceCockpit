@@ -9,17 +9,78 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">    
     <link rel="stylesheet" href="{{ url_for('static', filename='css/mqtt_explorer.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/setup_wizard.css') }}">
     <script src="https://cdn.socket.io/4.0.1/socket.io.min.js"></script>
 </head>
 <body class="bg-light">
     {% include 'header.html' %}
     
-    <div class="main-container">
+    <div class="main-container" id="mqtt-main">
+        <!-- Local broker setup (shown when no broker runs on this device) -->
+        <div class="setup-wrap" id="mq-setup" hidden>
+            <div class="setup-card">
+                <div class="setup-logo"><i class="fas fa-project-diagram"></i></div>
+                <h2 id="mq-setup-title">No MQTT broker on this device</h2>
+                <p class="setup-muted" id="mq-setup-text">
+                    MQTT Explorer needs a broker to talk to. Install Mosquitto here,
+                    or skip and connect to a broker on another machine.
+                </p>
+                <div class="w-100" id="mq-setup-install">
+                <div class="setup-options">
+                    <label class="setup-option">
+                        <input type="radio" name="mq-mode" value="local" checked>
+                        <span>
+                            <span class="setup-option-title">This device only <span class="setup-tag">recommended</span></span>
+                            <span class="setup-option-text d-block">Programs on this machine can publish and subscribe. Nothing is reachable from the network.</span>
+                        </span>
+                    </label>
+                    <label class="setup-option">
+                        <input type="radio" name="mq-mode" value="network">
+                        <span>
+                            <span class="setup-option-title">Local network, no password</span>
+                            <span class="setup-option-text d-block">Any device that can reach this machine can connect. Only for trusted networks.</span>
+                        </span>
+                    </label>
+                    <label class="setup-option">
+                        <input type="radio" name="mq-mode" value="password">
+                        <span>
+                            <span class="setup-option-title">Local network, with username &amp; password</span>
+                            <span class="setup-option-text d-block">Other devices connect with the login you set here.</span>
+                        </span>
+                    </label>
+                </div>
+                <div class="setup-fields" data-fields-for="mq-mode" hidden>
+                    <div>
+                        <label>MQTT username</label>
+                        <input type="text" class="form-control form-control-sm" data-field="username" autocomplete="off" maxlength="64">
+                    </div>
+                    <div>
+                        <label>MQTT password</label>
+                        <input type="password" class="form-control form-control-sm" data-field="password" autocomplete="new-password">
+                    </div>
+                </div>
+                </div>
+                <div class="setup-error" id="mq-setup-error"></div>
+                <div class="setup-actions">
+                    <button class="btn btn-primary setup-big-btn" id="mq-setup-go">
+                        <i class="fas fa-download"></i> Install Mosquitto
+                    </button>
+                </div>
+                <button class="setup-link-btn" id="mq-setup-skip">Skip - connect to another broker</button>
+                <div class="setup-muted" id="mq-setup-note"></div>
+            </div>
+        </div>
+
         <!-- Connection and Publish Column -->
         <div class="connection-publish-column">
             <!-- Connection Panel -->
             <div class="connection-panel">
                 <h2 class="section-title">MQTT Connection</h2>
+                <div class="mq-broker" id="mq-broker" hidden>
+                    <i class="fas fa-circle" id="mq-broker-dot"></i>
+                    <span id="mq-broker-text">Local broker</span>
+                    <button class="mq-broker-btn" id="mq-broker-btn" type="button">Manage</button>
+                </div>
                 <div class="connection-form">
                     <div class="form-row">
                         <div class="form-group">
@@ -172,6 +233,61 @@
         </div>
     </div>
 
+    <!-- Local broker settings -->
+    <div class="job-modal" id="mq-broker-modal" hidden>
+        <div class="job-modal-card">
+            <div class="job-modal-title"><i class="fas fa-server"></i> Local MQTT broker</div>
+            <div id="mq-manage-summary" class="setup-muted"></div>
+            <div class="job-modal-actions justify-content-start" id="mq-manage-service">
+                <button class="btn btn-sm btn-outline-success" data-service="start"><i class="fas fa-play"></i> Start</button>
+                <button class="btn btn-sm btn-outline-warning" data-service="restart"><i class="fas fa-redo"></i> Restart</button>
+                <button class="btn btn-sm btn-outline-danger" data-service="stop"><i class="fas fa-stop"></i> Stop</button>
+            </div>
+            <div class="fw-bold text-white">Who may connect</div>
+                <div class="setup-options">
+                    <label class="setup-option">
+                        <input type="radio" name="mq-manage-mode" value="local" checked>
+                        <span>
+                            <span class="setup-option-title">This device only <span class="setup-tag">recommended</span></span>
+                            <span class="setup-option-text d-block">Programs on this machine can publish and subscribe. Nothing is reachable from the network.</span>
+                        </span>
+                    </label>
+                    <label class="setup-option">
+                        <input type="radio" name="mq-manage-mode" value="network">
+                        <span>
+                            <span class="setup-option-title">Local network, no password</span>
+                            <span class="setup-option-text d-block">Any device that can reach this machine can connect. Only for trusted networks.</span>
+                        </span>
+                    </label>
+                    <label class="setup-option">
+                        <input type="radio" name="mq-manage-mode" value="password">
+                        <span>
+                            <span class="setup-option-title">Local network, with username &amp; password</span>
+                            <span class="setup-option-text d-block">Other devices connect with the login you set here.</span>
+                        </span>
+                    </label>
+                </div>
+                <div class="setup-fields" data-fields-for="mq-manage-mode" hidden>
+                    <div>
+                        <label>MQTT username</label>
+                        <input type="text" class="form-control form-control-sm" data-field="username" autocomplete="off" maxlength="64">
+                    </div>
+                    <div>
+                        <label>MQTT password</label>
+                        <input type="password" class="form-control form-control-sm" data-field="password" autocomplete="new-password">
+                    </div>
+                </div>
+            <div class="setup-muted">Applying rewrites /etc/mosquitto/conf.d/cockpit.conf and restarts Mosquitto. If a firewall is active, allow TCP port 1883 for network access.</div>
+            <div class="setup-error" id="mq-manage-error"></div>
+            <div class="job-modal-actions">
+                <button class="btn btn-secondary btn-sm" id="mq-manage-close">Close</button>
+                <button class="btn btn-primary btn-sm" id="mq-manage-apply"><i class="fas fa-check"></i> Apply</button>
+            </div>
+        </div>
+    </div>
+
     <script src="{{ url_for('static', filename='js/mqtt_explorer.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/job_modal.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/mqtt_broker.js') }}"></script>
 </body>
 </html>

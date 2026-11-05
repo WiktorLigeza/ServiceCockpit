@@ -13,7 +13,7 @@ MQTT, Bluetooth and networking, with live system metrics in the header.
 | --- | --- |
 | **Services** | systemd services with live status, start/stop/restart, journal, unit file editor, favorites, create new services |
 | **Processes** | process list with CPU / memory / network usage, details, favorites, kill |
-| **MQTT Explorer** | connect to a broker, browse topics, subscribe and publish |
+| **MQTT Explorer** | connect to a broker, browse topics, subscribe and publish; when no broker runs on the device, a wizard installs Mosquitto (this device only / local network / username + password) and connects to it |
 | **File Explorer** | browse, edit, upload/download, cut/copy/paste, run programs with live output |
 | **Bluetooth** | adapter settings, scanning and pairing, audio, file transfer (OBEX), serial port |
 | **Network** | interfaces with live throughput, link speed and duplex, MTU / jumbo frames, offloads, Wi-Fi, Wi-Fi Direct, NetworkManager profiles, routes, DNS, ping |
@@ -26,7 +26,8 @@ MQTT, Bluetooth and networking, with live system metrics in the header.
 - Linux with systemd; developed on Raspberry Pi OS (Debian 12), Python 3.11
 - A user with sudo rights - logging in to the cockpit *is* entering that user's sudo password
 - Optional, per feature: `bluez` (Bluetooth), `network-manager`, `ethtool`, `iw`,
-  `wpasupplicant` and `dnsmasq-base` (Network / Wi-Fi Direct), an MQTT broker
+  `wpasupplicant` and `dnsmasq-base` (Network / Wi-Fi Direct). Mosquitto and Tailscale
+  can be installed from their pages
 
 ## Installation
 
@@ -72,12 +73,14 @@ cockpit/                   the application package
 │   ├── auth.py            login, sudo session, run_sudo / require_sudo
 │   ├── config_store.py    config.json settings (favorites, MQTT history, folder prefs)
 │   ├── systemd.py         systemctl / journalctl wrapper
+│   ├── jobs.py            background install/update tasks with a live log (shared by wizards)
 │   ├── platform_info.py   Raspberry Pi / Jetson / generic detection
 │   └── gpu_monitor.py     background GPU sampling
 └── features/              one module or sub-package per page / API
     ├── services.py        Services page
     ├── processes.py       Processes page
     ├── mqtt.py            MQTT Explorer
+    ├── mqtt_broker.py     local Mosquitto: detect, install, configure (MQTT page wizard)
     ├── file_explorer.py   File Explorer and program runner
     ├── console.py         web consoles
     ├── metrics.py         header metrics and uplink detection

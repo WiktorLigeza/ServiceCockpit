@@ -25,12 +25,19 @@ import urllib.request
 from flask import Blueprint, jsonify, render_template, request
 
 from cockpit.core.auth import require_sudo, run_sudo
+from cockpit.core.jobs import NONINTERACTIVE, BackgroundJob, install_commands, package_manager
+from cockpit.core.systemd import process_running
 
 INSTALL_SCRIPT_URL = 'https://tailscale.com/install.sh'
 PKGS_URL = 'https://pkgs.tailscale.com/{track}/?mode=json'
 LATEST_CHECK_INTERVAL = 6 * 3600
 HTTP_TIMEOUT = 8
 LOGIN_URL_RE = re.compile(r'https://\S+/a/\S+')
+# The install script needs curl or wget; minimal systems may have neither.
+CURL_PACKAGES = {
+    'apt-get': ['curl', 'ca-certificates'],
+    'dnf': ['curl'], 'yum': ['curl'], 'zypper': ['curl'], 'pacman': ['curl'], 'apk': ['curl'],
+}
 
 
 # ------------------------------------------------------------------ CLI helpers
@@ -181,13 +188,9 @@ def _update_info(status: dict | None, current: str | None, force: bool = False) 
 
 # ---------------------------------------------------------------- status views
 
-DAEMON_STATES = {'active', 'inactive', 'failed', 'activating', 'deactivating', 'reloading', 'maintenance'}
-
-
 def _daemon_state() -> str:
-    _, out = _run(['systemctl', 'is-active', 'tailscaled'], 8)
-    state = out.strip().splitlines()[-1] if out.strip() else ''
-    return state if state in DAEMON_STATES else 'unknown'
+    # /proc instead of `systemctl is-active`, which can take seconds on a busy device.
+    return 'active' if process_running('tailscaled') else 'inactive'
 
 
 def _peer_view(node: dict, users: dict, exit_node_id: str | None) -> dict:
@@ -255,7 +258,8 @@ def get_tailscale_status(force_update_check: bool = False) -> dict:
     result = {
         'installed': True,
         'binary': binary,
-        'daemon': _daemon_state(),
+        # The CLI answering already proves the daemon runs; only look when it didn't.
+        'daemon': 'active' if status is not None else _daemon_state(),
         'reachable': status is not None,
         'error': None if status is not None else error,
         'version': current,
@@ -356,131 +360,46 @@ def _prefs(password: str | None = None) -> dict | None:
 
 # ------------------------------------------------------------ background jobs
 
-_job_lock = threading.Lock()
-_job: dict = {'id': 0, 'kind': None, 'state': 'idle', 'log': [], 'login_url': None,
-              'started': None, 'finished': None, 'proc': None}
+_job = BackgroundJob(link_pattern=LOGIN_URL_RE.pattern)
 
 
 def _job_view() -> dict:
-    with _job_lock:
-        return {k: (list(v) if k == 'log' else v) for k, v in _job.items() if k != 'proc'}
-
-
-def _job_log(line: str) -> None:
-    line = line.rstrip('\n')
-    with _job_lock:
-        _job['log'].append(line)
-        del _job['log'][:-800]
-        if not _job['login_url']:
-            match = LOGIN_URL_RE.search(line)
-            if match:
-                _job['login_url'] = match.group(0)
-
-
-def _job_stream(args: list[str], password: str, timeout: float, env: dict | None = None) -> bool:
-    """Run `sudo args`, streaming merged output into the job log."""
-    with _job_lock:
-        if _job['state'] == 'cancelled':
-            return False  # don't start the next step of a cancelled job
-    command = ['sudo', '-S', '-p', '']
-    if env:
-        command += ['env', *[f'{k}={v}' for k, v in env.items()]]
-    command += args
-    try:
-        proc = subprocess.Popen(command, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
-                                stderr=subprocess.STDOUT, text=True, bufsize=1)
-    except Exception as e:
-        _job_log(f'Failed to start {args[0]}: {e}')
-        return False
-    with _job_lock:
-        _job['proc'] = proc
-    try:
-        proc.stdin.write(password + '\n')
-        proc.stdin.close()
-    except Exception:
-        pass
-
-    timer = threading.Timer(timeout, proc.kill)
-    timer.start()
-    try:
-        for line in proc.stdout:
-            _job_log(line)
-        code = proc.wait()
-    finally:
-        timer.cancel()
-        with _job_lock:
-            _job['proc'] = None
-    if code < 0:
-        _job_log(f'{args[0]} was stopped (timeout or cancelled).')
-    return code == 0
-
-
-def _start_job(kind: str, steps) -> tuple[bool, str]:
-    with _job_lock:
-        if _job['state'] == 'running':
-            return False, f'Another Tailscale task is still running ({_job["kind"]}).'
-        _job.update({'id': _job['id'] + 1, 'kind': kind, 'state': 'running', 'log': [],
-                     'login_url': None, 'started': time.time(), 'finished': None})
-
-    def runner():
-        try:
-            ok = steps()
-        except Exception as e:
-            _job_log(f'Error: {e}')
-            ok = False
-        with _job_lock:
-            if _job['state'] == 'running':
-                _job['state'] = 'done' if ok else 'failed'
-            _job['finished'] = time.time()
-
-    threading.Thread(target=runner, daemon=True).start()
-    return True, ''
+    return _job.view()
 
 
 def _package_manager() -> str | None:
-    for name in ('apt-get', 'dnf', 'yum', 'zypper', 'pacman', 'apk'):
-        if shutil.which(name):
-            return name
-    return None
-
-
-_CURL_INSTALL = {
-    'apt-get': [['apt-get', 'update'], ['apt-get', 'install', '-y', 'curl', 'ca-certificates']],
-    'dnf': [['dnf', 'install', '-y', 'curl']],
-    'yum': [['yum', 'install', '-y', 'curl']],
-    'zypper': [['zypper', '--non-interactive', 'install', 'curl']],
-    'pacman': [['pacman', '-Sy', '--noconfirm', '--needed', 'curl']],
-    'apk': [['apk', 'add', 'curl']],
-}
+    return package_manager()
 
 
 def _run_install_script(password: str) -> bool:
     # The official script fetches repo keys with curl or wget; minimal installs may have neither.
     if not shutil.which('curl') and not shutil.which('wget'):
-        manager = _package_manager()
-        _job_log('curl/wget not found - installing curl first...')
-        for cmd in _CURL_INSTALL.get(manager, []):
-            _job_log(f'$ {" ".join(cmd)}')
-            if not _job_stream(cmd, password, 600, env={'DEBIAN_FRONTEND': 'noninteractive'}):
-                _job_log('Could not install curl.')
+        _job.log('curl/wget not found - installing curl first...')
+        commands = install_commands(package_manager(), CURL_PACKAGES)
+        if not commands:
+            _job.log('No supported package manager found to install curl.')
+            return False
+        for cmd in commands:
+            if not _job.stream(cmd, password, 600, env=NONINTERACTIVE, echo=True):
+                _job.log('Could not install curl.')
                 return False
 
-    _job_log(f'Downloading {INSTALL_SCRIPT_URL} ...')
+    _job.log(f'Downloading {INSTALL_SCRIPT_URL} ...')
     try:
         req = urllib.request.Request(INSTALL_SCRIPT_URL, headers={'User-Agent': 'ServiceCockpit'})
         with urllib.request.urlopen(req, timeout=30) as resp:
             script = resp.read()
     except Exception as e:
-        _job_log(f'Download failed: {e}')
-        _job_log('Check that this device can reach tailscale.com.')
+        _job.log(f'Download failed: {e}')
+        _job.log('Check that this device can reach tailscale.com.')
         return False
 
     fd, path = tempfile.mkstemp(prefix='tailscale-install-', suffix='.sh')
     try:
         with os.fdopen(fd, 'wb') as f:
             f.write(script)
-        _job_log('Running the official Tailscale install script (this can take a few minutes)...')
-        ok = _job_stream(['sh', path], password, 900, env={'DEBIAN_FRONTEND': 'noninteractive'})
+        _job.log('Running the official Tailscale install script (this can take a few minutes)...')
+        ok = _job.stream(['sh', path], password, 900, env=NONINTERACTIVE)
     finally:
         try:
             os.unlink(path)
@@ -492,8 +411,7 @@ def _run_install_script(password: str) -> bool:
 def _ensure_daemon(password: str) -> bool:
     if not shutil.which('systemctl'):
         return True
-    _job_log('$ systemctl enable --now tailscaled')
-    return _job_stream(['systemctl', 'enable', '--now', 'tailscaled'], password, 60)
+    return _job.stream(['systemctl', 'enable', '--now', 'tailscaled'], password, 60, echo=True)
 
 
 def start_install(password: str) -> tuple[bool, str]:
@@ -501,31 +419,31 @@ def start_install(password: str) -> tuple[bool, str]:
         if not _run_install_script(password):
             return False
         if not _binary():
-            _job_log('The install script finished but the tailscale command was not found.')
+            _job.log('The install script finished but the tailscale command was not found.')
             return False
         _ensure_daemon(password)
-        _job_log(f'Installed {_client_version() or "Tailscale"}. Next: log in to your tailnet.')
+        _job.log(f'Installed {_client_version() or "Tailscale"}. Next: log in to your tailnet.')
         return True
-    return _start_job('install', steps)
+    return _job.start('install', steps)
 
 
 def start_update(password: str) -> tuple[bool, str]:
     def steps():
         before = _client_version()
         binary = _binary()
-        _job_log('$ tailscale update --yes')
-        ok = _job_stream([binary, 'update', '--yes'], password, 900, env={'DEBIAN_FRONTEND': 'noninteractive'})
+        _job.log('$ tailscale update --yes')
+        ok = _job.stream([binary, 'update', '--yes'], password, 900, env=NONINTERACTIVE)
         if not ok:
-            _job_log('`tailscale update` did not work here; updating through the install script instead.')
+            _job.log('`tailscale update` did not work here; updating through the install script instead.')
             ok = _run_install_script(password)
         if ok:
             _ensure_daemon(password)
             after = _client_version()
-            _job_log(f'Version: {before} -> {after}' if after != before else f'Version: {after}')
+            _job.log(f'Version: {before} -> {after}' if after != before else f'Version: {after}')
             # Re-check so the header badge clears straight away.
             _latest_version(_track(after), force=True)
         return ok
-    return _start_job('update', steps)
+    return _job.start('update', steps)
 
 
 def _supports(flag: str) -> bool:
@@ -556,10 +474,10 @@ def start_login(password: str, auth_key: str = '', hostname: str = '') -> tuple[
 
     def steps():
         try:
-            _job_log('Logging in...' if auth_key else 'Starting browser login - open the link below to approve this device.')
-            ok = _job_stream(args, password, 600)
+            _job.log('Logging in...' if auth_key else 'Starting browser login - open the link below to approve this device.')
+            ok = _job.stream(args, password, 600)
             if ok:
-                _job_log('Logged in.')
+                _job.log('Logged in.')
             return ok
         finally:
             if key_file:
@@ -567,22 +485,11 @@ def start_login(password: str, auth_key: str = '', hostname: str = '') -> tuple[
                     os.unlink(key_file)
                 except OSError:
                     pass
-    return _start_job('login', steps)
+    return _job.start('login', steps)
 
 
 def cancel_job() -> bool:
-    with _job_lock:
-        proc = _job['proc']
-        if _job['state'] != 'running':
-            return False
-        _job['state'] = 'cancelled'
-    if proc:
-        try:
-            proc.terminate()
-        except Exception:
-            pass
-    _job_log('Cancelled.')
-    return True
+    return _job.cancel()
 
 
 # ---------------------------------------------------------------- blueprint

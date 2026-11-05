@@ -161,3 +161,35 @@ class SystemdManager:
             return True
         except Exception:
             return False
+
+
+# Cheap checks for status pages that poll. `systemctl is-active` goes through
+# D-Bus to PID 1 and can take several seconds on a loaded Pi / Jetson, so
+# these read /proc and the unit symlinks directly instead.
+
+def process_running(name: str) -> bool:
+    """True if a process whose command name is `name` exists."""
+    try:
+        pids = [p for p in os.listdir('/proc') if p.isdigit()]
+    except OSError:
+        return False
+    for pid in pids:
+        try:
+            with open(f'/proc/{pid}/comm') as f:
+                if f.read().strip() == name:
+                    return True
+        except OSError:
+            continue
+    return False
+
+
+def unit_enabled(unit: str) -> bool:
+    """True if `unit` is enabled for boot (has a *.wants/ symlink)."""
+    for base in ('/etc/systemd/system', '/lib/systemd/system', '/usr/lib/systemd/system'):
+        try:
+            for entry in os.listdir(base):
+                if entry.endswith('.wants') and os.path.lexists(os.path.join(base, entry, unit)):
+                    return True
+        except OSError:
+            continue
+    return False

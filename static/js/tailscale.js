@@ -5,8 +5,6 @@ let tsFilter = 'all';
 let tsSearch = '';
 let tsSelected = null;          // {type: 'device'|'user', id}
 let tsPollTimer = null;
-let tsJobTimer = null;
-let tsJobShownId = null;
 let tsConfirmAction = null;
 let tsBusy = false;
 
@@ -20,11 +18,25 @@ const TS_OS_ICONS = {
     tvos: 'fas fa-tv',
 };
 
-const TS_JOB_TITLES = {
-    install: '<i class="fas fa-download"></i> Installing Tailscale',
-    update: '<i class="fas fa-arrow-circle-up"></i> Updating Tailscale',
-    login: '<i class="fas fa-sign-in-alt"></i> Logging in to Tailscale',
-};
+const tsJobModal = new JobModal({
+    jobUrl: '/api/tailscale/job',
+    cancelUrl: '/api/tailscale/job/cancel',
+    titles: {
+        install: '<i class="fas fa-download"></i> Installing Tailscale',
+        update: '<i class="fas fa-arrow-circle-up"></i> Updating Tailscale',
+        login: '<i class="fas fa-sign-in-alt"></i> Logging in to Tailscale',
+    },
+    doneText: { install: 'Tailscale is installed.', update: 'Tailscale is updated.', login: 'Logged in.' },
+    linkText: 'Open this link and approve the device:',
+    linkButton: 'Open login page',
+    waitingText: 'Waiting for you to approve this device in the browser…',
+    // A login ends by itself once the browser approves; keep the page in step.
+    onPoll: job => { if (job.kind === 'login') loadTsStatus(); },
+    onFinish: job => {
+        loadTsStatus();
+        if (job.state === 'done' && job.kind === 'install') tsToast('Tailscale installed. Now log in.', 'success', 6000);
+    },
+});
 
 document.addEventListener('DOMContentLoaded', () => {
     setupTsListeners();
@@ -249,15 +261,6 @@ function setupTsListeners() {
         if (action) action();
     });
 
-    tsEl('ts-job-close').addEventListener('click', () => {
-        tsEl('ts-job-modal').hidden = true;
-        loadTsStatus();
-    });
-    tsEl('ts-job-cancel').addEventListener('click', async () => {
-        await tsApi('/api/tailscale/job/cancel', {});
-        pollTsJob();
-    });
-    tsEl('ts-job-login-copy').addEventListener('click', () => tsCopy(tsEl('ts-job-login-link').href));
 
     document.addEventListener('visibilitychange', () => {
         if (!document.hidden) loadTsStatus();
@@ -286,7 +289,7 @@ async function loadTsStatus(checkUpdate = false) {
             else if (u.latest) tsToast('Tailscale is up to date.', 'success');
             else if (u.error) tsToast(u.error, 'error', 6000);
         }
-        if (tsStatus.job?.state === 'running') showTsJob();
+        if (tsStatus.job?.state === 'running' && tsJobModal.el?.hidden !== false) tsJobModal.show();
     }
     // Poll less often when nothing changes much (not installed / not logged in uses the job poller).
     if (!document.hidden) tsPollTimer = setTimeout(loadTsStatus, 5000);
@@ -316,7 +319,7 @@ function renderTsSelf() {
     const badge = tsEl('ts-state-badge');
     const state = !s.reachable ? 'ServiceDown' : s.backend_state;
     const stateClass = { Running: 'ok', Stopped: 'warn', NeedsLogin: 'warn', NeedsMachineAuth: 'warn', Starting: 'info' }[state] || 'bad';
-    const stateLabel = { Running: 'Connected', Stopped: 'Disconnected', NeedsLogin: 'Logged out', NeedsMachineAuth: 'Waiting for approval', NoState: 'Starting', ServiceDown: 'Stopped' }[state] || state || 'Unknown';
+    const stateLabel = { Running: 'Connected', Stopped: 'Disconnected', NeedsLogin: 'Logged out', NeedsMachineAuth: 'Pending approval', NoState: 'Starting', ServiceDown: 'Stopped' }[state] || state || 'Unknown';
     badge.className = `net-badge ${stateClass}`;
     badge.textContent = stateLabel;
 
@@ -705,14 +708,8 @@ async function tsStartDaemon() {
 }
 
 async function tsStartJob(url, body, retry) {
-    const res = await tsApi(url, body, retry);
-    if (res.ok) {
-        tsJobShownId = null;
-        showTsJob();
-    } else if (!res.sudo) {
-        tsToast(res.data.error || 'Could not start.', 'error', 8000);
-        if (res.status === 409) showTsJob();
-    }
+    const res = await tsJobModal.start(url, body, retry);
+    if (!res.ok && !res.sudo) tsToast(res.error || 'Could not start.', 'error', 8000);
 }
 
 function tsInstall() {
@@ -734,68 +731,4 @@ function tsLogin(withKey) {
     if (withKey) body.auth_key = tsEl('ts-auth-key').value.trim();
     tsStartJob('/api/tailscale/login', body, () => tsLogin(withKey));
     if (withKey) tsEl('ts-auth-key').value = '';
-}
-
-// ---------------------------------------------------------------- job modal
-
-function showTsJob() {
-    tsEl('ts-job-modal').hidden = false;
-    pollTsJob();
-}
-
-async function pollTsJob() {
-    clearTimeout(tsJobTimer);
-    const res = await tsApi('/api/tailscale/job');
-    const job = res.data || {};
-    if (!job.kind) {
-        tsEl('ts-job-modal').hidden = true;
-        return;
-    }
-    renderTsJob(job);
-    if (job.state === 'running') {
-        tsJobTimer = setTimeout(pollTsJob, 1000);
-        // A login job ends by itself once the browser approves; watch status meanwhile.
-        if (job.kind === 'login') loadTsStatus();
-    } else if (tsJobShownId !== job.id) {
-        tsJobShownId = job.id;
-        loadTsStatus();
-        if (job.state === 'done' && job.kind === 'install') {
-            tsToast('Tailscale installed. Now log in.', 'success', 6000);
-        }
-    }
-}
-
-function renderTsJob(job) {
-    const running = job.state === 'running';
-    tsEl('ts-job-title').innerHTML = TS_JOB_TITLES[job.kind] || 'Tailscale';
-
-    const status = tsEl('ts-job-status');
-    const last = [...(job.log || [])].reverse().find(l => l.trim()) || '';
-    const labels = {
-        running: `<i class="fas fa-circle-notch fa-spin"></i> ${job.kind === 'login' && job.login_url
-            ? 'Waiting for you to approve this device in the browser…'
-            : tsEscape(last.slice(0, 140) || 'Working…')}`,
-        done: `<i class="fas fa-check-circle net-yes"></i> ${{ install: 'Tailscale is installed.', update: 'Tailscale is updated.', login: 'Logged in.' }[job.kind] || 'Done.'}`,
-        failed: '<i class="fas fa-times-circle net-bad-text"></i> Failed - see the log below.',
-        cancelled: '<i class="fas fa-ban net-warn-text"></i> Cancelled.',
-    };
-    status.innerHTML = labels[job.state] || '';
-
-    const loginBox = tsEl('ts-job-login');
-    const showLogin = job.kind === 'login' && running && job.login_url;
-    loginBox.hidden = !showLogin;
-    if (showLogin) {
-        tsEl('ts-job-login-link').href = job.login_url;
-        tsEl('ts-job-login-link').textContent = job.login_url;
-        tsEl('ts-job-login-open').href = job.login_url;
-    }
-
-    const log = tsEl('ts-job-log');
-    const atBottom = log.scrollTop + log.clientHeight >= log.scrollHeight - 8;
-    log.textContent = (job.log || []).join('\n');
-    if (atBottom) log.scrollTop = log.scrollHeight;
-    if (job.state === 'failed') tsEl('ts-job-details').open = true;
-
-    tsEl('ts-job-cancel').hidden = !running;
-    tsEl('ts-job-close').hidden = running;
 }

@@ -1,0 +1,320 @@
+/* Shared "not installed -> install" wizard card and the install/update progress
+   dialog (job_modal.js). Used by the Tailscale and MQTT Explorer pages. */
+
+:root {
+    --setup-accent: #00ffff;
+    --setup-text: #bdbdbd;
+    --setup-muted: rgba(255, 255, 255, 0.5);
+    --setup-surface: rgba(0, 0, 0, 0.25);
+    --setup-border: rgba(255, 255, 255, 0.12);
+    --setup-ok: #2ecc71;
+    --setup-bad: #e74c3c;
+    --setup-warn: #f1c40f;
+}
+
+.setup-wrap {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow-y: auto;
+}
+
+.setup-wrap[hidden] { display: none !important; }
+
+.setup-card {
+    width: min(540px, 100%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 14px;
+    padding: 2.5rem 2rem;
+    margin: auto;
+    color: var(--setup-text);
+    backdrop-filter: blur(10px);
+    border-radius: 12px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.5);
+}
+
+.setup-card h2 {
+    color: #fff;
+    font-size: 1.5rem;
+    margin: 0;
+}
+
+.setup-card p {
+    margin: 0;
+    max-width: 420px;
+}
+
+.setup-muted {
+    color: var(--setup-muted);
+    font-size: 0.85rem;
+}
+
+.setup-logo {
+    width: 72px;
+    height: 72px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2rem;
+    color: var(--setup-accent);
+    background: rgba(0, 255, 255, 0.08);
+    border: 1px solid rgba(0, 255, 255, 0.3);
+}
+
+.setup-steps {
+    list-style: none;
+    padding: 0;
+    margin: 6px 0;
+    text-align: left;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.setup-step {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.setup-step span {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.8rem;
+    font-weight: 700;
+    background: rgba(255, 255, 255, 0.1);
+    color: #fff;
+    flex-shrink: 0;
+}
+
+.setup-step.current span {
+    background: var(--setup-accent);
+    color: #1c1440;
+}
+
+.setup-actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 10px;
+}
+
+.setup-big-btn {
+    padding: 10px 28px;
+    font-size: 1.05rem;
+    font-weight: 600;
+}
+
+.setup-link-btn {
+    background: none;
+    border: none;
+    color: var(--setup-muted);
+    text-decoration: underline;
+    font-size: 0.9rem;
+    padding: 6px;
+}
+
+.setup-link-btn:hover {
+    color: #fff;
+}
+
+/* styles.css tints .btn-warning icons yellow, which vanishes on a yellow button */
+.setup-card .btn-warning i,
+.job-modal .btn-warning i {
+    color: inherit;
+    filter: none;
+}
+
+/* ---- choice cards (e.g. who may connect) ---- */
+
+.setup-options {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    text-align: left;
+}
+
+.setup-option {
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+    padding: 10px 12px;
+    border-radius: 8px;
+    background: var(--setup-surface);
+    border: 1px solid var(--setup-border);
+    cursor: pointer;
+    margin: 0;
+    transition: border-color 0.15s;
+}
+
+.setup-option:hover {
+    border-color: rgba(0, 255, 255, 0.4);
+}
+
+.setup-option:has(input:checked) {
+    border-color: var(--setup-accent);
+    background: rgba(0, 255, 255, 0.06);
+}
+
+.setup-option input[type=radio] {
+    margin-top: 4px;
+    accent-color: var(--setup-accent);
+}
+
+.setup-option-title {
+    color: #fff;
+    font-weight: 600;
+}
+
+.setup-option-text {
+    color: var(--setup-muted);
+    font-size: 0.85rem;
+}
+
+.setup-tag {
+    font-size: 0.7rem;
+    padding: 1px 7px;
+    border-radius: 8px;
+    margin-left: 6px;
+    background: rgba(46, 204, 113, 0.25);
+    color: #8ff0b4;
+    font-weight: 600;
+}
+
+.setup-fields {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    width: 100%;
+    text-align: left;
+}
+
+.setup-fields[hidden] { display: none; }
+
+.setup-fields label {
+    font-size: 0.8rem;
+    color: var(--setup-muted);
+    margin-bottom: 2px;
+}
+
+.setup-card .form-control,
+.job-modal .form-control {
+    background: rgba(0, 0, 0, 0.3) !important;
+    color: #fff !important;
+    border: 1px solid var(--setup-border) !important;
+}
+
+.setup-error {
+    color: #ff8a80;
+    font-size: 0.9rem;
+}
+
+.setup-error:empty { display: none; }
+
+/* ---- progress dialog ---- */
+
+.job-modal {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 20000;
+}
+
+.job-modal[hidden] { display: none; }
+
+.job-modal-card {
+    width: min(620px, 94vw);
+    max-height: 90vh;
+    background: #1c1440;
+    border: 1px solid rgba(0, 255, 255, 0.3);
+    border-radius: 12px;
+    padding: 1.5rem;
+    color: var(--setup-text);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.job-modal-title {
+    font-size: 1.2rem;
+    font-weight: bold;
+    color: #fff;
+}
+
+.job-modal-status {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    word-break: break-word;
+}
+
+.job-modal-status i { margin-top: 3px; }
+.job-ok { color: var(--setup-ok); }
+.job-bad { color: var(--setup-bad); }
+.job-warn { color: var(--setup-warn); }
+
+.job-modal-link {
+    background: rgba(0, 255, 255, 0.06);
+    border: 1px solid rgba(0, 255, 255, 0.3);
+    border-radius: 8px;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.job-modal-link[hidden] { display: none; }
+
+.job-modal-link a:not(.btn) {
+    color: var(--setup-accent);
+    word-break: break-all;
+    font-family: monospace;
+}
+
+.job-modal-link-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.job-modal details summary {
+    cursor: pointer;
+    color: var(--setup-muted);
+    font-size: 0.85rem;
+    margin-bottom: 6px;
+}
+
+.job-modal-log {
+    background: rgba(0, 0, 0, 0.4);
+    border-radius: 6px;
+    padding: 8px 10px;
+    font-family: monospace;
+    font-size: 0.8rem;
+    color: #cfd8dc;
+    white-space: pre-wrap;
+    word-break: break-all;
+    max-height: 300px;
+    overflow-y: auto;
+    margin: 0;
+}
+
+.job-modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+}
+
+.job-modal-actions [hidden] { display: none; }
