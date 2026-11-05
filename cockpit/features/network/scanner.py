@@ -25,6 +25,7 @@ import time
 import urllib.request
 from concurrent.futures import ThreadPoolExecutor
 
+from cockpit.core.config_store import note_devices_seen
 from cockpit.paths import PROJECT_ROOT
 
 MAX_HOSTS = 1024            # /22
@@ -494,6 +495,8 @@ class Scan:
         for device in devices.values():
             device['vendor'] = mac_vendor(device['mac'], table)
         self._set(devices=[dict(d) for d in devices.values()], vendors=bool(table))
+        # Keep the last known IP of devices the user has named.
+        note_devices_seen({d['mac']: d['ip'] for d in devices.values() if d['mac']}, time.time())
 
 
 scan = Scan()

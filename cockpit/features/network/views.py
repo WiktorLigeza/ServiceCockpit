@@ -10,6 +10,7 @@ import time
 from flask import Blueprint, jsonify, render_template, request, session
 
 from cockpit.core.auth import SUDO_SESSION_KEY
+from cockpit.core.config_store import get_device_names, set_device_name
 
 from .http import require_sudo, result
 from .inventory import (
@@ -26,6 +27,7 @@ IFNAME_RE = re.compile(r'^[A-Za-z0-9_.:@-]{1,15}$')
 UUID_RE = re.compile(r'^[0-9a-fA-F-]{36}$')
 HOSTNAME_RE = re.compile(r'^(?!-)[A-Za-z0-9-]{1,63}(?<!-)$')
 HOST_RE = re.compile(r'^[A-Za-z0-9.:_-]{1,253}$')
+MAC_RE = re.compile(r'^[0-9a-f]{2}(:[0-9a-f]{2}){5}$')
 
 
 def _remote_ip() -> str | None:
@@ -415,7 +417,20 @@ def build_network_blueprint() -> Blueprint:
 
     @bp.route('/api/network/scan')
     def api_scan_state():
-        return jsonify({'subnets': local_subnets(), 'scan': scan.view()})
+        return jsonify({'subnets': local_subnets(), 'scan': scan.view(), 'names': get_device_names()})
+
+    @bp.route('/api/network/scan/name', methods=['POST'])
+    def api_scan_name():
+        data = request.get_json(silent=True) or {}
+        mac = (data.get('mac') or '').strip().lower()
+        name = (data.get('name') or '').strip()
+        if not MAC_RE.match(mac):
+            return result(False, 'Only devices with a MAC address can be named.')
+        if len(name) > 64 or any(ord(c) < 32 for c in name):
+            return result(False, 'Use up to 64 characters, no line breaks.')
+        ip = (data.get('ip') or '').strip()
+        set_device_name(mac, name, ip if HOST_RE.match(ip) else None)
+        return jsonify({'success': True, 'names': get_device_names()})
 
     @bp.route('/api/network/scan', methods=['POST'])
     def api_scan_start():

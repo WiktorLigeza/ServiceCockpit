@@ -122,6 +122,7 @@ function renderConnection(data) {
 
 function updateMetrics(data) {
     renderConnection(data);
+    if (window.updateDeviceClock) window.updateDeviceClock(data.clock);
 
     // CPU Temperature
     const cpuTemp = document.querySelector('#cpu-temp');

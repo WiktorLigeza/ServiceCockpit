@@ -1,4 +1,5 @@
 <script src="{{ url_for('static', filename='js/header.js') }}"></script>
+<script src="{{ url_for('static', filename='js/clock.js') }}"></script>
 <link rel="stylesheet" href="{{ url_for('static', filename='css/header.css') }}">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/console.css') }}">
@@ -81,7 +82,13 @@
                 <div class="metric-menu-content" id="tailscale-menu-content">Tailscale: Loading...</div>
             </div>
         </div>
-
+        <div class="nav-item clock-item" id="device-clock" title="Device time - click to change the time zone" hidden>
+            <i class="far fa-clock"></i>
+            <span class="metric-value" id="device-clock-time">--:--</span>
+            <div class="metric-menu">
+                <div class="metric-menu-content" id="device-clock-menu">Device time</div>
+            </div>
+        </div>
     </div>
 </header>
 
@@ -89,6 +96,49 @@
 
 {% include 'console.html' %}
 {% include 'devices_manager.html' %}
+
+<!-- Device time zone / clock settings (below the sudo modal so its prompt stacks on top) -->
+<div id="clock-modal" class="sudo-modal clock-modal" aria-hidden="true" hidden>
+    <div class="sudo-modal-backdrop" data-clock-close></div>
+    <div class="sudo-modal-card" role="dialog" aria-modal="true" aria-labelledby="clock-modal-title">
+        <div class="sudo-modal-header">
+            <div class="sudo-modal-title" id="clock-modal-title"><i class="far fa-clock"></i> Device time</div>
+            <button class="sudo-modal-close" type="button" data-clock-close aria-label="Close">&times;</button>
+        </div>
+        <div class="sudo-modal-body">
+            <div class="clock-now">
+                <div class="clock-now-time" id="clock-now-time">--:--:--</div>
+                <div class="clock-now-date" id="clock-now-date"></div>
+                <div class="clock-now-zone" id="clock-now-zone"></div>
+            </div>
+
+            <label class="sudo-modal-label" for="clock-tz-search">Time zone</label>
+            <input id="clock-tz-search" class="sudo-modal-input" type="search" placeholder="Search, e.g. Warsaw, New_York, UTC" autocomplete="off">
+            <select id="clock-tz-list" class="sudo-modal-input clock-tz-list" size="7"></select>
+            <div class="clock-row">
+                <button type="button" class="clock-link" id="clock-tz-browser"></button>
+            </div>
+
+            <div class="clock-section">
+                <label class="clock-switch">
+                    <input type="checkbox" id="clock-ntp">
+                    <span>Set time automatically (NTP)</span>
+                </label>
+                <div class="clock-muted" id="clock-ntp-status"></div>
+                <div class="clock-manual" id="clock-manual" hidden>
+                    <input type="datetime-local" id="clock-manual-time" class="sudo-modal-input" step="1">
+                    <button type="button" class="sudo-modal-btn" id="clock-manual-set">Set time</button>
+                </div>
+            </div>
+
+            <div class="sudo-modal-error" id="clock-error" style="display: none;"></div>
+            <div class="sudo-modal-actions">
+                <button type="button" class="sudo-modal-btn" data-clock-close>Close</button>
+                <button type="button" class="sudo-modal-btn primary" id="clock-tz-save">Save time zone</button>
+            </div>
+        </div>
+    </div>
+</div>
 
 <!-- Sudo password modal (used for privileged actions like reboot/systemctl) -->
 <div id="sudo-modal" class="sudo-modal" aria-hidden="true" style="display: none;">

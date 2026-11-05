@@ -915,6 +915,41 @@ details.net-section[open] > summary {
 a.net-badge { text-decoration: none; }
 a.net-badge:hover { filter: brightness(1.3); }
 
+.net-scan-name {
+    display: flex;
+    align-items: flex-start;
+    gap: 6px;
+}
+
+.net-scan-personal {
+    color: #fff;
+    font-weight: 600;
+}
+
+.net-scan-sub {
+    font-size: 0.78rem;
+    color: var(--net-muted);
+}
+
+.net-scan-edit {
+    background: none;
+    border: none;
+    padding: 0 2px;
+    color: var(--net-muted);
+    font-size: 0.75rem;
+    opacity: 0.35;
+    transition: opacity 0.15s;
+}
+
+.net-scan-table tr:hover .net-scan-edit,
+.net-scan-edit:focus-visible { opacity: 1; }
+.net-scan-edit:hover { color: var(--net-accent); }
+
+.net-scan-name-input { min-width: 180px; }
+
+.net-scan-missing td { opacity: 0.55; }
+.net-scan-dot.off { background: rgba(255, 255, 255, 0.3); }
+
 .net-scan-ping { font-family: monospace; font-size: 0.8rem; white-space: nowrap; }
 
 @media (max-width: 1100px) {
@@ -938,18 +973,21 @@ a.net-badge:hover { filter: brightness(1.3); }
 
 /* Scrollbars - same look as the rest of the app */
 .net-main *::-webkit-scrollbar,
-.net-main::-webkit-scrollbar {
+.net-main::-webkit-scrollbar,
+.net-modal *::-webkit-scrollbar {
     width: 6px;
     height: 6px;
 }
 
 .net-main *::-webkit-scrollbar-track,
-.net-main::-webkit-scrollbar-track {
+.net-main::-webkit-scrollbar-track,
+.net-modal *::-webkit-scrollbar-track {
     background: rgba(0, 0, 0, 0.1);
 }
 
 .net-main *::-webkit-scrollbar-thumb,
-.net-main::-webkit-scrollbar-thumb {
+.net-main::-webkit-scrollbar-thumb,
+.net-modal *::-webkit-scrollbar-thumb {
     background-color: #00ffff;
     border-radius: 3px;
 }
@@ -959,7 +997,8 @@ a.net-badge:hover { filter: brightness(1.3); }
 }
 
 .net-main,
-.net-main * {
+.net-main *,
+.net-modal * {
     scrollbar-width: thin;
     scrollbar-color: #00ffff rgba(0, 0, 0, 0.1);
 }

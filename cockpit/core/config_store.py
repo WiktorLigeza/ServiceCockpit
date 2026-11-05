@@ -1,7 +1,8 @@
-"""Persistent user settings (favorites, folder preferences, MQTT history) in config.json."""
+"""Persistent user settings (favorites, folder preferences, MQTT history, device names) in config.json."""
 
 import json
 import os
+import threading
 
 from cockpit.paths import CONFIG_FILE
 
@@ -142,3 +143,45 @@ def save_folder_preferences(preferences: dict) -> None:
 def get_folder_preferences() -> dict:
     config = load_config()
     return config.get('folders', {}).get('preferences', {})
+
+
+# ---- Network scanner: personal names for devices, keyed by MAC address so they
+# survive DHCP handing out a different IP. {mac: {name, last_ip, last_seen}}
+
+_device_names_lock = threading.Lock()
+
+
+def get_device_names() -> dict:
+    names = load_config().get('network', {}).get('device_names', {})
+    return names if isinstance(names, dict) else {}
+
+
+def set_device_name(mac: str, name: str, ip: str | None = None) -> None:
+    """Save (or with an empty name, forget) the personal name for `mac`."""
+    with _device_names_lock:
+        config = load_config()
+        names = config.setdefault('network', {}).setdefault('device_names', {})
+        if name:
+            entry = names.get(mac) or {}
+            entry['name'] = name
+            if ip:
+                entry['last_ip'] = ip
+            names[mac] = entry
+        else:
+            names.pop(mac, None)
+        save_config(config)
+
+
+def note_devices_seen(seen: dict[str, str], when: float) -> None:
+    """After a scan: remember the current IP of every named device that showed up."""
+    with _device_names_lock:
+        config = load_config()
+        names = config.get('network', {}).get('device_names', {})
+        changed = False
+        for mac, ip in seen.items():
+            if mac in names:
+                names[mac]['last_ip'] = ip
+                names[mac]['last_seen'] = when
+                changed = True
+        if changed:
+            save_config(config)

@@ -13,6 +13,7 @@ import psutil
 
 from cockpit.core.gpu_monitor import gpu_monitor
 from cockpit.core.platform_info import get_platform_info
+from cockpit.features.clock import get_clock
 from cockpit.features.tailscale import get_tailscale_summary
 
 
@@ -59,6 +60,7 @@ def get_system_metrics() -> dict:
         'has_internet': has_internet,
         'uplink': get_uplink(),
         'gpu': gpu_monitor.get_latest(),
+        'clock': get_clock(),
     }
 
 

@@ -12,6 +12,7 @@ console        Web consoles (root / normal shells)
 bluetooth/     Bluetooth page: adapter, pairing, audio, file transfer, serial
 network/       Network page: interfaces, link/MTU, Wi-Fi, Wi-Fi Direct, profiles, routes
 tailscale      Tailscale page: install, login, devices, users, updates
+clock          header clock + time zone / NTP dialog
 metrics        Header metrics (CPU, memory, storage, GPU, connectivity, uplink)
 updates        "Update available" check against the git remote
 export         Zip download of the source tree

@@ -25,6 +25,7 @@ from cockpit.features.bluetooth import (
     build_bluetooth_services_blueprint, register_bluetooth_services_socket_handlers,
     register_bluetooth_socket_handlers,
 )
+from cockpit.features.clock import build_clock_blueprint
 from cockpit.features.console import build_console_blueprint, register_console_socket_handlers
 from cockpit.features.export import build_export_blueprint
 from cockpit.features.file_explorer import build_file_explorer_blueprint, register_file_exec_socket_handlers
@@ -75,6 +76,7 @@ def create_app() -> tuple[Flask, SocketIO]:
         build_network_blueprint(),
         build_network_p2p_blueprint(),
         build_tailscale_blueprint(),
+        build_clock_blueprint(),
     ):
         app.register_blueprint(blueprint)
 

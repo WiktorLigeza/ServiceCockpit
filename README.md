@@ -16,10 +16,10 @@ MQTT, Bluetooth and networking, with live system metrics in the header.
 | **MQTT Explorer** | connect to a broker, browse topics, subscribe and publish; when no broker runs on the device, a wizard installs Mosquitto (this device only / local network / username + password) and connects to it |
 | **File Explorer** | browse, edit, upload/download, cut/copy/paste, run programs with live output |
 | **Bluetooth** | adapter settings, scanning and pairing, audio, file transfer (OBEX), serial port |
-| **Network** | interfaces with live throughput, link speed and duplex, MTU / jumbo frames, offloads, Wi-Fi, Wi-Fi Direct, NetworkManager profiles, routes, DNS, ping; LAN scanner (devices with IP, MAC, name, vendor, open services; ping one or all) |
+| **Network** | interfaces with live throughput, link speed and duplex, MTU / jumbo frames, offloads, Wi-Fi, Wi-Fi Direct, NetworkManager profiles, routes, DNS, ping; LAN scanner (devices with IP, MAC, name, vendor, open services; ping one or all; your own names per MAC address, kept when the IP changes) |
 | **Tailscale** | one-click install, browser or auth-key login, connect/disconnect, this device's IPs and settings (accept routes/DNS, SSH, exit node, shields up), tailnet devices and users with online status, connection type and key expiry, ping, update check and one-click update |
 | **Consoles** | multiple root or normal shells in the browser |
-| **Header** | CPU temperature and usage, memory, storage, GPU, internet status and connection type (Ethernet / Wi-Fi / …), IP, MAC, Tailscale IP and status (orange dot on its icon when a Tailscale update is available) |
+| **Header** | CPU temperature and usage, memory, storage, GPU, internet status and connection type (Ethernet / Wi-Fi / …), IP, MAC, device clock (click it to set the time zone / NTP), Tailscale IP and status (orange dot on its icon when a Tailscale update is available) |
 
 ## Requirements
 
@@ -83,6 +83,7 @@ cockpit/                   the application package
     ├── mqtt_broker.py     local Mosquitto: detect, install, configure (MQTT page wizard)
     ├── file_explorer.py   File Explorer and program runner
     ├── console.py         web consoles
+    ├── clock.py           header clock, time zone / NTP dialog
     ├── metrics.py         header metrics and uplink detection
     ├── updates.py         "update available" check
     ├── tailscale.py       Tailscale page: install, login, devices/users, settings, updates

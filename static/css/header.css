@@ -427,3 +427,92 @@
 .ts-header-badge[hidden] {
     display: none;
 }
+
+/* ---- Device clock (header) + time zone dialog ---- */
+
+.clock-item { cursor: pointer; }
+.clock-item[hidden] { display: none; }
+.clock-item i { color: #9ecbff; }
+.clock-item .metric-value { font-variant-numeric: tabular-nums; }
+
+.clock-modal { z-index: 10040; }
+.clock-modal[hidden] { display: none; }
+
+.clock-now {
+    text-align: center;
+    margin-bottom: 14px;
+}
+
+.clock-now-time {
+    font-size: 2.4rem;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.04em;
+}
+
+.clock-now-date,
+.clock-now-zone,
+.clock-muted {
+    color: rgba(255, 255, 255, 0.6);
+    font-size: 0.85rem;
+}
+
+.clock-tz-list {
+    margin-top: 6px;
+    padding: 4px;
+}
+
+.clock-tz-list {
+    scrollbar-width: thin;
+    scrollbar-color: #8c00ff rgba(0, 0, 0, 0.2);
+}
+
+.clock-tz-list option {
+    background: rgba(35, 0, 63, 1);
+    color: #fff;
+    padding: 2px 6px;
+}
+
+.clock-tz-list option:checked {
+    background: #6a1fb8 linear-gradient(#6a1fb8, #6a1fb8);
+    color: #fff;
+}
+
+.clock-row { margin-top: 6px; }
+
+.clock-link {
+    background: none;
+    border: none;
+    padding: 0;
+    color: #00ffff;
+    font-size: 0.85rem;
+    text-decoration: underline;
+    cursor: pointer;
+}
+
+.clock-link[hidden] { display: none; }
+
+.clock-section {
+    margin-top: 14px;
+    padding-top: 12px;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.clock-switch {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0;
+    cursor: pointer;
+}
+
+.clock-switch input { accent-color: #8c00ff; width: 16px; height: 16px; }
+
+.clock-manual {
+    display: flex;
+    gap: 8px;
+    margin-top: 8px;
+}
+
+.clock-manual[hidden] { display: none; }
+.clock-manual input { flex: 1; color-scheme: dark; }
