@@ -101,9 +101,12 @@
 }
 
 /* Update check */
-#sidebar-tailscale-item {
+#sidebar-tailscale-item,
+#sidebar-sysupdate-item {
     position: relative;
 }
+
+.sidebar-console-count[hidden] { display: none; }
 
 .sidebar-update-dot[hidden] {
     display: none;
@@ -343,3 +346,103 @@
     padding-left: calc(1rem + var(--sidebar-collapsed));
     box-sizing: border-box;
 }
+
+/* ---- System updates dialog ---- */
+
+.sysupd-modal { z-index: 10040; }       /* below the sudo prompt it may open */
+.sysupd-modal[hidden] { display: none; }
+.sysupd-card { width: min(760px, calc(100vw - 32px)); top: 8vh; }
+
+.sysupd-os {
+    color: rgba(255, 255, 255, 0.55);
+    font-size: 0.85rem;
+}
+
+.sysupd-summary {
+    font-size: 1.05rem;
+    margin: 4px 0 10px;
+}
+
+.sysupd-summary .sec { color: #ff8a80; }
+.sysupd-summary .ok { color: #8ff0b4; }
+
+.sysupd-reboot {
+    background: rgba(241, 196, 15, 0.12);
+    border-left: 3px solid #f1c40f;
+    border-radius: 4px;
+    padding: 8px 12px;
+    font-size: 0.85rem;
+    margin-bottom: 10px;
+}
+
+.sysupd-reboot[hidden] { display: none; }
+
+.sysupd-list {
+    max-height: 42vh;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: #8c00ff rgba(0, 0, 0, 0.2);
+}
+
+.sysupd-list:empty { display: none; }
+
+.sysupd-list table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.82rem;
+}
+
+.sysupd-list th {
+    position: sticky;
+    top: 0;
+    background: rgba(35, 0, 63, 1);
+    color: rgba(255, 255, 255, 0.55);
+    text-align: left;
+    padding: 4px 8px 4px 0;
+}
+
+.sysupd-list td {
+    padding: 3px 8px 3px 0;
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+    word-break: break-word;
+}
+
+.sysupd-list .ver { font-family: monospace; color: #9ecbff; }
+.sysupd-list .old { font-family: monospace; color: rgba(255, 255, 255, 0.45); }
+
+.sysupd-tag {
+    font-size: 0.68rem;
+    padding: 0 6px;
+    border-radius: 8px;
+    margin-left: 4px;
+    background: rgba(231, 76, 60, 0.3);
+    color: #ffaaa0;
+}
+
+.sysupd-confirm {
+    margin-top: 12px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    background: rgba(140, 0, 255, 0.15);
+    border: 1px solid rgba(140, 0, 255, 0.5);
+    font-size: 0.9rem;
+}
+
+.sysupd-confirm[hidden] { display: none; }
+
+.sysupd-confirm-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 8px;
+}
+
+.sysupd-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    justify-content: flex-end;
+    margin-top: 14px;
+}
+
+.sysupd-actions .sudo-modal-btn[disabled] { opacity: 0.4; cursor: default; }

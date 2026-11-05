@@ -110,6 +110,14 @@
             <div id="process-details-container" class="journal-container">
                 <div id="process-details-empty">Select a process to view metrics</div>
 
+                <div class="process-ports" id="process-ports" hidden>
+                    <div class="process-ports-head">
+                        <span><i class="fas fa-plug"></i> Ports &amp; connections</span>
+                        <span class="process-ports-count" id="process-ports-count"></span>
+                    </div>
+                    <div id="process-ports-body"></div>
+                </div>
+
                 <div id="process-graphs" class="process-graphs-container" style="display: none;">
                     <div class="chart-wrapper">
                         <canvas id="cpu-usage-chart" width="650" height="150"></canvas>

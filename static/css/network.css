@@ -808,6 +808,30 @@ details.net-section[open] > summary {
 .net-toast.error { border-left-color: var(--net-bad); }
 .net-toast.fade { opacity: 0; }
 
+/* ---- Ports tab ---- */
+
+.net-ports-filters {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+}
+
+.net-ports-filters input { flex: 1 1 200px; width: auto; }
+
+.net-ports-table td { vertical-align: middle; }
+.net-ports-table td.num { font-family: monospace; white-space: nowrap; }
+
+.net-pid-link {
+    font-family: monospace;
+    color: var(--net-accent);
+    text-decoration: none;
+}
+
+.net-pid-link:hover { text-decoration: underline; }
+
+.net-ports-proc + .net-ports-proc { margin-top: 2px; }
+.net-ports-summary { margin-top: 6px; }
+
 /* ---- LAN scanner popup ---- */
 
 .net-scan-card {

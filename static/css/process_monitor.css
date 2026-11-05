@@ -59,3 +59,63 @@
     width: calc(100% - 20px) !important;
     height: calc(100% - 20px) !important;
 }
+
+/* ---- Ports of the selected process ---- */
+
+.process-ports {
+    white-space: normal;        /* the details container is pre-wrap (for logs) */
+    background: rgba(0, 0, 0, 0.25);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+    padding: 10px 12px;
+    margin-bottom: 12px;
+    color: #cfd8dc;
+    font-size: 0.85rem;
+}
+
+.process-ports[hidden] { display: none; }
+
+.process-ports-head {
+    display: flex;
+    justify-content: space-between;
+    color: #fff;
+    font-weight: 600;
+    margin-bottom: 6px;
+}
+
+.process-ports-count {
+    font-weight: normal;
+    color: rgba(255, 255, 255, 0.55);
+}
+
+.process-ports table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.process-ports th {
+    color: rgba(255, 255, 255, 0.5);
+    font-weight: 600;
+    text-align: left;
+    padding: 3px 8px 3px 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.process-ports td {
+    padding: 3px 8px 3px 0;
+    font-family: monospace;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.process-ports .muted { color: rgba(255, 255, 255, 0.45); font-family: inherit; }
+.process-ports .listen { color: #8ff0b4; }
+
+/* Process opened from another page (?pid=) */
+.service-card.flash-select .card {
+    animation: process-flash 1.6s ease-out;
+}
+
+@keyframes process-flash {
+    0%, 30% { box-shadow: 0 0 0 2px #00ffff, 0 0 16px rgba(0, 255, 255, 0.6); }
+    100% { box-shadow: none; }
+}

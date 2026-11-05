@@ -11,6 +11,7 @@ from flask import Blueprint, jsonify, render_template, request, session
 
 from cockpit.core.auth import SUDO_SESSION_KEY
 from cockpit.core.config_store import get_device_names, set_device_name
+from cockpit.core.sockets import list_sockets
 
 from .http import require_sudo, result
 from .inventory import (
@@ -412,6 +413,13 @@ def build_network_blueprint() -> Blueprint:
             cmd += ['-s', str(size), '-M', 'do']
         ok, out = run(cmd + [host], timeout=count * 3 + 5)
         return jsonify({'success': True, 'reachable': ok, 'output': out})
+
+    # ---- Ports: sockets in use and the processes that own them
+
+    @bp.route('/api/network/ports')
+    def api_ports():
+        sockets, privileged = list_sockets(session.get(SUDO_SESSION_KEY))
+        return jsonify({'success': True, 'privileged': privileged, 'sockets': sockets})
 
     # ---- LAN scanner (unprivileged: ping, neighbour table, name lookups, TCP probes)
 

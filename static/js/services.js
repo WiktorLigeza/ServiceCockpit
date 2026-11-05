@@ -339,7 +339,14 @@ async function showServiceInfo(serviceName) {
     document.getElementById('info-name').textContent = service.name;
     document.getElementById('info-active').textContent = service.active ? 'Active' : 'Inactive';
     document.getElementById('info-enabled').textContent = service.enabled ? 'Enabled' : 'Disabled';
-    document.getElementById('info-pid').textContent = service.main_pid || 'N/A';
+    // Main PID links to that process on the Processes page (0 = not running).
+    const pidEl = document.getElementById('info-pid');
+    const pid = parseInt(service.main_pid, 10);
+    if (pid > 0) {
+        pidEl.innerHTML = `<a class="info-pid-link" href="/processes?pid=${pid}" title="Show this process (CPU, memory, ports)">${pid} <i class="fas fa-external-link-alt"></i></a>`;
+    } else {
+        pidEl.textContent = 'not running';
+    }
     document.getElementById('info-tasks').textContent = service.tasks || 'N/A';
     document.getElementById('info-path').textContent = service.fragment_path || 'N/A';
 

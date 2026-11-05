@@ -37,6 +37,7 @@ from cockpit.features.processes import build_processes_blueprint
 from cockpit.features.services import (
     build_services_blueprint, init_services_socketio, register_services_socket_handlers,
 )
+from cockpit.features.system_updates import build_system_updates_blueprint
 from cockpit.features.tailscale import build_tailscale_blueprint
 from cockpit.features.updates import build_update_check_blueprint
 from cockpit.paths import STATIC_DIR, TEMPLATE_DIR
@@ -77,6 +78,7 @@ def create_app() -> tuple[Flask, SocketIO]:
         build_network_p2p_blueprint(),
         build_tailscale_blueprint(),
         build_clock_blueprint(),
+        build_system_updates_blueprint(),
     ):
         app.register_blueprint(blueprint)
 

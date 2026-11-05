@@ -534,6 +534,9 @@ function updateDetailsEmptyState() {
     const meta = document.getElementById('process-meta');
     const graphs = document.getElementById('process-graphs');
     if (!selectedPid) {
+        const ports = document.getElementById('process-ports');
+        if (ports) ports.hidden = true;
+        clearTimeout(processPortsTimer);
         empty.style.display = 'block';
         if (meta) meta.style.display = 'none';
         graphs.style.display = 'none';
@@ -575,6 +578,79 @@ async function selectProcess(pid) {
 
     stopMonitoring();
     startMonitoring(pid);
+    loadProcessPorts(pid);
+}
+
+// ---- Ports and connections of the selected process ----
+
+let processPortsTimer = null;
+
+const PORT_NAMES = {
+    22: 'SSH', 53: 'DNS', 67: 'DHCP', 68: 'DHCP', 80: 'HTTP', 123: 'NTP', 443: 'HTTPS', 631: 'CUPS',
+    1883: 'MQTT', 2137: 'Cockpit', 3306: 'MySQL', 5353: 'mDNS', 5432: 'PostgreSQL', 8080: 'HTTP alt',
+    8123: 'Home Assistant', 8883: 'MQTT/TLS', 41641: 'Tailscale',
+};
+
+function _endpoint(addr, port) {
+    if (port === null || port === undefined) return '<span class="muted">—</span>';
+    const shown = addr === '0.0.0.0' || addr === '*' ? 'all IPv4' : addr === '::' ? 'all IPv6' : addr;
+    const name = PORT_NAMES[port] ? ` <span class="muted">${PORT_NAMES[port]}</span>` : '';
+    return `${escapeHtml(shown)}:${port}${name}`;
+}
+
+async function loadProcessPorts(pid) {
+    clearTimeout(processPortsTimer);
+    const box = document.getElementById('process-ports');
+    if (!box) return;
+    if (pid !== selectedPid) return;
+    let data = {};
+    try {
+        const resp = await fetch(`/api/process/${pid}/ports`);
+        data = await resp.json();
+    } catch (_) { /* keep the last view */ }
+    if (pid !== selectedPid) return;
+
+    const sockets = data.sockets || [];
+    const listening = sockets.filter(s => s.listening);
+    const other = sockets.filter(s => !s.listening);
+    box.hidden = false;
+    document.getElementById('process-ports-count').textContent = sockets.length
+        ? `${listening.length} listening · ${other.length} connections` : '';
+
+    const body = document.getElementById('process-ports-body');
+    if (!sockets.length) {
+        body.innerHTML = `<div class="muted">No open network sockets${data.privileged === false
+            ? ' visible (other users\' processes need sudo)' : ''}.</div>`;
+    } else {
+        const rows = [...listening, ...other].map(s => `<tr>
+            <td>${s.proto.toUpperCase()}</td>
+            <td>${_endpoint(s.local_addr, s.local_port)}</td>
+            <td>${_endpoint(s.peer_addr, s.peer_port)}</td>
+            <td class="${s.listening ? 'listen' : ''}">${s.listening ? 'listening' : escapeHtml(s.state)}</td>
+        </tr>`).join('');
+        body.innerHTML = `<table><thead><tr><th>Proto</th><th>Local</th><th>Remote</th><th>State</th></tr></thead><tbody>${rows}</tbody></table>`;
+    }
+    processPortsTimer = setTimeout(() => loadProcessPorts(pid), 5000);
+}
+
+// Open a process passed in the URL (?pid=123), e.g. from the Services or Network page.
+function selectProcessFromUrl() {
+    const pid = parseInt(new URLSearchParams(location.search).get('pid'), 10);
+    if (!pid) return;
+    history.replaceState(null, '', location.pathname);
+    if (!lastProcessesData.some(p => p.pid === pid)) {
+        document.getElementById('process-details-empty').textContent = `Process ${pid} is not running any more.`;
+        return;
+    }
+    selectProcess(pid);
+    // The list re-sorts by CPU every few seconds, so filter it to this PID rather
+    // than scrolling to a card that keeps moving. Clearing the search shows all again.
+    const search = document.getElementById('processesSearchInput');
+    if (search) search.value = String(pid);
+    uiState.all.status = 'both';
+    setActiveControls('all');
+    renderProcesses(lastProcessesData);
+    document.querySelector(`#processes-container .service-card[data-pid="${pid}"]`)?.classList.add('flash-select');
 }
 
 async function killProcess(event, pid) {
@@ -885,6 +961,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     await fetchProcesses();
     updateDetailsEmptyState();
+    selectProcessFromUrl();
 
     setInterval(fetchProcesses, 3000);
 });

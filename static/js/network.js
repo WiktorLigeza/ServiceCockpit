@@ -1087,6 +1087,8 @@ function setNetTab(tab) {
     if (tab === 'routes') loadNetRoutes();
     if (tab === 'p2p' && typeof loadNetP2p === 'function') loadNetP2p();
     if (tab !== 'p2p' && typeof stopNetP2pPolling === 'function') stopNetP2pPolling();
+    if (tab === 'ports' && typeof loadNetPorts === 'function') loadNetPorts();
+    if (tab !== 'ports' && typeof stopNetPorts === 'function') stopNetPorts();
 }
 
 function setupNetListeners() {

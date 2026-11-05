@@ -84,6 +84,7 @@
                 <button class="net-tab" data-tab="p2p" id="net-tab-p2p"><i class="fas fa-exchange-alt"></i> Wi-Fi Direct</button>
                 <button class="net-tab" data-tab="connections"><i class="fas fa-list"></i> Profiles</button>
                 <button class="net-tab" data-tab="routes"><i class="fas fa-route"></i> Routes &amp; DNS</button>
+                <button class="net-tab" data-tab="ports"><i class="fas fa-plug"></i> Ports</button>
             </div>
 
             <div class="net-tab-pane" data-pane="iface">
@@ -108,6 +109,27 @@
                 <div class="net-scroll" id="net-connections">
                     <div class="net-empty">Loading…</div>
                 </div>
+            </div>
+
+            <div class="net-tab-pane" data-pane="ports" hidden>
+                <div class="net-filters net-ports-filters">
+                    <div class="net-chips" id="net-ports-chips">
+                        <button class="net-chip active" data-ports-view="listening">Listening</button>
+                        <button class="net-chip" data-ports-view="connections">Connections</button>
+                        <button class="net-chip" data-ports-view="all">All</button>
+                    </div>
+                    <div class="net-chips" id="net-ports-proto">
+                        <button class="net-chip active" data-ports-proto="all">TCP + UDP</button>
+                        <button class="net-chip" data-ports-proto="tcp">TCP</button>
+                        <button class="net-chip" data-ports-proto="udp">UDP</button>
+                    </div>
+                    <input type="search" class="form-control form-control-sm" id="net-ports-search" placeholder="Filter port, address, process, PID…">
+                </div>
+                <div class="net-note warn" id="net-ports-unprivileged" hidden>
+                    Process names are only shown for this user's sockets - sudo was not available.
+                </div>
+                <div class="net-scroll" id="net-ports"><div class="net-empty">Loading…</div></div>
+                <div class="net-muted net-ports-summary" id="net-ports-summary"></div>
             </div>
 
             <div class="net-tab-pane" data-pane="routes" hidden>
@@ -208,6 +230,7 @@
 
     <script src="{{ url_for('static', filename='js/network.js') }}"></script>
     <script src="{{ url_for('static', filename='js/network_scanner.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/network_ports.js') }}"></script>
     <script src="{{ url_for('static', filename='js/network_p2p.js') }}"></script>
 </body>
 </html>

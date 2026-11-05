@@ -184,7 +184,8 @@ class JobModal {
         if (atBottom) log.scrollTop = log.scrollHeight;
         if (job.state === 'failed') this.$.details.open = true;
 
-        this.$.cancel.hidden = !running;
+        // Package upgrades and the like must not be interrupted - no Cancel for them.
+        this.$.cancel.hidden = !running || job.cancellable === false;
         this.$.close.hidden = running;
     }
 }

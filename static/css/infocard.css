@@ -205,3 +205,11 @@
         min-height: 300px;
     }
 }
+
+.info-pid-link {
+    color: #00ffff;
+    text-decoration: none;
+}
+
+.info-pid-link:hover { text-decoration: underline; }
+.info-pid-link i { font-size: 0.7em; margin-left: 2px; }

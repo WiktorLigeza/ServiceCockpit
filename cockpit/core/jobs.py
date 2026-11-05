@@ -48,7 +48,7 @@ class BackgroundJob:
         self._link_re = re.compile(link_pattern) if link_pattern else None
         self._max_lines = max_lines
         self._state = {'id': 0, 'kind': None, 'state': 'idle', 'log': [], 'link': None,
-                       'started': None, 'finished': None}
+                       'started': None, 'finished': None, 'cancellable': True}
         self._proc: subprocess.Popen | None = None
 
     # -- state
@@ -80,13 +80,15 @@ class BackgroundJob:
 
     # -- running
 
-    def start(self, kind: str, steps: Callable[[], bool]) -> tuple[bool, str]:
-        """Run `steps()` in a thread; its return value decides done / failed."""
+    def start(self, kind: str, steps: Callable[[], bool], cancellable: bool = True) -> tuple[bool, str]:
+        """Run `steps()` in a thread; its return value decides done / failed.
+        `cancellable=False` for steps that must not be interrupted (package upgrades)."""
         with self._lock:
             if self._state['state'] == 'running':
                 return False, f'Another task is still running ({self._state["kind"]}).'
             self._state.update({'id': self._state['id'] + 1, 'kind': kind, 'state': 'running', 'log': [],
-                                'link': None, 'started': time.time(), 'finished': None})
+                                'link': None, 'started': time.time(), 'finished': None,
+                                'cancellable': cancellable})
 
         def runner():
             try:
@@ -144,7 +146,7 @@ class BackgroundJob:
 
     def cancel(self) -> bool:
         with self._lock:
-            if self._state['state'] != 'running':
+            if self._state['state'] != 'running' or not self._state['cancellable']:
                 return False
             self._state['state'] = 'cancelled'
             proc = self._proc

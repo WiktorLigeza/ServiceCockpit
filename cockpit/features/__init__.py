@@ -14,6 +14,7 @@ network/       Network page: interfaces, link/MTU, Wi-Fi, Wi-Fi Direct, profiles
 tailscale      Tailscale page: install, login, devices, users, updates
 clock          header clock + time zone / NTP dialog
 metrics        Header metrics (CPU, memory, storage, GPU, connectivity, uplink)
+system_updates OS package updates (apt / dnf / zypper / pacman / apk)
 updates        "Update available" check against the git remote
 export         Zip download of the source tree
 """

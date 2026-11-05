@@ -1,5 +1,6 @@
 <link rel="stylesheet" href="{{ url_for('static', filename='css/sidebar.css') }}">
 <script src="{{ url_for('static', filename='js/sidebar.js') }}" defer></script>
+<script src="{{ url_for('static', filename='js/system_updates.js') }}" defer></script>
 
 <nav class="app-sidebar" id="app-sidebar">
     <div class="sidebar-items">
@@ -63,6 +64,13 @@
     </div>
 
     <div class="sidebar-bottom">
+        <button type="button" class="sidebar-item sidebar-sysupdate" id="sidebar-sysupdate-item" title="System updates">
+            <span class="sidebar-update-dot status-available" id="sidebar-sysupdate-dot" hidden></span>
+            <i class="fas fa-box-open"></i>
+            <span class="sidebar-label">System updates</span>
+            <span class="sidebar-console-count" id="sidebar-sysupdate-count" hidden>0</span>
+        </button>
+
         <button type="button" class="sidebar-item sidebar-update" id="sidebar-update-item" title="Checking for updates..." onclick="performSidebarUpdate(); return false;">
             <span class="sidebar-update-dot" id="sidebar-update-dot"></span>
             <i class="fas fa-cloud-download-alt"></i>
@@ -106,5 +114,33 @@
     <div class="sidebar-console-panel-header">Running Programs</div>
     <div class="sidebar-console-panel-list" id="sidebar-programs-panel-list">
         <div class="sidebar-console-panel-empty">No running programs</div>
+    </div>
+</div>
+
+<!-- Operating-system updates (apt / dnf / zypper / pacman / apk) -->
+<div id="sysupd-modal" class="sudo-modal sysupd-modal" aria-hidden="true" hidden>
+    <div class="sudo-modal-backdrop" data-sysupd-close></div>
+    <div class="sudo-modal-card sysupd-card" role="dialog" aria-modal="true" aria-labelledby="sysupd-title">
+        <div class="sudo-modal-header">
+            <div class="sudo-modal-title" id="sysupd-title"><i class="fas fa-box-open"></i> System updates</div>
+            <button class="sudo-modal-close" type="button" data-sysupd-close aria-label="Close">&times;</button>
+        </div>
+        <div class="sudo-modal-body">
+            <div class="sysupd-os" id="sysupd-os"></div>
+            <div class="sysupd-summary" id="sysupd-summary">Checking…</div>
+            <div class="sysupd-reboot" id="sysupd-reboot" hidden></div>
+            <div class="sysupd-list" id="sysupd-list"></div>
+
+            <div class="sysupd-confirm" id="sysupd-confirm" hidden>
+                <div id="sysupd-confirm-text"></div>
+                <div class="sysupd-confirm-actions">
+                    <button type="button" class="sudo-modal-btn" id="sysupd-confirm-no">Cancel</button>
+                    <button type="button" class="sudo-modal-btn primary" id="sysupd-confirm-yes">Continue</button>
+                </div>
+            </div>
+
+            <div class="sudo-modal-error" id="sysupd-error" style="display: none;"></div>
+            <div class="sysupd-actions" id="sysupd-actions"></div>
+        </div>
     </div>
 </div>

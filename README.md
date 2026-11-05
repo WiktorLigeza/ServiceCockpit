@@ -11,13 +11,14 @@ MQTT, Bluetooth and networking, with live system metrics in the header.
 
 | Page | What it does |
 | --- | --- |
-| **Services** | systemd services with live status, start/stop/restart, journal, unit file editor, favorites, create new services |
-| **Processes** | process list with CPU / memory / network usage, details, favorites, kill |
+| **Services** | systemd services with live status, start/stop/restart, journal, unit file editor, favorites, create new services; the main PID links to the process |
+| **Processes** | process list with CPU / memory / network usage, details, open ports and connections, favorites, kill; `/processes?pid=N` opens a process |
 | **MQTT Explorer** | connect to a broker, browse topics, subscribe and publish; when no broker runs on the device, a wizard installs Mosquitto (this device only / local network / username + password) and connects to it |
 | **File Explorer** | browse, edit, upload/download, cut/copy/paste, run programs with live output |
 | **Bluetooth** | adapter settings, scanning and pairing, audio, file transfer (OBEX), serial port |
-| **Network** | interfaces with live throughput, link speed and duplex, MTU / jumbo frames, offloads, Wi-Fi, Wi-Fi Direct, NetworkManager profiles, routes, DNS, ping; LAN scanner (devices with IP, MAC, name, vendor, open services; ping one or all; your own names per MAC address, kept when the IP changes) |
+| **Network** | interfaces with live throughput, link speed and duplex, MTU / jumbo frames, offloads, Wi-Fi, Wi-Fi Direct, NetworkManager profiles, routes, DNS, ping; ports in use with the owning process (PIDs link to Processes); LAN scanner (devices with IP, MAC, name, vendor, open services; ping one or all; your own names per MAC address, kept when the IP changes) |
 | **Tailscale** | one-click install, browser or auth-key login, connect/disconnect, this device's IPs and settings (accept routes/DNS, SSH, exit node, shields up), tailnet devices and users with online status, connection type and key expiry, ping, update check and one-click update |
+| **System updates** | sidebar entry with the number of pending OS updates; check, upgrade, full upgrade and remove unused packages with apt, dnf, yum, zypper, pacman or apk; reboot-required notice |
 | **Consoles** | multiple root or normal shells in the browser |
 | **Header** | CPU temperature and usage, memory, storage, GPU, internet status and connection type (Ethernet / Wi-Fi / …), IP, MAC, device clock (click it to set the time zone / NTP), Tailscale IP and status (orange dot on its icon when a Tailscale update is available) |
 
@@ -73,6 +74,7 @@ cockpit/                   the application package
 │   ├── auth.py            login, sudo session, run_sudo / require_sudo
 │   ├── config_store.py    config.json settings (favorites, MQTT history, folder prefs)
 │   ├── systemd.py         systemctl / journalctl wrapper
+│   ├── sockets.py         open sockets and their processes (ss), for Network ports / Processes
 │   ├── jobs.py            background install/update tasks with a live log (shared by wizards)
 │   ├── platform_info.py   Raspberry Pi / Jetson / generic detection
 │   └── gpu_monitor.py     background GPU sampling
@@ -85,7 +87,8 @@ cockpit/                   the application package
     ├── console.py         web consoles
     ├── clock.py           header clock, time zone / NTP dialog
     ├── metrics.py         header metrics and uplink detection
-    ├── updates.py         "update available" check
+    ├── updates.py         "update available" check (this app)
+    ├── system_updates.py  OS package updates (sidebar)
     ├── tailscale.py       Tailscale page: install, login, devices/users, settings, updates
     ├── export.py          source zip download
     ├── bluetooth/         controller, services (audio/files/serial), dbus_helper

@@ -13,6 +13,7 @@ from flask import Blueprint, jsonify, render_template, request, session
 
 from cockpit.core.auth import SUDO_SESSION_KEY, run_sudo
 from cockpit.core.config_store import load_config, save_process_favorites
+from cockpit.core.sockets import sockets_for_pid
 
 
 def normalize_process_cpu_percent(cpu_percent) -> float:
@@ -232,6 +233,12 @@ def build_processes_blueprint() -> Blueprint:
             return jsonify({'success': False, 'process_exists': False, 'error': 'process_not_found'}), 404
         except Exception as e:
             return jsonify({'success': False, 'error': str(e)}), 500
+
+    @bp.route('/api/process/<int:pid>/ports')
+    def api_process_ports(pid: int):
+        # sudo (session password) so sockets of other users' processes are visible too.
+        sockets, privileged = sockets_for_pid(pid, session.get(SUDO_SESSION_KEY))
+        return jsonify({'success': True, 'pid': pid, 'privileged': privileged, 'sockets': sockets})
 
     @bp.route('/api/process_metrics/<int:pid>')
     def process_metrics(pid: int):
