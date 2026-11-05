@@ -13,6 +13,7 @@ import psutil
 
 from cockpit.core.gpu_monitor import gpu_monitor
 from cockpit.core.platform_info import get_platform_info
+from cockpit.features.tailscale import get_tailscale_summary
 
 
 def get_cpu_temp() -> float:
@@ -208,7 +209,7 @@ def build_metrics_blueprint() -> Blueprint:
 
     @bp.route('/api/platform_info')
     def platform_info():
-        return jsonify(get_platform_info())
+        return jsonify({**get_platform_info(), 'tailscale': get_tailscale_summary()})
 
     return bp
 

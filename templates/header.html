@@ -72,7 +72,10 @@
             </div>
         </div>
         <div class="nav-item copyable" id="tailscale-status" data-copy="true" title="Click to copy Tailscale IP" style="display: none;">
-            <i class="fas fa-th" style="color: gray;"></i>
+            <span class="ts-header-icon">
+                <i class="fas fa-th" style="color: gray;"></i>
+                <span class="ts-header-badge" id="tailscale-update-badge" hidden title="Tailscale update available"></span>
+            </span>
             <span class="metric-value">--</span>
             <div class="metric-menu">
                 <div class="metric-menu-content" id="tailscale-menu-content">Tailscale: Loading...</div>

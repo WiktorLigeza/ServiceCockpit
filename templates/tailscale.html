@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tailscale - Phantom Cockpit</title>
+    <link rel="icon" type="image/webp" href="{{ url_for('static', filename='images/H2A_Render_Phantom.webp') }}">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/network.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/tailscale.css') }}">
+    <script src="https://cdn.socket.io/4.0.1/socket.io.min.js"></script>
+</head>
+<body class="bg-light">
+    {% include 'header.html' %}
+
+    <div class="main-container net-main ts-main" id="ts-main">
+        <div class="ts-loading" id="ts-loading"><i class="fas fa-circle-notch fa-spin"></i> Reading Tailscale status…</div>
+
+        <!-- Not installed -->
+        <div class="ts-install" id="ts-install-view" hidden>
+            <div class="net-panel ts-install-card">
+                <div class="ts-install-logo"><i class="fas fa-th"></i></div>
+                <h2>Tailscale is not installed</h2>
+                <p class="net-muted">
+                    Tailscale puts this device on your private network (tailnet) so you can reach it
+                    from anywhere, without opening ports.
+                </p>
+                <ol class="ts-steps">
+                    <li class="ts-step" id="ts-step-install"><span>1</span> Install Tailscale</li>
+                    <li class="ts-step"><span>2</span> Log in to your tailnet</li>
+                    <li class="ts-step"><span>3</span> Done - this device shows up in your device list</li>
+                </ol>
+                <button class="btn btn-primary ts-big-btn" id="ts-install-btn">
+                    <i class="fas fa-download"></i> Install Tailscale
+                </button>
+                <div class="net-muted ts-install-note" id="ts-install-note">
+                    Uses the official install script from tailscale.com. Needs internet access and your sudo password.
+                </div>
+            </div>
+        </div>
+
+        <!-- Installed -->
+        <div class="ts-app" id="ts-app-view" hidden>
+            <div class="net-column">
+                <div class="net-panel">
+                    <h2 class="section-title">
+                        This device
+                        <span class="net-badge" id="ts-state-badge">—</span>
+                    </h2>
+
+                    <div class="net-note bad" id="ts-daemon-note" hidden>
+                        <div id="ts-daemon-text">The Tailscale service (tailscaled) is not running.</div>
+                        <button class="btn btn-sm btn-warning mt-2" id="ts-daemon-start"><i class="fas fa-play"></i> Start tailscaled</button>
+                    </div>
+
+                    <!-- Logged out -->
+                    <div class="ts-login" id="ts-login" hidden>
+                        <p class="net-muted">This device is not logged in to a tailnet yet.</p>
+                        <button class="btn btn-primary w-100" id="ts-login-browser">
+                            <i class="fas fa-sign-in-alt"></i> Log in with browser
+                        </button>
+                        <details class="ts-login-key">
+                            <summary>Use an auth key instead</summary>
+                            <input type="password" class="form-control form-control-sm" id="ts-auth-key" placeholder="tskey-auth-…" autocomplete="off">
+                            <div class="net-muted net-hint">Create one in the admin console under Settings → Keys.</div>
+                        </details>
+                        <details class="ts-login-key">
+                            <summary>Device name (optional)</summary>
+                            <input type="text" class="form-control form-control-sm" id="ts-login-hostname" placeholder="defaults to the hostname" maxlength="63">
+                        </details>
+                        <button class="btn btn-outline-light btn-sm w-100 mt-2" id="ts-login-key-btn" hidden>
+                            <i class="fas fa-key"></i> Log in with key
+                        </button>
+                    </div>
+
+                    <!-- Logged in -->
+                    <div class="net-overview" id="ts-self" hidden>
+                        <label class="net-toggle">
+                            <input type="checkbox" id="ts-connected">
+                            <span class="net-toggle-track"></span>
+                            <span id="ts-connected-label">Connected</span>
+                        </label>
+                        <div class="net-kv"><span>Name</span><span id="ts-self-name">—</span></div>
+                        <div class="net-kv"><span>IPv4</span><span id="ts-self-ip4">—</span></div>
+                        <div class="net-kv"><span>IPv6</span><span id="ts-self-ip6">—</span></div>
+                        <div class="net-kv"><span>Tailnet</span><span id="ts-tailnet">—</span></div>
+                        <div class="net-kv"><span>User</span><span id="ts-self-user">—</span></div>
+                        <div class="net-kv"><span>Exit node</span><span id="ts-self-exit">—</span></div>
+                        <div class="net-kv"><span>Key expiry</span><span id="ts-self-expiry">—</span></div>
+                        <div class="ts-health" id="ts-health"></div>
+                    </div>
+                </div>
+
+                <div class="net-panel">
+                    <h2 class="section-title">
+                        Version
+                        <span class="ts-update-pill" id="ts-update-pill" hidden><i class="fas fa-arrow-circle-up"></i> Update</span>
+                    </h2>
+                    <div class="net-overview">
+                        <div class="net-kv"><span>Installed</span><span id="ts-version">—</span></div>
+                        <div class="net-kv"><span>Latest</span><span id="ts-latest">—</span></div>
+                        <div class="net-muted" id="ts-update-note"></div>
+                        <div class="net-actions">
+                            <button class="btn btn-sm btn-outline-light" id="ts-check-update"><i class="fas fa-sync-alt"></i> Check now</button>
+                            <button class="btn btn-sm btn-warning" id="ts-update-btn" hidden><i class="fas fa-arrow-circle-up"></i> Update</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="net-panel" id="ts-settings-panel" hidden>
+                    <h2 class="section-title">Settings</h2>
+                    <div class="net-overview ts-settings">
+                        <label class="net-toggle" title="Use subnet routes advertised by other devices">
+                            <input type="checkbox" data-pref="accept_routes"><span class="net-toggle-track"></span><span>Accept routes</span>
+                        </label>
+                        <label class="net-toggle" title="Use the tailnet's DNS settings (MagicDNS)">
+                            <input type="checkbox" data-pref="accept_dns"><span class="net-toggle-track"></span><span>Use Tailscale DNS</span>
+                        </label>
+                        <label class="net-toggle" title="Allow SSH to this device through Tailscale SSH">
+                            <input type="checkbox" data-pref="ssh"><span class="net-toggle-track"></span><span>Tailscale SSH</span>
+                        </label>
+                        <label class="net-toggle" title="Offer this device as an exit node (must also be approved in the admin console)">
+                            <input type="checkbox" data-pref="advertise_exit_node"><span class="net-toggle-track"></span><span>Offer as exit node</span>
+                        </label>
+                        <label class="net-toggle" title="Block all incoming connections from the tailnet">
+                            <input type="checkbox" data-pref="shields_up"><span class="net-toggle-track"></span><span>Shields up</span>
+                        </label>
+                        <div class="net-field">
+                            <label for="ts-exit-select">Use exit node</label>
+                            <select class="form-control form-control-sm" id="ts-exit-select"></select>
+                        </div>
+                        <label class="net-toggle" id="ts-exit-lan-row" title="Keep access to the local network while using an exit node">
+                            <input type="checkbox" data-pref="exit_node_allow_lan"><span class="net-toggle-track"></span><span>Allow LAN access</span>
+                        </label>
+                        <div class="net-muted" id="ts-prefs-note" hidden>Settings could not be read from tailscaled.</div>
+                        <div class="net-actions">
+                            <button class="btn btn-sm btn-outline-danger" id="ts-logout"><i class="fas fa-sign-out-alt"></i> Log out</button>
+                            <a class="btn btn-sm btn-outline-light" id="ts-admin-link" href="https://login.tailscale.com/admin/machines" target="_blank" rel="noopener">
+                                <i class="fas fa-external-link-alt"></i> Admin console
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Devices / users list -->
+            <div class="net-panel net-list-panel">
+                <div class="net-tabs" id="ts-list-tabs" role="tablist">
+                    <button class="net-tab active" data-tab="devices"><i class="fas fa-desktop"></i> Devices <span class="net-count" id="ts-device-count"></span></button>
+                    <button class="net-tab" data-tab="users"><i class="fas fa-users"></i> Users <span class="net-count" id="ts-user-count"></span></button>
+                </div>
+                <div class="net-filters">
+                    <input type="search" class="form-control form-control-sm ts-search" id="ts-search" placeholder="Search name, IP, user, OS…">
+                    <div class="net-chips" id="ts-chips">
+                        <button class="net-chip active" data-filter="all">All</button>
+                        <button class="net-chip" data-filter="online">Online</button>
+                        <button class="net-chip" data-filter="offline">Offline</button>
+                        <button class="net-chip" data-filter="exit">Exit nodes</button>
+                    </div>
+                </div>
+                <div class="net-iface-list" id="ts-list">
+                    <div class="net-empty">Loading…</div>
+                </div>
+            </div>
+
+            <!-- Details -->
+            <div class="net-panel net-tabs-panel">
+                <h2 class="section-title">Details</h2>
+                <div class="net-scroll" id="ts-details">
+                    <div class="net-empty">Select a device or user.</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Install / update / login progress -->
+    <div class="net-modal" id="ts-job-modal" hidden>
+        <div class="net-modal-card ts-job-card">
+            <div class="net-modal-title" id="ts-job-title"></div>
+            <div class="ts-job-status" id="ts-job-status"></div>
+            <div class="ts-login-url" id="ts-job-login" hidden>
+                <div>Open this link and approve the device:</div>
+                <a id="ts-job-login-link" href="#" target="_blank" rel="noopener"></a>
+                <div class="net-actions">
+                    <a class="btn btn-primary btn-sm" id="ts-job-login-open" href="#" target="_blank" rel="noopener"><i class="fas fa-external-link-alt"></i> Open login page</a>
+                    <button class="btn btn-outline-light btn-sm" id="ts-job-login-copy"><i class="fas fa-copy"></i> Copy link</button>
+                </div>
+            </div>
+            <details class="ts-job-details" id="ts-job-details">
+                <summary>Show log</summary>
+                <pre class="net-log" id="ts-job-log"></pre>
+            </details>
+            <div class="net-modal-actions">
+                <button class="btn btn-secondary btn-sm" id="ts-job-cancel">Cancel</button>
+                <button class="btn btn-primary btn-sm" id="ts-job-close" hidden>Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Confirmation -->
+    <div class="net-modal" id="ts-confirm-modal" hidden>
+        <div class="net-modal-card">
+            <div class="net-modal-title" id="ts-confirm-title"></div>
+            <div class="net-modal-message" id="ts-confirm-message"></div>
+            <div class="net-modal-actions">
+                <button class="btn btn-secondary btn-sm" id="ts-confirm-cancel">Cancel</button>
+                <button class="btn btn-danger btn-sm" id="ts-confirm-ok">Confirm</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/tailscale.js') }}"></script>
+</body>
+</html>

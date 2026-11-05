@@ -400,3 +400,30 @@
     white-space: pre-line;
     text-align: left;
 }
+
+/* Tailscale: update badge on the 3x3 icon */
+.ts-header-icon {
+    position: relative;
+    display: inline-flex;
+}
+
+.ts-header-badge {
+    position: absolute;
+    top: -4px;
+    right: -3px;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: rgb(230, 152, 45);
+    border: 1.5px solid rgba(20, 0, 40, 0.92);
+    box-shadow: 0 0 6px rgba(230, 152, 45, 0.9);
+}
+
+.ts-header-badge.urgent {
+    background: rgb(231, 76, 60);
+    box-shadow: 0 0 6px rgba(231, 76, 60, 0.9);
+}
+
+.ts-header-badge[hidden] {
+    display: none;
+}

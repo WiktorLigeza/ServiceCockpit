@@ -101,6 +101,14 @@
 }
 
 /* Update check */
+#sidebar-tailscale-item {
+    position: relative;
+}
+
+.sidebar-update-dot[hidden] {
+    display: none;
+}
+
 .sidebar-item.sidebar-update {
     position: relative;
     color: rgba(255, 255, 255, 0.6);

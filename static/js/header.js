@@ -220,15 +220,32 @@ function renderPlatformInfo(data) {
             const valueEl = tailscaleItem.querySelector('.metric-value');
             if (valueEl) valueEl.textContent = tailscale.ip || (tailscale.active ? 'No IP' : 'Inactive');
 
-            const lines = [`Tailscale: ${tailscale.active ? 'Active' : 'Inactive'}`];
+            const update = tailscale.update || {};
+            const lines = [`Tailscale: ${tailscale.active ? 'Active' : (tailscale.backend_state === 'NeedsLogin' ? 'Logged out' : 'Inactive')}`];
             if (tailscale.ip) lines.push(`IP: ${tailscale.ip}`);
             if (tailscale.hostname) lines.push(`Host: ${tailscale.hostname}`);
             if (tailscale.version) lines.push(`Version: ${tailscale.version}`);
+            if (update.available) {
+                lines.push(`${update.urgent ? 'Security update' : 'Update'} available: ${update.latest || 'newer version'}`);
+            }
             const menu = document.getElementById('tailscale-menu-content');
             if (menu) menu.textContent = lines.join('\n');
         } else {
             tailscaleItem.style.display = 'none';
         }
+    }
+
+    // Update badge on the header icon and the sidebar entry.
+    const update = (tailscale.installed && tailscale.update) || {};
+    const badge = document.getElementById('tailscale-update-badge');
+    if (badge) {
+        badge.hidden = !update.available;
+        badge.classList.toggle('urgent', !!update.urgent);
+    }
+    const sidebarDot = document.getElementById('sidebar-tailscale-dot');
+    if (sidebarDot) {
+        sidebarDot.hidden = !update.available;
+        sidebarDot.title = update.available ? `Tailscale ${update.latest || ''} available` : '';
     }
 }
 

@@ -33,6 +33,12 @@
             <i class="fas fa-ethernet"></i>
             <span class="sidebar-label">Network</span>
         </a>
+        <a class="sidebar-item {% if request.endpoint == 'tailscale.tailscale_page' %}sidebar-active{% endif %}"
+           href="{{ url_for('tailscale.tailscale_page') }}" title="Tailscale" id="sidebar-tailscale-item">
+            <span class="sidebar-update-dot status-available" id="sidebar-tailscale-dot" hidden></span>
+            <i class="fas fa-th"></i>
+            <span class="sidebar-label">Tailscale</span>
+        </a>
 
         <div class="sidebar-divider"></div>
 
