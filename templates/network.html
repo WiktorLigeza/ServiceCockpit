@@ -38,6 +38,9 @@
                     </label>
                     <div class="net-muted" id="net-wifi-radio-note"></div>
                     <div class="net-actions">
+                        <button class="btn btn-sm btn-outline-info" id="net-scan-open">
+                            <i class="fas fa-search-location"></i> Scan network
+                        </button>
                         <button class="btn btn-sm btn-outline-warning" id="net-restart-nm" hidden>
                             <i class="fas fa-sync-alt"></i> Restart NetworkManager
                         </button>
@@ -163,7 +166,48 @@
         </form>
     </div>
 
+    <!-- LAN scanner -->
+    <div class="net-modal" id="net-scan-modal" hidden>
+        <div class="net-modal-card net-scan-card" role="dialog" aria-modal="true" aria-labelledby="net-scan-title">
+            <div class="net-scan-head">
+                <div class="net-modal-title" id="net-scan-title"><i class="fas fa-search-location"></i> Network scanner</div>
+                <button class="net-scan-close" id="net-scan-close" aria-label="Close">&times;</button>
+            </div>
+            <div class="net-scan-controls">
+                <select class="form-control form-control-sm" id="net-scan-subnet"></select>
+                <input type="text" class="form-control form-control-sm" id="net-scan-custom" placeholder="e.g. 192.168.1.0/24" hidden>
+                <button class="btn btn-sm btn-primary" id="net-scan-start"><i class="fas fa-search"></i> Scan</button>
+                <button class="btn btn-sm btn-outline-light" id="net-scan-pingall" disabled><i class="fas fa-satellite-dish"></i> Ping all</button>
+                <input type="search" class="form-control form-control-sm net-scan-search" id="net-scan-search" placeholder="Filter name, IP, MAC, vendor…">
+            </div>
+            <div class="net-scan-progress" id="net-scan-progress" hidden>
+                <div class="net-scan-bar"><div id="net-scan-bar-fill"></div></div>
+                <span id="net-scan-phase"></span>
+            </div>
+            <div class="net-table-wrap net-scan-table-wrap">
+                <table class="net-table net-scan-table">
+                    <thead>
+                        <tr>
+                            <th data-sort="ip">IP</th>
+                            <th data-sort="name">Name</th>
+                            <th data-sort="mac">MAC</th>
+                            <th data-sort="vendor">Vendor</th>
+                            <th>Services</th>
+                            <th data-sort="ping">Ping</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody id="net-scan-rows">
+                        <tr><td colspan="7" class="net-empty">Pick a subnet and press Scan.</td></tr>
+                    </tbody>
+                </table>
+            </div>
+            <div class="net-muted" id="net-scan-summary"></div>
+        </div>
+    </div>
+
     <script src="{{ url_for('static', filename='js/network.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/network_scanner.js') }}"></script>
     <script src="{{ url_for('static', filename='js/network_p2p.js') }}"></script>
 </body>
 </html>

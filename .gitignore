@@ -7,3 +7,6 @@ __pycache__/
 # Local state (per device, may contain secrets)
 config.json
 .flask_session/
+
+# Downloaded data (MAC vendor list for the network scanner)
+.cache/

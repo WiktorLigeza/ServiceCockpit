@@ -8,6 +8,7 @@ profiles   NetworkManager connection profiles
 wifi       Wi-Fi client via NetworkManager or a standalone wpa_supplicant
 rollback   auto-revert for changes on the interface the browser is using
 p2p        Wi-Fi Direct (groups, peers, setup) through wpa_cli
+scanner    LAN scanner: ping sweep, neighbour table, names, vendors, open ports
 views      the /network page and its JSON API
 
 Reads run unprivileged (sysfs, `ip -j`, ethtool, iw, nmcli, and wpa_cli via

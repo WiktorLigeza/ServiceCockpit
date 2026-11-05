@@ -151,7 +151,7 @@ def _sudo(args: list[str], timeout: float = 60) -> tuple[bool, str]:
     if not password:
         return False, 'sudo_required'
     try:
-        proc = subprocess.run(['sudo', '-S', '-p', '', *args], input=password + '\n', capture_output=True,
+        proc = subprocess.run(['sudo', '-S', '-k', '-p', '', *args], input=password + '\n', capture_output=True,
                               text=True, timeout=timeout)
         return proc.returncode == 0, (proc.stdout + proc.stderr).strip()
     except subprocess.TimeoutExpired:
@@ -457,7 +457,7 @@ class SetupJob:
             self.socketio.emit('bt_features_changed', {}, namespace=NAMESPACE)
 
     def _stream(self, args: list[str], password: str | None = None, user_session: bool = False, timeout: float = 1800):
-        cmd = ['sudo', '-S', '-p', '', *args] if password else args
+        cmd = ['sudo', '-S', '-k', '-p', '', *args] if password else args
         proc = subprocess.Popen(cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                                 text=True, bufsize=1, env=user_env() if user_session else None)
         if password:

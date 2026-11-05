@@ -44,7 +44,7 @@ def _sudo_validate(password: str) -> Tuple[bool, str]:
         # timestamp is already cached. Use `-k` with a harmless command to force
         # sudo to actually verify the provided password.
         result = subprocess.run(
-            ['sudo', '-S', '-p', '', '-k', '/usr/bin/true'],
+            ['sudo', '-S', '-k', '-p', '', '/usr/bin/true'],
             input=password + '\n',
             text=True,
             capture_output=True,
@@ -60,7 +60,7 @@ def _sudo_validate(password: str) -> Tuple[bool, str]:
 
 def run_sudo(args: list[str], password: str, input_text: str | None = None, check: bool = True,
              timeout: float | None = None):
-    command = ['sudo', '-S', '-p', ''] + args
+    command = ['sudo', '-S', '-k', '-p', ''] + args
     stdin = password + '\n'
     if input_text:
         stdin += input_text

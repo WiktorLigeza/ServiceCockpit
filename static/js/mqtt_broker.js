@@ -101,6 +101,7 @@ function mqSetupListeners() {
     mqBindModeForm('mq-manage-mode');
 
     mqEl('mq-setup-go').addEventListener('click', mqSetupGo);
+    mqEl('mq-setup-start-only').addEventListener('click', () => mqService('start'));
     mqEl('mq-setup-skip').addEventListener('click', () => {
         mqSetSkipped(true);
         mqShowWizard(false);
@@ -182,11 +183,14 @@ function mqShowWizard(show) {
         ? 'Mosquitto is installed but not running'
         : 'No MQTT broker on this device';
     mqEl('mq-setup-text').textContent = installed
-        ? 'Start the local broker, or skip and connect to a broker on another machine.'
+        ? 'Choose who may connect and start the local broker, or skip and connect to a broker on another machine.'
         : 'MQTT Explorer needs a broker to talk to. Install Mosquitto here, or skip and connect to a broker on another machine.';
-    mqEl('mq-setup-install').hidden = installed;
+    // Installed but stopped: offer to (re)write the access settings and start, since a
+    // broken config is a common reason it is not running; "just start" keeps custom setups.
+    if (installed && b.mode) mqSetMode('mq-mode', b.mode, b.username);
+    mqEl('mq-setup-start-only').hidden = !installed;
     mqEl('mq-setup-go').innerHTML = installed
-        ? '<i class="fas fa-play"></i> Start Mosquitto'
+        ? '<i class="fas fa-play"></i> Configure &amp; start'
         : '<i class="fas fa-download"></i> Install Mosquitto';
 
     const go = mqEl('mq-setup-go');
@@ -201,13 +205,12 @@ function mqShowWizard(show) {
 // ---------------------------------------------------------------- actions
 
 async function mqSetupGo() {
-    if (mqBroker?.installed) {
-        return mqService('start');
-    }
     const form = mqModeForm('mq-mode');
     if (!mqCheckForm(form, mqEl('mq-setup-error'))) return;
     mqPendingLogin = form.mode === 'password' ? { username: form.username, password: form.password } : {};
-    const res = await mqJobModal.start('/api/mqtt/broker/install', form, mqSetupGo);
+    // configure = write settings + restart, which also starts a stopped broker.
+    const url = mqBroker?.installed ? '/api/mqtt/broker/configure' : '/api/mqtt/broker/install';
+    const res = await mqJobModal.start(url, form, mqSetupGo);
     if (!res.ok && !res.sudo) mqEl('mq-setup-error').textContent = res.error || 'Could not start the installation.';
 }
 

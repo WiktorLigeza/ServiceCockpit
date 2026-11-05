@@ -121,7 +121,7 @@ def _start_exec_process(
     if params:
         args.extend(shlex.split(params))
     if sudo:
-        args = ['sudo', '-S', '-p', ''] + args
+        args = ['sudo', '-S', '-k', '-p', ''] + args
 
     cwd = path_obj.parent
     if cwd_override:

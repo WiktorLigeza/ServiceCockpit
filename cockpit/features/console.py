@@ -83,7 +83,7 @@ def _spawn_shell(cwd: str, sudo: bool, sudo_password: str | None):
     env['TERM'] = 'xterm-256color'
     env['COLORTERM'] = 'truecolor'
 
-    command = ['sudo', '-S', '-p', '', 'bash'] if sudo else ['bash']
+    command = ['sudo', '-S', '-k', '-p', '', 'bash'] if sudo else ['bash']
 
     proc = subprocess.Popen(
         command,

@@ -808,6 +808,115 @@ details.net-section[open] > summary {
 .net-toast.error { border-left-color: var(--net-bad); }
 .net-toast.fade { opacity: 0; }
 
+/* ---- LAN scanner popup ---- */
+
+.net-scan-card {
+    width: min(1150px, 96vw);
+    height: min(780px, 92vh);
+}
+
+.net-scan-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.net-scan-close {
+    background: none;
+    border: none;
+    color: var(--net-muted);
+    font-size: 1.6rem;
+    line-height: 1;
+}
+
+.net-scan-close:hover { color: #fff; }
+
+.net-scan-controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+}
+
+.net-scan-controls select { width: auto; min-width: 220px; flex: 0 1 auto; }
+.net-scan-controls #net-scan-custom { width: 170px; flex: 0 0 auto; }
+.net-scan-search { flex: 1 1 180px; min-width: 0; }
+
+.net-scan-progress {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 0.85rem;
+}
+
+.net-scan-progress[hidden] { display: none; }
+
+.net-scan-bar {
+    flex: 0 0 200px;
+    height: 6px;
+    border-radius: 3px;
+    background: rgba(255, 255, 255, 0.1);
+    overflow: hidden;
+}
+
+.net-scan-bar > div {
+    height: 100%;
+    width: 0;
+    background: var(--net-accent);
+    transition: width 0.3s;
+}
+
+.net-scan-table-wrap {
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+}
+
+.net-scan-table th[data-sort] {
+    cursor: pointer;
+    user-select: none;
+    white-space: nowrap;
+}
+
+.net-scan-table th[data-sort]:hover { color: #fff; }
+.net-scan-table th.sorted::after { content: ' \25B4'; }
+.net-scan-table th.sorted.desc::after { content: ' \25BE'; }
+
+.net-scan-table td { vertical-align: middle; }
+.net-scan-table td.nowrap { white-space: nowrap; }
+
+.net-scan-dot {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    margin-right: 6px;
+    background: var(--net-ok);
+}
+
+.net-scan-dot.arp { background: var(--net-warn); }
+.net-scan-dot.down { background: var(--net-bad); }
+
+.net-scan-copy { cursor: pointer; }
+.net-scan-copy:hover { text-decoration: underline dotted; }
+
+.net-scan-name-src {
+    font-size: 0.7rem;
+    color: var(--net-muted);
+    margin-left: 4px;
+}
+
+.net-scan-services {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 3px;
+}
+
+a.net-badge { text-decoration: none; }
+a.net-badge:hover { filter: brightness(1.3); }
+
+.net-scan-ping { font-family: monospace; font-size: 0.8rem; white-space: nowrap; }
+
 @media (max-width: 1100px) {
     .net-main {
         flex-direction: column;

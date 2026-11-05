@@ -110,7 +110,7 @@ class BackgroundJob:
             return False
         if echo:
             self.log(f'$ {" ".join(args)}')
-        command = ['sudo', '-S', '-p', '']
+        command = ['sudo', '-S', '-k', '-p', '']
         if env:
             command += ['env', *[f'{k}={v}' for k, v in env.items()]]
         command += args

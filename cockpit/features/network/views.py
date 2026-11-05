@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import ipaddress
 import os
 import re
 import time
@@ -17,6 +18,7 @@ from .inventory import (
 )
 from .profiles import MTU_KEYS, connection_details, connection_settings, list_connections, validate_ipv4_form
 from .rollback import resolve_revert, schedule_revert
+from .scanner import local_subnets, ping_many, scan
 from .shell import nm_running, read_text, run, sudo, sudo_all
 from .wifi import wifi_backend, wifi_saved_wpa, wifi_state, wpa_add_network, wpa_cli
 
@@ -408,6 +410,38 @@ def build_network_blueprint() -> Blueprint:
             cmd += ['-s', str(size), '-M', 'do']
         ok, out = run(cmd + [host], timeout=count * 3 + 5)
         return jsonify({'success': True, 'reachable': ok, 'output': out})
+
+    # ---- LAN scanner (unprivileged: ping, neighbour table, name lookups, TCP probes)
+
+    @bp.route('/api/network/scan')
+    def api_scan_state():
+        return jsonify({'subnets': local_subnets(), 'scan': scan.view()})
+
+    @bp.route('/api/network/scan', methods=['POST'])
+    def api_scan_start():
+        cidr = ((request.get_json(silent=True) or {}).get('cidr') or '').strip()
+        ok, error = scan.start(cidr)
+        if ok:
+            return result(True)
+        return result(False, error, 409 if 'already' in error else 400)
+
+    @bp.route('/api/network/scan/cancel', methods=['POST'])
+    def api_scan_cancel():
+        scan.cancel()
+        return result(True)
+
+    @bp.route('/api/network/scan/ping', methods=['POST'])
+    def api_scan_ping():
+        data = request.get_json(silent=True) or {}
+        ips = data.get('ips') or []
+        if not isinstance(ips, list) or not 0 < len(ips) <= 256:
+            return result(False, 'Give 1-256 addresses.')
+        try:
+            ips = [str(ipaddress.IPv4Address(str(ip))) for ip in ips]
+        except ValueError:
+            return result(False, 'Invalid IPv4 address.')
+        count = max(1, min(int(data.get('count') or 4), 10))
+        return jsonify({'success': True, 'results': ping_many(ips, count)})
 
     return bp
 

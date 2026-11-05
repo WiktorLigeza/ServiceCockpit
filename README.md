@@ -16,7 +16,7 @@ MQTT, Bluetooth and networking, with live system metrics in the header.
 | **MQTT Explorer** | connect to a broker, browse topics, subscribe and publish; when no broker runs on the device, a wizard installs Mosquitto (this device only / local network / username + password) and connects to it |
 | **File Explorer** | browse, edit, upload/download, cut/copy/paste, run programs with live output |
 | **Bluetooth** | adapter settings, scanning and pairing, audio, file transfer (OBEX), serial port |
-| **Network** | interfaces with live throughput, link speed and duplex, MTU / jumbo frames, offloads, Wi-Fi, Wi-Fi Direct, NetworkManager profiles, routes, DNS, ping |
+| **Network** | interfaces with live throughput, link speed and duplex, MTU / jumbo frames, offloads, Wi-Fi, Wi-Fi Direct, NetworkManager profiles, routes, DNS, ping; LAN scanner (devices with IP, MAC, name, vendor, open services; ping one or all) |
 | **Tailscale** | one-click install, browser or auth-key login, connect/disconnect, this device's IPs and settings (accept routes/DNS, SSH, exit node, shields up), tailnet devices and users with online status, connection type and key expiry, ping, update check and one-click update |
 | **Consoles** | multiple root or normal shells in the browser |
 | **Header** | CPU temperature and usage, memory, storage, GPU, internet status and connection type (Ethernet / Wi-Fi / …), IP, MAC, Tailscale IP and status (orange dot on its icon when a Tailscale update is available) |
@@ -88,7 +88,7 @@ cockpit/                   the application package
     ├── tailscale.py       Tailscale page: install, login, devices/users, settings, updates
     ├── export.py          source zip download
     ├── bluetooth/         controller, services (audio/files/serial), dbus_helper
-    └── network/           shell, inventory, profiles, wifi, p2p, rollback, views
+    └── network/           shell, inventory, profiles, wifi, p2p, rollback, scanner, views
 templates/                 Jinja2 pages (one per feature + shared header/sidebar)
 static/                    css/ and js/ per feature
 ```

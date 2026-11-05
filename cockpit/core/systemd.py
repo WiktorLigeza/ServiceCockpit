@@ -8,7 +8,7 @@ class SystemdManager:
     def _run_sudo(args, sudo_password: str | None, check=True, input_text: str = ''):
         if not sudo_password:
             raise ValueError('sudo_password is required')
-        cmd = ['sudo', '-S', '-p', ''] + args
+        cmd = ['sudo', '-S', '-k', '-p', ''] + args
         return subprocess.run(
             cmd,
             input=sudo_password + '\n' + input_text,
