@@ -1,0 +1,221 @@
+/* GPU Manager page - builds on network.css (panels, badges, tables) and setup_wizard.css */
+
+.gpu-main [hidden] { display: none !important; }
+
+/* styles.css tints .btn-warning icons yellow, which vanishes on a yellow button */
+.gpu-main .btn-warning i {
+    color: inherit;
+    filter: none;
+}
+
+.gpu-loading {
+    margin: auto;
+    color: var(--net-muted);
+    font-size: 1.1rem;
+}
+
+/* ---- wizard ---- */
+
+.gpu-setup-card {
+    width: min(620px, 100%);
+}
+
+.gpu-logo-warn {
+    color: var(--setup-warn);
+    background: rgba(241, 196, 15, 0.08);
+    border-color: rgba(241, 196, 15, 0.35);
+}
+
+.gpu-plan-meta:empty,
+.gpu-plan-warnings:empty,
+.gpu-plan-notes:empty { display: none; }
+
+.gpu-plan-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+    justify-content: center;
+}
+
+.gpu-plan-warnings {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    text-align: left;
+}
+
+.gpu-plan-warnings .net-note { margin: 0; font-size: 0.85rem; }
+
+.gpu-plan-notes {
+    text-align: left;
+    width: 100%;
+}
+
+.gpu-plan-notes div::before {
+    content: '\2022  ';
+}
+
+.setup-card .setup-options {
+    max-height: 340px;
+    overflow-y: auto;
+}
+
+/* ---- detected hardware ---- */
+
+.gpu-hw-list {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    text-align: left;
+}
+
+.gpu-hw-list:empty { display: none; }
+
+.gpu-hw {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 12px;
+    border-radius: 8px;
+    background: var(--net-surface);
+    border: 1px solid var(--net-border);
+}
+
+.gpu-hw > i {
+    font-size: 1.3rem;
+    color: #76b900;   /* NVIDIA green */
+}
+
+.gpu-hw-main {
+    flex: 1;
+    min-width: 0;
+}
+
+.gpu-hw-name {
+    color: #fff;
+    font-weight: 600;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.gpu-hw-list.left .gpu-hw-name { white-space: normal; }
+
+.gpu-hw-sub {
+    color: var(--net-muted);
+    font-size: 0.78rem;
+}
+
+/* ---- manager ---- */
+
+.gpu-app {
+    display: flex;
+    gap: 1rem;
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+}
+
+.gpu-app .section-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    white-space: nowrap;
+}
+
+.gpu-app .section-title > .net-badge:first-of-type,
+.gpu-app .section-title > .net-count {
+    margin-left: auto;
+}
+
+.gpu-right {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    overflow-y: auto;
+}
+
+.gpu-cards {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.gpu-card-title {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-width: 0;
+}
+
+.gpu-card-title i { color: #76b900; }
+
+.gpu-meters {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 14px 28px;
+    margin: 6px 0 16px;
+}
+
+.gpu-meter-head {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.88rem;
+    margin-bottom: 3px;
+}
+
+.gpu-meter-head span:first-child { color: var(--net-muted); }
+.gpu-meter-head span:last-child { color: #fff; font-variant-numeric: tabular-nums; }
+
+.gpu-bar {
+    height: 10px;
+    border-radius: 4px;
+    background: rgba(255, 255, 255, 0.08);
+    overflow: hidden;
+}
+
+.gpu-bar-fill {
+    height: 100%;
+    border-radius: 4px;
+    transition: width 0.6s ease;
+}
+
+.gpu-bar-fill.ok { background: var(--net-ok); }
+.gpu-bar-fill.warn { background: var(--net-warn); }
+.gpu-bar-fill.bad { background: var(--net-bad); }
+
+.gpu-kv-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 2px 28px;
+}
+
+.gpu-proc-panel {
+    flex-shrink: 0;
+    min-height: 160px;
+}
+
+.gpu-proc-name {
+    max-width: 380px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+@media (max-width: 1100px) {
+    .gpu-app {
+        flex-direction: column;
+        height: auto;
+    }
+
+    .gpu-right { overflow: visible; }
+}
+
+@media (max-width: 800px) {
+    .gpu-meters { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .gpu-kv-grid { grid-template-columns: 1fr; }
+}

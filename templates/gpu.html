@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GPU Manager - Phantom Cockpit</title>
+    <link rel="icon" type="image/webp" href="{{ url_for('static', filename='images/H2A_Render_Phantom.webp') }}">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/network.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/gpu.css') }}">
+    <script src="https://cdn.socket.io/4.0.1/socket.io.min.js"></script>
+</head>
+<body class="bg-light">
+    {% include 'header.html' %}
+
+    <div class="main-container net-main gpu-main" id="gpu-main">
+        <div class="gpu-loading" id="gpu-loading"><i class="fas fa-circle-notch fa-spin"></i> Looking for NVIDIA GPUs…</div>
+
+        <!-- No NVIDIA GPU / Jetson -->
+        <div class="setup-wrap" id="gpu-na-view" hidden>
+            <div class="setup-card">
+                <div class="setup-logo"><i class="fas fa-microchip"></i></div>
+                <h2 id="gpu-na-title">No NVIDIA GPU found</h2>
+                <p class="setup-muted" id="gpu-na-text">This device has no discrete NVIDIA graphics card.</p>
+            </div>
+        </div>
+
+        <!-- Driver setup wizard (no driver yet, or changing the driver) -->
+        <div class="setup-wrap" id="gpu-setup-view" hidden>
+            <div class="setup-card gpu-setup-card">
+                <div class="setup-logo"><i class="fas fa-microchip"></i></div>
+                <h2 id="gpu-setup-title">NVIDIA GPU detected</h2>
+                <p class="setup-muted" id="gpu-setup-text">
+                    This GPU is running without the NVIDIA driver, so CUDA, NVENC and full performance are not available.
+                </p>
+                <div class="gpu-hw-list" id="gpu-setup-hw"></div>
+                <ol class="setup-steps">
+                    <li class="setup-step current"><span>1</span> Choose and install the driver</li>
+                    <li class="setup-step"><span>2</span> Reboot</li>
+                    <li class="setup-step"><span>3</span> Done - GPU stats, CUDA and nvidia-smi work</li>
+                </ol>
+                <div class="gpu-plan-meta" id="gpu-plan-meta"></div>
+                <div class="gpu-plan-warnings" id="gpu-plan-warnings"></div>
+                <div class="setup-options" id="gpu-options">
+                    <div class="setup-muted"><i class="fas fa-circle-notch fa-spin"></i> Finding drivers for this GPU…</div>
+                </div>
+                <button type="button" class="setup-link-btn" id="gpu-options-more" hidden></button>
+                <div class="gpu-plan-notes setup-muted" id="gpu-plan-notes"></div>
+                <div class="setup-error" id="gpu-setup-error"></div>
+                <div class="setup-actions">
+                    <button class="btn btn-primary setup-big-btn" id="gpu-install-btn" disabled>
+                        <i class="fas fa-download"></i> Install driver
+                    </button>
+                </div>
+                <div class="setup-muted">Needs internet access and your sudo password. Takes a few minutes.</div>
+                <div class="setup-actions">
+                    <button type="button" class="setup-link-btn" id="gpu-refresh-options"><i class="fas fa-sync-alt"></i> Re-check available drivers</button>
+                    <button type="button" class="setup-link-btn" id="gpu-setup-back" hidden><i class="fas fa-arrow-left"></i> Back to GPU Manager</button>
+                    <a class="setup-link-btn" id="gpu-manual-link" href="https://www.nvidia.com/en-us/drivers/" target="_blank" rel="noopener">Manual download <i class="fas fa-external-link-alt"></i></a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Driver installed, reboot needed -->
+        <div class="setup-wrap" id="gpu-reboot-view" hidden>
+            <div class="setup-card">
+                <div class="setup-logo gpu-logo-warn"><i class="fas fa-power-off"></i></div>
+                <h2>Reboot to finish</h2>
+                <p id="gpu-reboot-text"></p>
+                <div class="gpu-hw-list" id="gpu-reboot-hw"></div>
+                <ol class="setup-steps">
+                    <li class="setup-step"><span><i class="fas fa-check"></i></span> Driver installed</li>
+                    <li class="setup-step current"><span>2</span> Reboot</li>
+                    <li class="setup-step"><span>3</span> Done</li>
+                </ol>
+                <div class="gpu-plan-warnings" id="gpu-reboot-warnings"></div>
+                <div class="setup-actions">
+                    <button class="btn btn-warning setup-big-btn" id="gpu-reboot-btn"><i class="fas fa-power-off"></i> Reboot now</button>
+                </div>
+                <div class="setup-actions">
+                    <button type="button" class="setup-link-btn" id="gpu-reboot-change">Choose a different driver</button>
+                    <button type="button" class="setup-link-btn" id="gpu-reboot-remove">Remove the driver</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Driver active -->
+        <div class="gpu-app" id="gpu-app-view" hidden>
+            <div class="net-column">
+                <div class="net-panel">
+                    <h2 class="section-title">Driver <span class="net-badge ok" id="gpu-driver-badge">active</span></h2>
+                    <div class="net-overview">
+                        <div class="net-kv"><span>Version</span><span id="gpu-drv-version">—</span></div>
+                        <div class="net-kv"><span>Kernel module</span><span id="gpu-drv-module">—</span></div>
+                        <div class="net-kv"><span>CUDA (max)</span><span id="gpu-drv-cuda">—</span></div>
+                        <div class="net-kv"><span>Distribution</span><span id="gpu-drv-distro">—</span></div>
+                        <div class="net-kv"><span>Secure Boot</span><span id="gpu-drv-sb">—</span></div>
+                        <label class="net-toggle" title="Keep the driver loaded when no program uses the GPU (faster start of CUDA programs)">
+                            <input type="checkbox" id="gpu-persistence"><span class="net-toggle-track"></span><span>Persistence mode</span>
+                        </label>
+                        <div class="net-note bad" id="gpu-smi-error" hidden></div>
+                        <div class="net-actions">
+                            <button class="btn btn-sm btn-outline-light" id="gpu-change-btn"><i class="fas fa-exchange-alt"></i> Change driver</button>
+                            <button class="btn btn-sm btn-outline-danger" id="gpu-remove-btn"><i class="fas fa-trash"></i> Remove</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="net-panel">
+                    <h2 class="section-title">Hardware</h2>
+                    <div class="gpu-hw-list left" id="gpu-app-hw"></div>
+                </div>
+            </div>
+
+            <div class="gpu-right">
+                <div class="gpu-cards" id="gpu-cards">
+                    <div class="net-panel"><div class="net-empty">Reading nvidia-smi…</div></div>
+                </div>
+                <div class="net-panel gpu-proc-panel">
+                    <h2 class="section-title">Processes using the GPU <span class="net-count" id="gpu-proc-count"></span></h2>
+                    <div class="net-scroll" id="gpu-procs">
+                        <div class="net-empty">No compute processes.</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Confirmation -->
+    <div class="net-modal" id="gpu-confirm-modal" hidden>
+        <div class="net-modal-card">
+            <div class="net-modal-title" id="gpu-confirm-title"></div>
+            <div class="net-modal-message" id="gpu-confirm-message"></div>
+            <div class="net-modal-actions">
+                <button class="btn btn-secondary btn-sm" id="gpu-confirm-cancel">Cancel</button>
+                <button class="btn btn-danger btn-sm" id="gpu-confirm-ok">Confirm</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/gpu.js') }}"></script>
+</body>
+</html>

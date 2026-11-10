@@ -28,6 +28,7 @@ from cockpit.features.bluetooth import (
 from cockpit.features.clock import build_clock_blueprint
 from cockpit.features.console import build_console_blueprint, register_console_socket_handlers
 from cockpit.features.export import build_export_blueprint
+from cockpit.features.gpu import build_gpu_blueprint
 from cockpit.features.file_explorer import build_file_explorer_blueprint, register_file_exec_socket_handlers
 from cockpit.features.metrics import build_metrics_blueprint, get_system_metrics
 from cockpit.features.mqtt import build_mqtt_blueprint, mqtt_cleanup_on_shutdown, register_mqtt_socket_handlers
@@ -79,6 +80,7 @@ def create_app() -> tuple[Flask, SocketIO]:
         build_tailscale_blueprint(),
         build_clock_blueprint(),
         build_system_updates_blueprint(),
+        build_gpu_blueprint(),
     ):
         app.register_blueprint(blueprint)
 

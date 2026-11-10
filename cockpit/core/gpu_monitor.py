@@ -24,6 +24,7 @@ class GpuMonitor:
         self._latest: dict = {}
         self._backend = self._detect_backend()
         self._started = False
+        self._last_detect = time.time()
 
     @staticmethod
     def _detect_backend() -> str | None:
@@ -88,7 +89,18 @@ class GpuMonitor:
                 pass
             time.sleep(2)
 
+    def _redetect(self):
+        # The driver may be installed later from the GPU page; pick nvidia-smi up then.
+        if time.time() - self._last_detect < 60:
+            return
+        self._last_detect = time.time()
+        self._backend = self._detect_backend()
+        if self._backend is not None:
+            self.start()
+
     def get_latest(self) -> dict:
+        if self._backend is None:
+            self._redetect()
         if self._backend is None:
             return {'available': False}
         with self._lock:
