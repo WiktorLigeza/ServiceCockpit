@@ -57,6 +57,18 @@
     padding: 6px 8px;
     overflow: hidden;
     min-height: 0;
+    /* The page is rendered with html { zoom: var(--page-zoom) }. xterm.js
+       mixes zoomed (getBoundingClientRect/clientX) and unzoomed (offsetWidth)
+       measurements, so under zoom the mouse/selection drifts away from the
+       pointer. Cancelling the zoom here gives xterm an effective zoom of 1. */
+    zoom: calc(1 / var(--page-zoom));
+}
+
+/* Firefox branch of styles.css uses transform instead of zoom - nothing to undo. */
+@-moz-document url-prefix() {
+    .console-terminal {
+        zoom: 1;
+    }
 }
 
 .console-terminal .xterm-viewport::-webkit-scrollbar {

@@ -15,6 +15,90 @@ function _consoleGetPointerPosition(e) {
     return { x: e.clientX / zoom, y: e.clientY / zoom };
 }
 
+function _consolePageZoom() {
+    const container = document.querySelector('.console-terminal');
+    // Firefox path: html isn't zoomed and the container isn't counter-zoomed.
+    if (container && getComputedStyle(container).zoom === '1') return 1;
+    const zoom = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--page-zoom'));
+    return Number.isFinite(zoom) && zoom > 0 ? zoom : 1;
+}
+
+function _consoleCopySelection(term) {
+    const text = term.getSelection();
+    if (!text) return false;
+    if (navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText(text).catch(() => {});
+    } else {
+        // Plain-HTTP fallback: the async clipboard API is unavailable.
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        ta.style.position = 'fixed';
+        ta.style.opacity = '0';
+        document.body.appendChild(ta);
+        ta.select();
+        try { document.execCommand('copy'); } catch (_) {}
+        ta.remove();
+        term.focus();
+    }
+    return true;
+}
+
+async function _consolePasteFromClipboard(term) {
+    if (!(navigator.clipboard && window.isSecureContext && navigator.clipboard.readText)) {
+        return false;
+    }
+    try {
+        const text = await navigator.clipboard.readText();
+        if (text) term.paste(text);
+        return true;
+    } catch (_) {
+        return false;
+    }
+}
+
+// Clipboard shortcuts. xterm.js turns Ctrl+V into ^V (0x16) and swallows the
+// keydown, so the browser never fires its paste event - returning false here
+// makes xterm skip the key and lets the native paste reach xterm's textarea
+// (which works over plain HTTP too, unlike navigator.clipboard).
+function _consoleAttachClipboard(term, container) {
+    term.attachCustomKeyEventHandler((e) => {
+        if (e.type !== 'keydown') return true;
+        const key = e.key.toLowerCase();
+        const mod = e.ctrlKey || e.metaKey;
+        if (!mod || e.altKey) return true;
+
+        // Ctrl+V / Ctrl+Shift+V / Cmd+V -> browser paste
+        if (key === 'v') return false;
+
+        // Ctrl+Shift+C always copies; plain Ctrl+C copies only when text is
+        // selected, otherwise it stays SIGINT.
+        if (key === 'c' && (e.shiftKey || e.metaKey || term.hasSelection())) {
+            if (_consoleCopySelection(term)) {
+                e.preventDefault();
+                term.clearSelection();
+                return false;
+            }
+        }
+        return true;
+    });
+
+    // Right-click: copy if something is selected, otherwise paste.
+    container.addEventListener('contextmenu', async (e) => {
+        if (term.hasSelection()) {
+            e.preventDefault();
+            _consoleCopySelection(term);
+            term.clearSelection();
+            return;
+        }
+        if (navigator.clipboard && window.isSecureContext) {
+            e.preventDefault();
+            await _consolePasteFromClipboard(term);
+            term.focus();
+        }
+        // Plain HTTP: leave the native context menu so "Paste" is available.
+    });
+}
+
 function _consoleBringToFront(el) {
     if (typeof window.bringToFront === 'function') {
         window.bringToFront(el);
@@ -181,7 +265,9 @@ function createConsoleWindow(id, opts) {
     const term = new Terminal({
         cursorBlink: true,
         fontFamily: "'Fira Code', 'Cascadia Code', Menlo, Consolas, monospace",
-        fontSize: 14,
+        // The terminal container cancels the page zoom (see console.css), so
+        // scale the font ourselves to keep it the size it used to look.
+        fontSize: Math.max(10, Math.round(14 * _consolePageZoom())),
         scrollback: 5000,
         // 16-color ANSI palette based on Dracula (github.com/dracula/dracula-theme).
         theme: {
@@ -211,6 +297,7 @@ function createConsoleWindow(id, opts) {
     const fitAddon = new FitAddon.FitAddon();
     term.loadAddon(fitAddon);
     term.open(terminalContainer);
+    _consoleAttachClipboard(term, terminalContainer);
 
     const entry = {
         id,
