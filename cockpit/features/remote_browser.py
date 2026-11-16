@@ -36,14 +36,38 @@ RESOLUTIONS = ('1024x768', '1280x720', '1366x768', '1600x900', '1920x1080')
 DEFAULT_RESOLUTION = '1280x720'
 
 # The virtual screen. Xvnc = X server + VNC server in one process (lighter than Xvfb + x11vnc).
+# Openbox is the window manager: without one, X gives keyboard focus to whatever window is
+# under the pointer, so a browser's dropdown (its own small window) closes when you move onto it.
 VNC_PACKAGES = {
-    'apt-get': ['tigervnc-standalone-server', 'xauth'],
-    'dnf': ['tigervnc-server-minimal', 'xauth'],
-    'yum': ['tigervnc-server-minimal', 'xorg-x11-xauth'],
-    'zypper': ['xorg-x11-Xvnc', 'xauth'],
-    'pacman': ['tigervnc', 'xorg-xauth'],
-    'apk': ['tigervnc', 'xauth'],
+    'apt-get': ['tigervnc-standalone-server', 'xauth', 'openbox'],
+    'dnf': ['tigervnc-server-minimal', 'xauth', 'openbox'],
+    'yum': ['tigervnc-server-minimal', 'xorg-x11-xauth', 'openbox'],
+    'zypper': ['xorg-x11-Xvnc', 'xauth', 'openbox'],
+    'pacman': ['tigervnc', 'xorg-xauth', 'openbox'],
+    'apk': ['tigervnc', 'xauth', 'openbox'],
 }
+
+# Openbox setup: no title bars, normal windows maximized (so the browser fills the screen),
+# click-to-focus, and no desktop menus.
+OPENBOX_RC = """<?xml version="1.0" encoding="UTF-8"?>
+<openbox_config xmlns="http://openbox.org/3.4/rc">
+  <focus><focusNew>yes</focusNew><followMouse>no</followMouse></focus>
+  <placement><policy>Smart</policy></placement>
+  <desktops><number>1</number></desktops>
+  <margins><top>0</top><bottom>0</bottom><left>0</left><right>0</right></margins>
+  <keyboard></keyboard>
+  <mouse>
+    <context name="Client">
+      <mousebind button="Left" action="Press"><action name="Focus"/><action name="Raise"/></mousebind>
+      <mousebind button="Middle" action="Press"><action name="Focus"/><action name="Raise"/></mousebind>
+      <mousebind button="Right" action="Press"><action name="Focus"/><action name="Raise"/></mousebind>
+    </context>
+  </mouse>
+  <applications>
+    <application class="*" type="normal"><decor>no</decor><maximized>yes</maximized></application>
+  </applications>
+</openbox_config>
+"""
 # Installed only when no browser is found. Debian / Raspberry Pi OS call it chromium,
 # Ubuntu chromium-browser (a snap wrapper).
 BROWSER_PACKAGES = {
@@ -67,7 +91,7 @@ NOVNC_DIRS = ('/usr/share/novnc', '/usr/share/webapps/novnc', '/usr/share/noVNC'
 
 _job = BackgroundJob()
 _lock = threading.RLock()
-_state: dict = {'xvnc': None, 'browser': None, 'display': None, 'socket': None, 'xauth': None,
+_state: dict = {'xvnc': None, 'wm': None, 'browser': None, 'display': None, 'socket': None, 'xauth': None,
                 'started': None, 'browser_restarts': 0, 'error': None, 'browser_id': None,
                 'resolution': None}
 _watchdog: threading.Thread | None = None
@@ -152,6 +176,8 @@ def get_status() -> dict:
         }
     return {
         'installed': _xvnc_binary() is not None,
+        # Installed before the window manager was added: offer to add it (dropdowns need it).
+        'wm_installed': _which('openbox') is not None,
         'browsers': [{k: b[k] for k in ('id', 'label', 'snap')} for b in browsers],
         'settings': settings,
         'resolutions': RESOLUTIONS,
@@ -259,6 +285,29 @@ def _kill(proc: subprocess.Popen | None, timeout: float = 5) -> None:
             proc.kill()
 
 
+def _x_env() -> dict:
+    """Environment for programs on the virtual screen."""
+    env = {**os.environ, 'DISPLAY': f':{_state["display"]}'}
+    if _state['xauth']:
+        env['XAUTHORITY'] = _state['xauth']
+    # A browser started from a service must not try the desktop's Wayland session.
+    env.pop('WAYLAND_DISPLAY', None)
+    env['MOZ_ENABLE_WAYLAND'] = '0'
+    return env
+
+
+def _launch_wm() -> None:
+    """Start Openbox on the virtual screen (if installed). Caller holds _lock."""
+    openbox = _which('openbox')
+    if not openbox:
+        return
+    rc = os.path.join(_runtime_dir(), 'openbox-rc.xml')
+    with open(rc, 'w', encoding='utf-8') as f:
+        f.write(OPENBOX_RC)
+    _state['wm'] = _spawn([openbox, '--config-file', rc], 'openbox', env=_x_env())
+    time.sleep(0.3)   # let it take over the screen before the browser maps its window
+
+
 def _launch_browser() -> None:
     """Start (or restart) the browser on the running virtual screen. Caller holds _lock."""
     settings = get_remote_browser_settings()
@@ -268,12 +317,7 @@ def _launch_browser() -> None:
     if not browser:
         raise RuntimeError('No web browser is installed (Chromium, Chrome or Firefox).')
     width, height = (int(v) for v in _state['resolution'].split('x'))
-    env = {**os.environ, 'DISPLAY': f':{_state["display"]}'}
-    if _state['xauth']:
-        env['XAUTHORITY'] = _state['xauth']
-    # A browser started from a service must not try the desktop's Wayland session.
-    env.pop('WAYLAND_DISPLAY', None)
-    env['MOZ_ENABLE_WAYLAND'] = '0'
+    env = _x_env()
     _state['browser'] = _spawn(_browser_command(browser, width, height, settings.get('home_url') or ''),
                                'browser', env=env, cwd=os.path.expanduser('~'))
     _state['browser_id'] = browser['id']
@@ -319,8 +363,10 @@ def _start_locked() -> None:
         time.sleep(0.1)
     _state['started'] = time.time()
     try:
+        _launch_wm()
         _launch_browser()
     except Exception:
+        _kill(_state['wm'])
         _kill(_state['xvnc'])
         raise
     _ensure_watchdog()
@@ -328,8 +374,9 @@ def _start_locked() -> None:
 
 def _stop_locked() -> None:
     _kill(_state['browser'])
+    _kill(_state['wm'])
     _kill(_state['xvnc'])
-    _state.update({'browser': None, 'xvnc': None, 'started': None})
+    _state.update({'browser': None, 'wm': None, 'xvnc': None, 'started': None})
     for path in (_state.get('socket'), _state.get('xauth')):
         if path and os.path.exists(path):
             try:
@@ -438,6 +485,9 @@ def start_install(password: str):
         if not _xvnc_binary():
             _job.log('The package installed but the Xvnc program was not found.')
             return False
+        if get_remote_browser_settings().get('enabled'):
+            _job.log('Restarting the remote browser to use the new packages...')
+            restart()
         if detect_browsers():
             _job.log(f'Using the installed browser: {detect_browsers()[0]["label"]}.')
             return True

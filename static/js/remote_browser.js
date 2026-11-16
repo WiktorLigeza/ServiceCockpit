@@ -12,7 +12,7 @@ const rbEl = id => document.getElementById(id);
 const rbJobModal = new JobModal({
     jobUrl: '/api/remote-browser/job',
     cancelUrl: '/api/remote-browser/job/cancel',
-    titles: { install: '<i class="fas fa-download"></i> Installing the remote browser' },
+    titles: { install: '<i class="fas fa-download"></i> Installing the remote browser packages' },
     doneText: { install: 'Installed. Turn the browser on with the switch.' },
     onFinish: () => rbLoad(),
 });
@@ -133,6 +133,8 @@ function rbRender() {
     rbEl('rb-clipboard-btn').disabled = !run.xvnc;
     ['rb-zoom-in', 'rb-zoom-out', 'rb-zoom-reset'].forEach(id => { rbEl(id).disabled = !run.xvnc; });
 
+    rbEl('rb-wm-note').hidden = s.wm_installed;
+
     const err = rbEl('rb-error');
     err.hidden = !run.error;
     err.textContent = run.error || '';
@@ -188,6 +190,7 @@ function rbDisconnect() {
 
 function rbSetupListeners() {
     rbEl('rb-install-btn').addEventListener('click', rbInstall);
+    rbEl('rb-wm-install').addEventListener('click', rbInstall);   // same install job, adds Openbox
 
     rbEl('rb-enabled').addEventListener('change', async e => {
         const enabled = e.target.checked;

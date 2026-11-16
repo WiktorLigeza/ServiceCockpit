@@ -152,3 +152,16 @@
 .rb-zoom-label {
     min-width: 3.4rem;
 }
+
+.rb-wm-note {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-shrink: 0;
+}
+
+.rb-wm-note .btn-warning i {
+    color: inherit;
+    filter: none;
+}
