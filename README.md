@@ -19,6 +19,7 @@ MQTT, Bluetooth and networking, with live system metrics in the header.
 | **Network** | interfaces with live throughput, link speed and duplex, MTU / jumbo frames, offloads, Wi-Fi, Wi-Fi Direct, NetworkManager profiles, routes, DNS, ping; ports in use with the owning process (PIDs link to Processes); LAN scanner (devices with IP, MAC, name, vendor, open services; ping one or all; your own names per MAC address, kept when the IP changes) |
 | **Tailscale** | one-click install, browser or auth-key login, connect/disconnect, this device's IPs and settings (accept routes/DNS, SSH, exit node, shields up), tailnet devices and users with online status, connection type and key expiry, ping, update check and one-click update |
 | **GPU Manager** | shown when a discrete NVIDIA GPU is found (not on Jetson - JetPack manages that one): if no driver is installed, a wizard picks and installs the right NVIDIA driver for the distro (Ubuntu via ubuntu-drivers, Debian, Fedora/RPM Fusion, RHEL/Rocky/Alma, Arch, Manjaro, openSUSE) and asks for a reboot; with the driver loaded, live per-GPU load, memory, temperature, power, fan, clocks, PCIe link, processes using the GPU, persistence mode, change or remove the driver |
+| **Remote Browser** | a web browser running on the device (Chromium / Chrome / Firefox on a TigerVNC virtual screen), shown and used in the page via noVNC - pages load from the device, so its localhost and LAN are reachable; an on/off switch starts and stops it (nothing runs and no memory is used while off) and the state is saved in `config.json` and restored when the cockpit starts; browser, screen size and start page settings, clipboard, full screen, live memory use; a wizard installs TigerVNC (and Chromium if no browser is installed) |
 | **System updates** | sidebar entry with the number of pending OS updates; check, upgrade, full upgrade and remove unused packages with apt, dnf, yum, zypper, pacman or apk; reboot-required notice |
 | **Consoles** | multiple root or normal shells in the browser |
 | **Header** | CPU temperature and usage, memory, storage, GPU, internet status and connection type (Ethernet / Wi-Fi / …), IP, MAC, device clock (click it to set the time zone / NTP), Tailscale IP and status (orange dot on its icon when a Tailscale update is available) |
@@ -92,6 +93,7 @@ cockpit/                   the application package
     ├── updates.py         "update available" check (this app)
     ├── system_updates.py  OS package updates (sidebar)
     ├── tailscale.py       Tailscale page: install, login, devices/users, settings, updates
+    ├── remote_browser.py  Remote Browser page: Xvnc + browser on demand, WebSocket bridge for noVNC
     ├── export.py          source zip download
     ├── bluetooth/         controller, services (audio/files/serial), dbus_helper
     └── network/           shell, inventory, profiles, wifi, p2p, rollback, scanner, views

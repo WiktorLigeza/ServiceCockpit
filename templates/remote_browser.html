@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Remote Browser - Phantom Cockpit</title>
+    <link rel="icon" type="image/webp" href="{{ url_for('static', filename='images/H2A_Render_Phantom.webp') }}">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/network.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/remote_browser.css') }}">
+    <script src="https://cdn.socket.io/4.0.1/socket.io.min.js"></script>
+</head>
+<body class="bg-light">
+    {% include 'header.html' %}
+
+    <div class="main-container net-main rb-main" id="rb-main">
+        <div class="rb-loading" id="rb-loading"><i class="fas fa-circle-notch fa-spin"></i> Reading remote browser status…</div>
+
+        <!-- Not installed -->
+        <div class="setup-wrap" id="rb-install-view" hidden>
+            <div class="setup-card">
+                <div class="setup-logo"><i class="fas fa-globe"></i></div>
+                <h2>Remote Browser</h2>
+                <p class="setup-muted">
+                    Runs a web browser on this device and shows it here. Pages open from the device,
+                    so you can reach its own web interfaces (localhost) and its local network.
+                </p>
+                <ol class="setup-steps">
+                    <li class="setup-step current"><span>1</span> Install the virtual screen (TigerVNC), plus Chromium if no browser is installed</li>
+                    <li class="setup-step"><span>2</span> Turn the browser on when you need it, off when you don't - it uses no memory while off</li>
+                </ol>
+                <button class="btn btn-primary setup-big-btn" id="rb-install-btn">
+                    <i class="fas fa-download"></i> Install
+                </button>
+                <div class="setup-muted">Needs internet access and your sudo password.</div>
+            </div>
+        </div>
+
+        <!-- Installed -->
+        <div class="rb-app" id="rb-app-view" hidden>
+            <div class="net-panel rb-toolbar">
+                <label class="rb-switch" title="Start or stop the browser on the device">
+                    <input type="checkbox" id="rb-enabled">
+                    <span class="rb-slider"></span>
+                </label>
+                <div class="rb-state">
+                    <span class="net-badge" id="rb-badge">Off</span>
+                    <span class="rb-usage" id="rb-usage"></span>
+                </div>
+
+                <div class="rb-settings">
+                    <select class="form-control form-control-sm" id="rb-browser" title="Browser"></select>
+                    <select class="form-control form-control-sm" id="rb-resolution" title="Screen size"></select>
+                    <input class="form-control form-control-sm" id="rb-home" placeholder="Start page (optional)" title="Opened when the browser starts">
+                </div>
+
+                <div class="rb-actions rb-zoom" title="Magnify the viewer">
+                    <button class="btn btn-sm btn-outline-light" id="rb-zoom-out" title="Zoom out"><i class="fas fa-search-minus"></i></button>
+                    <button class="btn btn-sm btn-outline-light rb-zoom-label" id="rb-zoom-reset" title="Fit to the panel">Fit</button>
+                    <button class="btn btn-sm btn-outline-light" id="rb-zoom-in" title="Zoom in"><i class="fas fa-search-plus"></i></button>
+                </div>
+
+                <div class="rb-actions">
+                    <button class="btn btn-sm btn-outline-light" id="rb-clipboard-btn" title="Clipboard"><i class="fas fa-clipboard"></i></button>
+                    <button class="btn btn-sm btn-outline-light" id="rb-restart-btn" title="Restart the browser"><i class="fas fa-redo"></i></button>
+                    <button class="btn btn-sm btn-outline-light" id="rb-fullscreen-btn" title="Full screen"><i class="fas fa-expand"></i></button>
+                </div>
+            </div>
+
+            <div class="net-note bad rb-error" id="rb-error" hidden></div>
+
+            <div class="rb-clipboard net-panel" id="rb-clipboard" hidden>
+                <div class="rb-clipboard-head">
+                    <span>Clipboard - text copied in the remote browser shows up here; type or paste here and send it to paste there with Ctrl+V.</span>
+                    <button class="btn btn-sm btn-primary" id="rb-clipboard-send"><i class="fas fa-paper-plane"></i> Send to device</button>
+                </div>
+                <textarea class="form-control" id="rb-clipboard-text" rows="3"></textarea>
+            </div>
+
+            <div class="net-panel rb-screen-panel" id="rb-screen-panel">
+                <!-- noVNC runs in its own un-zoomed page, see remote_browser_screen.html -->
+                <iframe class="rb-screen" id="rb-screen" src="{{ url_for('remote_browser.remote_browser_screen') }}"
+                        title="Remote browser screen" allow="fullscreen; clipboard-read; clipboard-write"></iframe>
+                <div class="rb-overlay" id="rb-overlay">
+                    <i class="fas fa-power-off"></i>
+                    <div>The remote browser is off.</div>
+                    <div class="net-muted">Turn it on with the switch above. While off it uses no CPU or memory.</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/remote_browser.js') }}"></script>
+</body>
+</html>

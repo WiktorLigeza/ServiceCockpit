@@ -35,6 +35,9 @@ from cockpit.features.mqtt import build_mqtt_blueprint, mqtt_cleanup_on_shutdown
 from cockpit.features.mqtt_broker import build_mqtt_broker_blueprint
 from cockpit.features.network import build_network_blueprint, build_network_p2p_blueprint
 from cockpit.features.processes import build_processes_blueprint
+from cockpit.features.remote_browser import (
+    build_remote_browser_blueprint, remote_browser_shutdown, restore_on_startup as restore_remote_browser,
+)
 from cockpit.features.services import (
     build_services_blueprint, init_services_socketio, register_services_socket_handlers,
 )
@@ -43,7 +46,7 @@ from cockpit.features.tailscale import build_tailscale_blueprint
 from cockpit.features.updates import build_update_check_blueprint
 from cockpit.paths import STATIC_DIR, TEMPLATE_DIR
 
-__all__ = ['create_app', 'start_background_update', 'shutdown']
+__all__ = ['create_app', 'restore_remote_browser', 'start_background_update', 'shutdown']
 
 
 def create_app() -> tuple[Flask, SocketIO]:
@@ -81,6 +84,7 @@ def create_app() -> tuple[Flask, SocketIO]:
         build_clock_blueprint(),
         build_system_updates_blueprint(),
         build_gpu_blueprint(),
+        build_remote_browser_blueprint(),
     ):
         app.register_blueprint(blueprint)
 
@@ -126,7 +130,8 @@ def start_background_update(socketio: SocketIO) -> threading.Thread:
 
 
 def shutdown():
-    """Stop child processes (bluetoothctl, D-Bus helper, MQTT clients) on exit."""
+    """Stop child processes (bluetoothctl, D-Bus helper, MQTT clients, remote browser) on exit."""
+    remote_browser_shutdown()
     mqtt_cleanup_on_shutdown()
     bluetooth_cleanup_on_shutdown()
     bluetooth_services_cleanup()

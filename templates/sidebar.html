@@ -40,6 +40,11 @@
             <i class="fas fa-th"></i>
             <span class="sidebar-label">Tailscale</span>
         </a>
+        <a class="sidebar-item {% if request.endpoint == 'remote_browser.remote_browser_page' %}sidebar-active{% endif %}"
+           href="{{ url_for('remote_browser.remote_browser_page') }}" title="Remote Browser">
+            <i class="fas fa-globe"></i>
+            <span class="sidebar-label">Remote Browser</span>
+        </a>
         {% if nvidia_gpu %}
         <a class="sidebar-item {% if request.endpoint == 'gpu.gpu_page' %}sidebar-active{% endif %}"
            href="{{ url_for('gpu.gpu_page') }}" title="{{ 'GPU - driver not installed' if nvidia_gpu.needs_setup else 'GPU Manager' }}">

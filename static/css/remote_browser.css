@@ -1,0 +1,154 @@
+/* Remote Browser page (templates/remote_browser.html) */
+
+.rb-main [hidden] { display: none !important; }
+
+.rb-loading {
+    margin: auto;
+    color: var(--net-muted);
+    font-size: 1.1rem;
+}
+
+.rb-app {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+}
+
+.rb-toolbar {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.75rem 1rem;
+    flex-shrink: 0;
+    padding: 0.6rem 1rem;
+    overflow: visible;
+}
+
+.rb-state {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+}
+
+.rb-usage {
+    color: var(--net-muted);
+    font-size: 0.85rem;
+    white-space: nowrap;
+}
+
+.rb-settings {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-left: auto;
+}
+
+.rb-settings select { width: auto; }
+.rb-settings input { width: 240px; }
+
+.rb-actions {
+    display: flex;
+    gap: 0.4rem;
+}
+
+/* On/off switch */
+.rb-switch {
+    position: relative;
+    width: 46px;
+    height: 24px;
+    margin: 0;
+    flex-shrink: 0;
+    cursor: pointer;
+}
+
+.rb-switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.rb-slider {
+    position: absolute;
+    inset: 0;
+    border-radius: 24px;
+    background: rgba(255, 255, 255, 0.2);
+    transition: background 0.2s;
+}
+
+.rb-slider::before {
+    content: '';
+    position: absolute;
+    width: 18px;
+    height: 18px;
+    left: 3px;
+    top: 3px;
+    border-radius: 50%;
+    background: #fff;
+    transition: transform 0.2s;
+}
+
+.rb-switch input:checked + .rb-slider { background: #2ecc71; }
+.rb-switch input:checked + .rb-slider::before { transform: translateX(22px); }
+.rb-switch input:disabled + .rb-slider { opacity: 0.5; cursor: wait; }
+
+.rb-error {
+    white-space: pre-wrap;
+    font-family: monospace;
+    font-size: 0.8rem;
+    flex-shrink: 0;
+}
+
+.rb-clipboard {
+    flex-shrink: 0;
+    gap: 0.5rem;
+}
+
+.rb-clipboard-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    color: var(--net-muted);
+    font-size: 0.85rem;
+}
+
+.rb-screen-panel {
+    position: relative;
+    flex: 1 1 auto;
+    min-height: 300px;
+    padding: 0;
+    background: rgba(0, 0, 0, 0.35);
+}
+
+.rb-screen {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    border: 0;
+}
+
+.rb-overlay {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    text-align: center;
+    padding: 1rem;
+    color: var(--net-text);
+}
+
+.rb-overlay i {
+    font-size: 2.5rem;
+    opacity: 0.5;
+}
+
+.rb-zoom-label {
+    min-width: 3.4rem;
+}

@@ -185,3 +185,22 @@ def note_devices_seen(seen: dict[str, str], when: float) -> None:
                 changed = True
         if changed:
             save_config(config)
+
+
+# ---- Remote Browser: on/off state (restored when the cockpit starts), browser, screen size, start page
+
+REMOTE_BROWSER_DEFAULTS = {'enabled': False, 'browser': None, 'resolution': '1280x720', 'home_url': ''}
+_remote_browser_lock = threading.Lock()
+
+
+def get_remote_browser_settings() -> dict:
+    saved = load_config().get('remote_browser')
+    return {**REMOTE_BROWSER_DEFAULTS, **(saved if isinstance(saved, dict) else {})}
+
+
+def save_remote_browser_settings(update: dict) -> None:
+    with _remote_browser_lock:
+        config = load_config()
+        saved = config.get('remote_browser')
+        config['remote_browser'] = {**REMOTE_BROWSER_DEFAULTS, **(saved if isinstance(saved, dict) else {}), **update}
+        save_config(config)
