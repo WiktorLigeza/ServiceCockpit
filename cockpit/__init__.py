@@ -33,7 +33,9 @@ from cockpit.features.file_explorer import build_file_explorer_blueprint, regist
 from cockpit.features.metrics import build_metrics_blueprint, get_system_metrics
 from cockpit.features.mqtt import build_mqtt_blueprint, mqtt_cleanup_on_shutdown, register_mqtt_socket_handlers
 from cockpit.features.mqtt_broker import build_mqtt_broker_blueprint
-from cockpit.features.network import build_network_blueprint, build_network_p2p_blueprint
+from cockpit.features.network import (
+    build_network_blueprint, build_network_firewall_blueprint, build_network_p2p_blueprint,
+)
 from cockpit.features.processes import build_processes_blueprint
 from cockpit.features.remote_browser import (
     build_remote_browser_blueprint, remote_browser_shutdown, restore_on_startup as restore_remote_browser,
@@ -80,6 +82,7 @@ def create_app() -> tuple[Flask, SocketIO]:
         build_bluetooth_services_blueprint(),
         build_network_blueprint(),
         build_network_p2p_blueprint(),
+        build_network_firewall_blueprint(),
         build_tailscale_blueprint(),
         build_clock_blueprint(),
         build_system_updates_blueprint(),

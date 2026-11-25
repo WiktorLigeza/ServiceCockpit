@@ -150,6 +150,31 @@
                 </div>
             </div>
 
+            <div class="clock-section" id="clock-server-section" hidden>
+                <label class="clock-switch">
+                    <input type="checkbox" id="clock-server-enabled">
+                    <span>Act as NTP server for other devices</span>
+                </label>
+                <div class="clock-muted clock-ntp-info" id="clock-server-status"></div>
+                <div class="clock-ntp-servers" id="clock-server-form" hidden>
+                    <label class="sudo-modal-label" for="clock-server-allow">Networks allowed to sync from this device</label>
+                    <input id="clock-server-allow" class="sudo-modal-input" type="text" autocomplete="off" spellcheck="false"
+                           placeholder="e.g. 192.168.0.0/24 (several: separate with spaces)">
+                    <label class="clock-switch clock-switch-small">
+                        <input type="checkbox" id="clock-server-local">
+                        <span>Keep serving time when no upstream server is reachable (offline network)</span>
+                    </label>
+                    <label class="clock-switch clock-switch-small">
+                        <input type="checkbox" id="clock-server-fw" checked>
+                        <span id="clock-server-fw-label">Allow UDP port 123 through the firewall</span>
+                    </label>
+                    <div class="clock-manual">
+                        <a class="clock-link clock-fw-link" href="/network#firewall">Firewall settings</a>
+                        <button type="button" class="sudo-modal-btn primary" id="clock-server-apply">Apply</button>
+                    </div>
+                </div>
+            </div>
+
             <div class="sudo-modal-error" id="clock-error" style="display: none;"></div>
             <div class="sudo-modal-actions">
                 <button type="button" class="sudo-modal-btn" data-clock-close>Close</button>

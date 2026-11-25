@@ -106,6 +106,7 @@
             : 'Off - the time can be set by hand.';
         $('clock-manual').hidden = !s.timedatectl || !!s.ntp_enabled;
         renderNtpServers(s.ntp_servers);
+        renderNtpServer(s.ntp_server);
         $('clock-tz-save').disabled = !s.timedatectl;
     }
 
@@ -190,6 +191,83 @@
                 if (fresh) { settings = fresh; renderNtpServers(fresh.ntp_servers); }
             }, 5000);
         }
+    }
+
+    // ---- this device as an NTP server (chrony)
+
+    let serverJob = null;
+
+    function serverJobModal() {
+        if (!serverJob && window.JobModal) {
+            serverJob = new JobModal({
+                jobUrl: '/api/time/job',
+                cancelUrl: '/api/time/job/cancel',
+                titles: { 'ntp-server': '<i class="far fa-clock"></i> Setting up the NTP server',
+                          'ntp-server-off': '<i class="far fa-clock"></i> Turning the NTP server off' },
+                doneText: { 'ntp-server': 'This device now serves time to your network.',
+                            'ntp-server-off': 'The NTP server is off.' },
+                onFinish: async () => {
+                    const fresh = await api('/api/time');
+                    if (fresh) { settings = fresh; renderSettings(); }
+                },
+            });
+        }
+        return serverJob;
+    }
+
+    function renderNtpServer(srv) {
+        const section = $('clock-server-section');
+        section.hidden = !srv || (!srv.chrony_installed && !srv.can_install);
+        if (section.hidden) return;
+        const box = $('clock-server-enabled');
+        box.checked = !!srv.enabled;
+        $('clock-server-allow').value = (srv.enabled ? srv.allow : (srv.suggested || []).slice(0, 1))
+            .map(a => a === 'all' ? 'all' : a).join(' ');
+        $('clock-server-local').checked = !!srv.local_stratum;
+        updateServerForm();
+
+        const lines = [];
+        if (srv.enabled) {
+            lines.push(`Serving time to ${srv.allow.map(a => a === 'all' ? 'everyone' : a).join(', ')} · ` +
+                (srv.listening ? 'listening on UDP 123 ✓' : 'NOT listening on UDP 123 ✗'));
+        } else if (!srv.chrony_installed) {
+            lines.push('Needs chrony - it will be installed and replace systemd-timesyncd (the NTP servers above are kept).');
+        }
+        if (!srv.firewall) lines.push('No firewall is installed, so nothing blocks port 123.');
+        else if (!srv.firewall_active) lines.push(`Firewall (${srv.firewall}) is off - the rule is added for when you turn it on.`);
+        else lines.push(`Firewall (${srv.firewall}) is on.`);
+        $('clock-server-status').textContent = lines.join('\n');
+        $('clock-server-fw').disabled = !srv.firewall;
+        if (srv.job === 'running') serverJobModal()?.show();
+    }
+
+    function updateServerForm() {
+        const srv = settings?.ntp_server || {};
+        const want = $('clock-server-enabled').checked;
+        $('clock-server-form').hidden = !want && !srv.enabled;
+        ['clock-server-allow', 'clock-server-local'].forEach(id => { $(id).disabled = !want; });
+        $('clock-server-apply').textContent = !want ? 'Turn NTP server off'
+            : srv.enabled ? 'Apply' : (srv.chrony_installed ? 'Start NTP server' : 'Install chrony and start');
+        $('clock-server-apply').classList.toggle('danger', !want);
+    }
+
+    async function applyNtpServer() {
+        const enabled = $('clock-server-enabled').checked;
+        const body = {
+            enabled,
+            allow: $('clock-server-allow').value,
+            local_stratum: $('clock-server-local').checked,
+            open_firewall: $('clock-server-fw').checked,
+        };
+        if (enabled && !body.allow.trim()) {
+            showError('Enter the network allowed to use this server, e.g. 192.168.0.0/24.');
+            return;
+        }
+        showError('');
+        const modal = serverJobModal();
+        if (!modal) return;
+        const res = await modal.start('/api/time/ntp-server', body, applyNtpServer);
+        if (!res.ok && res.error) showError(res.error);
     }
 
     async function api(url, body, retry) {
@@ -296,6 +374,8 @@
         $('clock-ntp-save').addEventListener('click', () => saveNtpServers());
         $('clock-ntp-reset').addEventListener('click', () => saveNtpServers([]));
         $('clock-ntp-input').addEventListener('keydown', e => { if (e.key === 'Enter') saveNtpServers(); });
+        $('clock-server-enabled').addEventListener('change', updateServerForm);
+        $('clock-server-apply').addEventListener('click', applyNtpServer);
         $('clock-manual').addEventListener('focusin', () => {
             // Pre-fill with the device's current time.
             const input = $('clock-manual-time');

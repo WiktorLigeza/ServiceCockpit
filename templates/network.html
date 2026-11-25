@@ -85,6 +85,7 @@
                 <button class="net-tab" data-tab="connections"><i class="fas fa-list"></i> Profiles</button>
                 <button class="net-tab" data-tab="routes"><i class="fas fa-route"></i> Routes &amp; DNS</button>
                 <button class="net-tab" data-tab="ports"><i class="fas fa-plug"></i> Ports</button>
+                <button class="net-tab" data-tab="firewall"><i class="fas fa-shield-alt"></i> Firewall</button>
             </div>
 
             <div class="net-tab-pane" data-pane="iface">
@@ -130,6 +131,12 @@
                 </div>
                 <div class="net-scroll" id="net-ports"><div class="net-empty">Loading…</div></div>
                 <div class="net-muted net-ports-summary" id="net-ports-summary"></div>
+            </div>
+
+            <div class="net-tab-pane" data-pane="firewall" hidden>
+                <div class="net-scroll" id="net-firewall">
+                    <div class="net-empty">Loading…</div>
+                </div>
             </div>
 
             <div class="net-tab-pane" data-pane="routes" hidden>
@@ -232,5 +239,6 @@
     <script src="{{ url_for('static', filename='js/network_scanner.js') }}"></script>
     <script src="{{ url_for('static', filename='js/network_ports.js') }}"></script>
     <script src="{{ url_for('static', filename='js/network_p2p.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/network_firewall.js') }}"></script>
 </body>
 </html>

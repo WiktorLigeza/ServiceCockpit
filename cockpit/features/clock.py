@@ -11,6 +11,7 @@ from __future__ import annotations
 import functools
 import os
 import re
+import shutil
 import socket
 import struct
 import subprocess
@@ -20,6 +21,7 @@ from datetime import datetime
 from flask import Blueprint, jsonify, request
 
 from cockpit.core.auth import require_sudo, run_sudo
+from cockpit.core.jobs import NONINTERACTIVE, BackgroundJob, install_commands, package_manager
 
 ZONEINFO = '/usr/share/zoneinfo'
 TZ_RE = re.compile(r'^[A-Za-z0-9_+\-]+(/[A-Za-z0-9_+\-]+){0,2}$')
@@ -89,12 +91,16 @@ def list_timezones() -> tuple[str, ...]:
 #   chrony:    a marked block in chrony.conf; with "only these servers" the
 #              other pool/server lines are commented out with a marker so they
 #              can be restored later.
+#
+# NTP *server* mode (other devices sync from this one) needs chrony: the same
+# block then also holds `allow <network>` lines and optionally `local stratum`,
+# and UDP 123 is opened in the firewall (cockpit/features/network/firewall.py).
 
 TIMESYNCD_DROPIN_DIR = '/etc/systemd/timesyncd.conf.d'
 TIMESYNCD_DROPIN = f'{TIMESYNCD_DROPIN_DIR}/50-servicecockpit.conf'
 CHRONY_CONFS = ('/etc/chrony/chrony.conf', '/etc/chrony.conf')
-CHRONY_BEGIN = '# BEGIN ServiceCockpit NTP servers'
-CHRONY_END = '# END ServiceCockpit NTP servers'
+CHRONY_BEGIN = '# BEGIN ServiceCockpit NTP'
+CHRONY_END = '# END ServiceCockpit NTP'
 CHRONY_OFF = '#servicecockpit-off# '
 HOST_RE = re.compile(r'^(?=.{1,253}$)([A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?)(\.[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?)*\.?$')
 NTP_EPOCH_DELTA = 2208988800  # 1900-01-01 -> 1970-01-01
@@ -147,17 +153,62 @@ def _timesyncd_config() -> tuple[list[str], bool]:
     return servers, exclusive
 
 
-def _chrony_config() -> tuple[list[str], bool]:
-    text = _read(_chrony_conf() or '')
-    servers, inside = [], False
+def parse_chrony(text: str) -> dict:
+    """What our managed block in chrony.conf says."""
+    cfg = {'servers': [], 'exclusive': CHRONY_OFF in text, 'allow': [], 'local': False}
+    inside = False
     for line in text.splitlines():
+        words = line.split()
         if line.strip() == CHRONY_BEGIN:
             inside = True
         elif line.strip() == CHRONY_END:
             inside = False
-        elif inside and line.split()[:1] == ['server']:
-            servers.append(line.split()[1])
-    return servers, CHRONY_OFF in text
+        elif inside and words[:1] == ['server'] and len(words) > 1:
+            cfg['servers'].append(words[1])
+        elif inside and words[:1] == ['allow']:
+            cfg['allow'].append(words[1] if len(words) > 1 else 'all')
+        elif inside and words[:1] == ['local']:
+            cfg['local'] = True
+    return cfg
+
+
+def render_chrony(text: str, cfg: dict) -> str:
+    """chrony.conf `text` with our block rewritten for `cfg` (servers, exclusive, allow, local)."""
+    servers, allow = cfg.get('servers') or [], cfg.get('allow') or []
+    out_lines, inside, after_block = [], False, False
+    for line in text.splitlines():
+        stripped = line.strip()
+        if stripped == CHRONY_BEGIN:
+            inside = True
+            continue
+        if stripped == CHRONY_END:
+            inside, after_block = False, True
+            continue
+        if inside:
+            continue
+        if after_block:
+            after_block = False
+            if not stripped:
+                continue  # the blank separator line written after our block
+        if line.startswith(CHRONY_OFF):
+            line = line[len(CHRONY_OFF):]
+        if servers and cfg.get('exclusive') and line.split()[:1] in (['pool'], ['server'], ['peer']):
+            line = CHRONY_OFF + line
+        out_lines.append(line)
+    block = [f'server {s} iburst prefer' for s in servers]
+    if allow:
+        block += ['# Serve time to these networks (NTP server mode)']
+        block += ['allow' if a == 'all' else f'allow {a}' for a in allow]
+        if cfg.get('local'):
+            block += ['# Keep serving time even with no upstream source reachable', 'local stratum 10']
+    if block:
+        out_lines = [CHRONY_BEGIN, '# Managed by ServiceCockpit (clock dialog)', *block, CHRONY_END, ''] + out_lines
+    return '\n'.join(out_lines).rstrip('\n') + '\n'
+
+
+def _chrony_config() -> tuple[list[str], bool]:
+    cfg = parse_chrony(_read(_chrony_conf() or ''))
+    return cfg['servers'], cfg['exclusive']
 
 
 def _timesyncd_status() -> dict:
@@ -227,41 +278,175 @@ def _apply_timesyncd(servers: list[str], exclusive: bool, password: str) -> tupl
     return _sudo(['systemctl', 'try-restart', 'systemd-timesyncd'], password)
 
 
-def _apply_chrony(servers: list[str], exclusive: bool, password: str) -> tuple[bool, str]:
+def _chrony_unit() -> str:
+    """Debian/Ubuntu name the unit chrony.service, Fedora/RHEL/Arch chronyd.service."""
+    for base in ('/lib/systemd/system', '/usr/lib/systemd/system', '/etc/systemd/system'):
+        if os.path.exists(f'{base}/chrony.service'):
+            return 'chrony'
+    return 'chronyd'
+
+
+def _write_chrony(changes: dict, password: str, restart: str = 'try-restart') -> tuple[bool, str]:
+    """Merge `changes` into our chrony.conf block, write it and restart chrony."""
     conf = _chrony_conf()
     if not conf:
         return False, 'chrony.conf not found.'
-    out_lines, inside, after_block = [], False, False
-    for line in _read(conf).splitlines():
-        stripped = line.strip()
-        if stripped == CHRONY_BEGIN:
-            inside = True
-            continue
-        if stripped == CHRONY_END:
-            inside, after_block = False, True
-            continue
-        if inside:
-            continue
-        if after_block:
-            after_block = False
-            if not stripped:
-                continue  # the blank separator line written after our block
-        if line.startswith(CHRONY_OFF):
-            line = line[len(CHRONY_OFF):]
-        if servers and exclusive and line.split()[:1] in (['pool'], ['server'], ['peer']):
-            line = CHRONY_OFF + line
-        out_lines.append(line)
-    if servers:
-        block = [CHRONY_BEGIN] + [f'server {s} iburst prefer' for s in servers] + [CHRONY_END]
-        out_lines = block + [''] + out_lines
-    ok, out = _write_root_file(conf, '\n'.join(out_lines).rstrip('\n') + '\n', password)
+    text = _read(conf)
+    cfg = {**parse_chrony(text), **changes}
+    ok, out = _write_root_file(conf, render_chrony(text, cfg), password)
     if not ok:
         return ok, out
-    unit = 'chronyd' if _service_active('chronyd') else 'chrony'
-    ok, out = _sudo(['systemctl', 'try-restart', unit], password)
+    ok, out = _sudo(['systemctl', restart, _chrony_unit()], password)
     if ok:
         _sudo(['chronyc', 'makestep'], password)  # jump straight to the new source's time
     return ok, out
+
+
+def _apply_chrony(servers: list[str], exclusive: bool, password: str) -> tuple[bool, str]:
+    return _write_chrony({'servers': servers, 'exclusive': exclusive}, password)
+
+
+# ------------------------------------------------------------------ NTP server mode
+
+NTP_FW_COMMENT = 'ServiceCockpit NTP server'
+_job = BackgroundJob()
+
+
+def _chrony_installed() -> bool:
+    return bool(shutil.which('chronyd') or os.path.exists('/usr/sbin/chronyd'))
+
+
+def _udp_listening(port: int) -> bool:
+    needle = f':{port:04X} '
+    for path in ('/proc/net/udp', '/proc/net/udp6'):
+        for line in _read(path).splitlines()[1:]:
+            fields = line.split()
+            if len(fields) > 2 and (fields[1] + ' ').endswith(needle) and fields[2].endswith(':0000'):
+                return True
+    return False
+
+
+def _local_networks() -> list[str]:
+    try:
+        from cockpit.features.network.scanner import local_subnets
+        return [s['cidr'] for s in local_subnets()]
+    except Exception:
+        return []
+
+
+def get_ntp_server() -> dict:
+    from cockpit.features.network.firewall import _ufw_enabled, backend as fw_backend
+    from cockpit.features.network.shell import unit_active
+    cfg = parse_chrony(_read(_chrony_conf() or '')) if _chrony_installed() else {'allow': [], 'local': False}
+    fw = fw_backend()
+    return {
+        'chrony_installed': _chrony_installed(),
+        'enabled': bool(cfg['allow']),
+        'allow': cfg['allow'],
+        'local_stratum': cfg['local'],
+        'listening': _udp_listening(123),
+        'suggested': _local_networks(),
+        'firewall': fw,
+        'firewall_active': (_ufw_enabled() if fw == 'ufw' else unit_active('firewalld')) if fw else False,
+        'can_install': bool(install_commands(package_manager(), {m: ['chrony'] for m in ('apt-get', 'dnf', 'yum', 'zypper', 'pacman', 'apk')})),
+        'job': _job.view()['state'],
+    }
+
+
+def _parse_networks(raw) -> tuple[list[str], str]:
+    import ipaddress
+    if isinstance(raw, str):
+        raw = re.split(r'[\s,;]+', raw)
+    nets = []
+    for item in raw or []:
+        item = (item or '').strip()
+        if not item:
+            continue
+        if item in ('all', 'any', '0.0.0.0/0'):
+            nets.append('all')
+            continue
+        try:
+            nets.append(str(ipaddress.ip_network(item, strict=False)))
+        except ValueError:
+            return [], f'Not a network or IP address: {item}'
+    return list(dict.fromkeys(nets)), ''
+
+
+def _server_job(password: str, enable: bool, allow: list[str], local: bool, open_fw: bool) -> bool:
+    from cockpit.features.network import firewall
+    job = _job
+
+    if enable and not _chrony_installed():
+        # Carry the client servers chosen for timesyncd over to chrony.
+        servers, exclusive = _timesyncd_config()
+        manager = package_manager()
+        commands = install_commands(manager, {m: ['chrony'] for m in ('apt-get', 'dnf', 'yum', 'zypper', 'pacman', 'apk')})
+        if not commands:
+            job.log('No supported package manager found - install chrony by hand.')
+            return False
+        job.log(f'Installing chrony with {manager} (it replaces systemd-timesyncd as the time client)...')
+        for cmd in commands:
+            if not job.stream(cmd, password, 900, env=NONINTERACTIVE, echo=True):
+                return False
+        if not _chrony_conf():
+            job.log('chrony was installed but chrony.conf was not found.')
+            return False
+        if servers:
+            job.log(f'Keeping your NTP servers: {" ".join(servers)}')
+        changes = {'servers': servers, 'exclusive': exclusive}
+        job.stream(['rm', '-f', TIMESYNCD_DROPIN], password, 20)
+    else:
+        changes = {}
+
+    if enable:
+        changes.update({'allow': allow, 'local': local})
+        job.log('Allowing NTP clients from: ' + ', '.join('everyone' if a == 'all' else a for a in allow))
+    else:
+        old = parse_chrony(_read(_chrony_conf() or ''))['allow']
+        changes.update({'allow': [], 'local': False})
+        job.log('Turning the NTP server off.')
+
+    conf = _chrony_conf()
+    text = _read(conf)
+    cfg = {**parse_chrony(text), **changes}
+    if not job.stream(['sh', '-c', 'cat > "$0"', conf], password, 20, input_text=render_chrony(text, cfg)):
+        job.log(f'Could not write {conf}.')
+        return False
+    job.log(f'Updated {conf}')
+    unit = _chrony_unit()
+    job.stream(['systemctl', 'enable', unit], password, 30, echo=True)
+    if not job.stream(['systemctl', 'restart', unit], password, 60, echo=True):
+        job.stream(['journalctl', '-u', unit, '-n', '25', '--no-pager'], password, 20)
+        return False
+
+    if enable and open_fw:
+        sources = ['any' if a == 'all' else a for a in allow]
+        job.log('Opening UDP port 123 in the firewall...')
+        # Replace rules from an earlier setup so a narrowed network list takes effect.
+        firewall.remove_rules(password, '123', 'udp', comment=NTP_FW_COMMENT)
+        ok, out = firewall.allow_port(password, '123', 'udp', sources, NTP_FW_COMMENT)
+        for line in out.splitlines():
+            job.log(line)
+        if not ok:
+            return False
+    elif not enable:
+        ok, out = firewall.remove_rules(password, '123', 'udp', comment=NTP_FW_COMMENT,
+                                        sources=None if firewall.backend() == 'ufw' else
+                                        ['any' if a == 'all' else a for a in old])
+        job.log('Removed the firewall rule for UDP 123.' if ok else f'Could not remove the firewall rule: {out}')
+
+    if enable:
+        for _ in range(20):
+            if _udp_listening(123):
+                break
+            time.sleep(0.5)
+        if not _udp_listening(123):
+            job.log('chrony is not listening on UDP 123. Recent log:')
+            job.stream(['journalctl', '-u', unit, '-n', '25', '--no-pager'], password, 20)
+            return False
+        job.log('chrony is serving time on UDP port 123.')
+        job.log('Point other devices at this machine\'s IP address as their NTP server.')
+    return True
 
 
 def ntp_query(host: str, timeout: float = 3.0) -> dict:
@@ -310,6 +495,7 @@ def get_time_settings() -> dict:
         'local_rtc': props.get('LocalRTC') == 'yes' if ok else None,
         'timezones': list(list_timezones()),
         'ntp_servers': get_ntp_servers(),
+        'ntp_server': get_ntp_server(),
     }
 
 
@@ -398,6 +584,36 @@ def build_clock_blueprint() -> Blueprint:
         except (OSError, ValueError) as e:
             return jsonify({'success': False, 'error': f'{host}: {e}'}), 400
         return jsonify({'success': True, 'server': host, **result})
+
+    @bp.route('/api/time/ntp-server', methods=['POST'])
+    def api_ntp_server():
+        password, err = require_sudo()
+        if err:
+            return err
+        body = request.get_json(silent=True) or {}
+        enable = bool(body.get('enabled'))
+        allow, error = _parse_networks(body.get('allow'))
+        if error:
+            return _reply(False, error)
+        if enable and not allow:
+            return _reply(False, 'Enter at least one network allowed to use this server, e.g. 192.168.0.0/24.')
+        if not enable and not _chrony_installed():
+            return _reply(False, 'The NTP server is not set up.')
+        ok, msg = _job.start('ntp-server' if enable else 'ntp-server-off',
+                             lambda: _server_job(password, enable, allow, bool(body.get('local_stratum')),
+                                                 body.get('open_firewall', True) is not False))
+        if not ok:
+            return jsonify({'success': False, 'error': msg}), 409
+        return jsonify({'success': True})
+
+    @bp.route('/api/time/job')
+    def api_time_job():
+        return jsonify(_job.view())
+
+    @bp.route('/api/time/job/cancel', methods=['POST'])
+    def api_time_job_cancel():
+        ok = _job.cancel()
+        return jsonify({'success': ok, **({} if ok else {'error': 'Nothing to cancel'})}), 200 if ok else 409
 
     @bp.route('/api/time/set', methods=['POST'])
     def api_set_time():

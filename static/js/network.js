@@ -50,6 +50,9 @@ document.addEventListener('DOMContentLoaded', () => {
     setupNetListeners();
     loadNetOverview();
     pollNetInterfaces();
+    // Deep link to a tab, e.g. /network#firewall (from the clock dialog).
+    const tab = location.hash.slice(1);
+    if (tab && document.querySelector(`#net-tabs .net-tab[data-tab="${CSS.escape(tab)}"]`)) setNetTab(tab);
 });
 
 // ---------------------------------------------------------------- helpers
@@ -243,7 +246,7 @@ function netForm({ title, message = '', fields = [], okLabel = 'OK', validate = 
 function showRevert(revert) {
     netRevert = { ...revert, ends: Date.now() + revert.seconds * 1000 };
     document.getElementById('net-revert-message').textContent =
-        `${revert.description} was applied to the interface this page is using. ` +
+        `${revert.description} ${revert.message || 'was applied to the interface this page is using.'} ` +
         'If you can still see this and click Keep, the change stays. ' +
         'Otherwise it is rolled back automatically.';
     document.getElementById('net-revert-modal').hidden = false;
@@ -282,6 +285,7 @@ function refreshAll() {
     if (netActiveTab === 'connections') loadNetConnections();
     if (netActiveTab === 'routes') loadNetRoutes();
     if (netActiveTab === 'p2p' && typeof loadNetP2p === 'function') loadNetP2p();
+    if (netActiveTab === 'firewall' && typeof loadNetFirewall === 'function') loadNetFirewall();
 }
 
 // ---------------------------------------------------------------- overview
@@ -1089,6 +1093,7 @@ function setNetTab(tab) {
     if (tab !== 'p2p' && typeof stopNetP2pPolling === 'function') stopNetP2pPolling();
     if (tab === 'ports' && typeof loadNetPorts === 'function') loadNetPorts();
     if (tab !== 'ports' && typeof stopNetPorts === 'function') stopNetPorts();
+    if (tab === 'firewall' && typeof loadNetFirewall === 'function') loadNetFirewall();
 }
 
 function setupNetListeners() {

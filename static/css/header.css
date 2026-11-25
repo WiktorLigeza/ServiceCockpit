@@ -526,3 +526,15 @@
 .clock-ntp-info:empty { display: none; }
 .clock-ntp-info.ok { color: #7ee787; }
 .clock-ntp-info.bad { color: #ff7b72; }
+.clock-modal .sudo-modal-card {
+    top: 5vh;
+    max-height: 90vh;
+    display: flex;
+    flex-direction: column;
+}
+.clock-modal .sudo-modal-body { overflow-y: auto; }
+.clock-fw-link { margin-right: auto; align-self: center; }
+.sudo-modal-btn.primary.danger {
+    border-color: rgba(231, 76, 60, 0.8);
+    background: rgba(231, 76, 60, 0.35);
+}
