@@ -85,7 +85,7 @@
                 <div class="metric-menu-content" id="tailscale-menu-content">Tailscale: Loading...</div>
             </div>
         </div>
-        <div class="nav-item clock-item" id="device-clock" title="Device time - click to change the time zone" hidden>
+        <div class="nav-item clock-item" id="device-clock" title="Device time - click to change the time zone or NTP servers" hidden>
             <i class="far fa-clock"></i>
             <span class="metric-value" id="device-clock-time">--:--</span>
             <div class="metric-menu">
@@ -128,6 +128,22 @@
                     <span>Set time automatically (NTP)</span>
                 </label>
                 <div class="clock-muted" id="clock-ntp-status"></div>
+                <div class="clock-ntp-servers" id="clock-ntp-servers" hidden>
+                    <label class="sudo-modal-label" for="clock-ntp-input">NTP servers</label>
+                    <input id="clock-ntp-input" class="sudo-modal-input" type="text" autocomplete="off" spellcheck="false"
+                           placeholder="e.g. 192.168.1.10 or ntp.lan (several: separate with spaces)">
+                    <label class="clock-switch clock-switch-small">
+                        <input type="checkbox" id="clock-ntp-exclusive">
+                        <span>Use only these servers (no internet fallback)</span>
+                    </label>
+                    <div class="clock-manual">
+                        <button type="button" class="sudo-modal-btn" id="clock-ntp-test">Test</button>
+                        <button type="button" class="sudo-modal-btn" id="clock-ntp-reset">Use defaults</button>
+                        <button type="button" class="sudo-modal-btn primary" id="clock-ntp-save">Save servers</button>
+                    </div>
+                    <div class="clock-muted clock-ntp-info" id="clock-ntp-info"></div>
+                    <div class="clock-muted clock-ntp-info" id="clock-ntp-test-result"></div>
+                </div>
                 <div class="clock-manual" id="clock-manual" hidden>
                     <input type="datetime-local" id="clock-manual-time" class="sudo-modal-input" step="1">
                     <button type="button" class="sudo-modal-btn" id="clock-manual-set">Set time</button>

@@ -42,7 +42,7 @@
             if (Math.abs(drift) >= 3) {
                 lines.push(`Device clock is ${Math.abs(drift)} s ${drift > 0 ? 'ahead of' : 'behind'} this computer`);
             }
-            lines.push('Click to change the time zone');
+            lines.push('Click to change the time zone or NTP servers');
             menu.textContent = lines.join('\n');
         }
 
@@ -105,7 +105,91 @@
             : s.ntp_enabled ? (s.ntp_synchronized ? 'Synchronized with a time server.' : 'Enabled, not synchronized yet.')
             : 'Off - the time can be set by hand.';
         $('clock-manual').hidden = !s.timedatectl || !!s.ntp_enabled;
+        renderNtpServers(s.ntp_servers);
         $('clock-tz-save').disabled = !s.timedatectl;
+    }
+
+    const BACKEND_NAMES = { timesyncd: 'systemd-timesyncd', chrony: 'chrony' };
+
+    function renderNtpServers(n) {
+        const box = $('clock-ntp-servers');
+        box.hidden = !n || !n.backend;
+        if (box.hidden) return;
+        $('clock-ntp-input').value = (n.servers || []).join(' ');
+        $('clock-ntp-exclusive').checked = !!n.exclusive;
+        $('clock-ntp-reset').disabled = !(n.servers || []).length;
+        const lines = [`Client: ${BACKEND_NAMES[n.backend] || n.backend}`];
+        if (!(n.servers || []).length) {
+            const defaults = [...(n.link_servers || []), ...(n.default_servers || [])];
+            lines.push(`Using the system defaults${defaults.length ? ` (${defaults.join(', ')})` : ''}.`);
+        }
+        if (n.current) lines.push(`Synchronizing with: ${n.current}${n.stratum != null ? ` · stratum ${n.stratum}` : ''}`);
+        else if (settings?.ntp_enabled) lines.push('No server selected yet.');
+        if (n.backend === 'chrony' && (n.sources || []).length) {
+            lines.push(...n.sources.map(src =>
+                `${src.state === '*' ? '★' : '·'} ${src.address}  stratum ${src.stratum ?? '?'}  offset ${src.offset_ms ?? '?'} ms`));
+        }
+        $('clock-ntp-info').textContent = lines.join('\n');
+    }
+
+    function ntpInputServers() {
+        return $('clock-ntp-input').value.split(/[\s,;]+/).filter(Boolean);
+    }
+
+    function setTestResult(text, ok) {
+        const el = $('clock-ntp-test-result');
+        el.textContent = text;
+        el.classList.toggle('ok', ok === true);
+        el.classList.toggle('bad', ok === false);
+    }
+
+    async function testNtpServers() {
+        const servers = ntpInputServers();
+        if (!servers.length) {
+            showError('Enter the address of your NTP server first.');
+            return;
+        }
+        showError('');
+        const btn = $('clock-ntp-test');
+        btn.disabled = true;
+        setTestResult(`Testing ${servers.join(', ')}...`);
+        const results = await Promise.all(servers.map(async server => {
+            try {
+                const resp = await fetch('/api/time/ntp-test', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ server }),
+                });
+                const d = await resp.json();
+                return d.success
+                    ? { ok: true, text: `✓ ${server} (${d.address}): stratum ${d.stratum}, offset ${d.offset_ms} ms, delay ${d.delay_ms} ms` }
+                    : { ok: false, text: `✗ ${d.error || server + ': failed'}` };
+            } catch (e) {
+                return { ok: false, text: `✗ ${server}: ${e.message}` };
+            }
+        }));
+        btn.disabled = false;
+        setTestResult(results.map(r => r.text).join('\n'), results.every(r => r.ok));
+    }
+
+    async function saveNtpServers(servers) {
+        const list = servers ?? ntpInputServers();
+        const exclusive = $('clock-ntp-exclusive').checked;
+        const btn = $('clock-ntp-save');
+        btn.disabled = true;
+        const data = await api('/api/time/ntp-servers', { servers: list, exclusive }, () => saveNtpServers(list));
+        btn.disabled = false;
+        if (data) {
+            settings = data.settings;
+            setTestResult(list.length ? 'Saved. The NTP client was restarted and will sync with the new server(s).' : 'Restored the default servers.', true);
+            renderSettings();
+            // The client needs a few seconds to pick the new server; refresh the status.
+            setTimeout(async () => {
+                if ($('clock-modal').hidden) return;
+                const fresh = await api('/api/time');
+                if (fresh) { settings = fresh; renderNtpServers(fresh.ntp_servers); }
+            }, 5000);
+        }
     }
 
     async function api(url, body, retry) {
@@ -132,6 +216,7 @@
         modal.hidden = false;
         modal.setAttribute('aria-hidden', 'false');
         showError('');
+        setTestResult('');
         $('clock-tz-search').value = '';
         render();
         const data = await api('/api/time');
@@ -207,6 +292,10 @@
         $('clock-tz-browser').addEventListener('click', e => saveZone(e.target.dataset.zone));
         $('clock-ntp').addEventListener('change', e => setNtp(e.target.checked));
         $('clock-manual-set').addEventListener('click', setManualTime);
+        $('clock-ntp-test').addEventListener('click', testNtpServers);
+        $('clock-ntp-save').addEventListener('click', () => saveNtpServers());
+        $('clock-ntp-reset').addEventListener('click', () => saveNtpServers([]));
+        $('clock-ntp-input').addEventListener('keydown', e => { if (e.key === 'Enter') saveNtpServers(); });
         $('clock-manual').addEventListener('focusin', () => {
             // Pre-fill with the device's current time.
             const input = $('clock-manual-time');

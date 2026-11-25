@@ -516,3 +516,13 @@
 
 .clock-manual[hidden] { display: none; }
 .clock-manual input { flex: 1; color-scheme: dark; }
+
+.clock-ntp-servers { margin-top: 12px; }
+.clock-ntp-servers[hidden] { display: none; }
+.clock-switch-small { margin-top: 8px; font-size: 0.85rem; }
+.clock-switch-small input { width: 14px; height: 14px; }
+.clock-ntp-servers .clock-manual { justify-content: flex-end; }
+.clock-ntp-info { margin-top: 6px; white-space: pre-line; }
+.clock-ntp-info:empty { display: none; }
+.clock-ntp-info.ok { color: #7ee787; }
+.clock-ntp-info.bad { color: #ff7b72; }
